@@ -26,23 +26,29 @@ class JSONPlayer {
     this.metronome.envelope.release = 0.05;
     this.metronome.volume.value = -12;
 
-    Tone.Transport.cancel()
-    Tone.Transport.scheduleRepeat((t)=>{
-      this.metronome.triggerAttackRelease('b6','32n');
-    },'4n');
     Tone.Transport.bpm.value = this.manifest.bpm
     Tone.Transport.timeSignature = this.manifest.meter
   }
 
   start(){
-    Tone.Transport.start()
-    this.players.forEach((p)=>{
-      p.start("@1m")
-    })
+    const r = this.manifest.playback.sections[0].region
+    
+    Tone.Transport.scheduleOnce((t)=>{
+      this.players.forEach((p)=>{
+        p.start(t,r[0]+'m',r[1]+'m')
+      })
+    },'0:0:0')
+
+    Tone.Transport.scheduleRepeat((t)=>{
+      this.metronome.triggerAttackRelease('b6','32n',t);
+    },'4n');
+
+    Tone.Transport.start('+0.1s')
   }
 
   stop(){
     Tone.Transport.stop()
+    Tone.Transport.cancel()
     this.players.forEach((p)=>{
       p.stop()
     })
