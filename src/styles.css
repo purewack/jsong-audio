@@ -1,3 +1,25 @@
 body {
   font-family: sans-serif;
 }
+
+.handle {
+  border: solid red 2px;
+  background-color: black;
+  color:white;
+  
+  width: 10vw;
+  height: 10vw;
+  margin: 0;
+  background-color: #29e;
+  color: white;
+  border-radius: 0.75em;
+  padding: 4%;
+  touch-action: none;
+  user-select: none;
+}
+
+.cont {
+  border: solid black 2px;
+  height: 100vh;
+  overflow: hidden;
+}
