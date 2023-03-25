@@ -11,26 +11,34 @@ audioButton.addEventListener("click", () => {
 });
 
 
-const playButton = document.getElementById("play");
-function parseSong(manifest){
-  const players = []
-  for(const track of manifest.tracks){
-    console.log(track)
-    const p = new Tone.Player(track.source).toDestination()
-    players.push(p)
+class JSONPlayer {
+
+  parse(data){
+    this.manifest = structuredClone(data)
+    const players = []
+    for(const track of this.manifest.tracks){
+      console.log(track)
+      const player = new Tone.Player(track.source).toDestination()
+      player.volume.value = track.volumeDB
+      players.push(player)
+    }
+    this.players = players
   }
 
-  return {
-    players,
-    start: ()=>{
-      players.forEach((p)=>{
-        p.start()
-      })
-    }
+  start(){
+    this.players.forEach((p)=>{
+      p.start()
+    })
+  }
+
+  constructor(data, verbose){
+    this.parse(data)
+    if(verbose) console.log(this)
   }
 }
 
-const player = parseSong(song)
+const player = new JSONPlayer(song, true)
+const playButton = document.getElementById("play");
 playButton.addEventListener("click", () => {
   player.start()
 });
