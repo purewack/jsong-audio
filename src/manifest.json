@@ -6,15 +6,14 @@
   "meter": [4, 4],
   "playback": {
     "length": 56,
-    "sections": [
-      { "region": [0, 8], "grain": 4, "name": "intro" },
-      { "region": [9, 24], "grain": 4, "name": "chorus" },
-      { "region": [25, 32], "grain": 2, "name": "verse1" },
-      { "region": [33, 40], "grain": 1, "name": "bridge1" },
-      { "region": [41, 48], "grain": 2, "name": "verse2" },
-      { "region": [49, 56], "grain": 1, "name": "bridge2" }
-    ],
-    "map": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge2"]]
+    "map": {
+      "intro" : { "region": [0, 8], "grain": 4 },
+      "chorus" : { "region": [8, 24], "grain": 4},
+      "verse1" : { "region": [24, 32], "grain": 2},
+      "bridge1" : { "region": [32, 40], "grain": 1},
+      "verse2" : { "region": [40, 48], "grain": 2}
+    },
+    "flow": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge1"]]
   },
   "tracks": [
     {
@@ -26,6 +25,12 @@
     {
       "name": "bass",
       "source": "bass.mp3",
+      "volumeDB": 0,
+      "mute": false
+    },
+    {
+      "name": "guitar",
+      "source": "guitar.mp3",
       "volumeDB": 0,
       "mute": false
     }
