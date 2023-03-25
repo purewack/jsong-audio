@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "title": "Test"
+  },
+  "bpm": 95.0,
+  "meter": [4, 4],
+  "playback": {
+    "length": 56,
+    "sections": [
+      { "region": [0, 8], "grain": 4, "name": "intro" },
+      { "region": [9, 24], "grain": 4, "name": "chorus" },
+      { "region": [25, 32], "grain": 2, "name": "verse1" },
+      { "region": [33, 40], "grain": 1, "name": "bridge1" },
+      { "region": [41, 48], "grain": 2, "name": "verse2" },
+      { "region": [49, 56], "grain": 1, "name": "bridge2" }
+    ],
+    "map": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge2"]]
+  },
+  "tracks": [
+    {
+      "name": "drums",
+      "source": "drums.mp3",
+      "volumeDB": 0,
+      "mute": false
+    },
+    {
+      "name": "bass",
+      "source": "bass.mp3",
+      "volumeDB": 0,
+      "mute": false
+    }
+  ]
+}
