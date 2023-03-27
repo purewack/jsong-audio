@@ -1,38 +1,51 @@
 {
+  "type": "jsonAudio",
+  "jsonAudioVersion":"0.0.1",
   "meta": {
-    "title": "Test"
+    "title": "Test",
+    "author": "Damian Nowacki",
+    "createdOn" : "20230325",
+    "projectVersion": "1.0.0",
+    "createdUsing": ""
   },
-  "bpm": 95.0,
-  "meter": [4, 4],
   "playback": {
+    "bpm": 95.0,
+    "meter": [4, 4],
     "length": 56,
+    "grain": 4,
     "map": {
-      "intro" : { "region": [0, 8], "grain": 4 },
-      "chorus" : { "region": [8, 24], "grain": 4},
+      "intro" : { "region": [0, 8]},
+      "chorus" : { "region": [8, 24]},
       "verse1" : { "region": [24, 32], "grain": 2},
       "bridge1" : { "region": [32, 40], "grain": 1},
       "verse2" : { "region": [40, 48], "grain": 2}
     },
-    "flow": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge1"]]
+    "flow": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge1", 4],["chorus"]]
   },
   "tracks": [
     {
       "name": "drums",
       "source": "drums.mp3",
       "volumeDB": 0,
-      "mute": false
+      "mute": false,
+      "offset": 0,
+      "length": 56
     },
     {
       "name": "bass",
       "source": "bass.mp3",
       "volumeDB": 0,
-      "mute": false
+      "mute": false,
+      "offset": 0,
+      "length": 56
     },
     {
       "name": "guitar",
       "source": "guitar.mp3",
       "volumeDB": 0,
-      "mute": false
+      "mute": false,
+      "offset": 0,
+      "length": 56
     }
   ]
 }

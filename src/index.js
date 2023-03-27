@@ -11,25 +11,45 @@ audioButton.addEventListener("click", () => {
 
 const player = new JSONPlayer(song, true)
 
-const playButton = document.getElementById("play");
-playButton.addEventListener("click", () => {
+const show = ()=>{
+  console.log({...Tone.Transport._timeline._timeline})
+}
+
+document.getElementById("play").addEventListener("click", () => {
   Tone.start();
   player.start()
+  show()
 });
-const stopButton = document.getElementById("stop");
-stopButton.addEventListener("click", () => {
+document.getElementById("stop").addEventListener("click", () => {
   player.stop()
+  show()
 });
+document.getElementById("next").addEventListener("click", () => {
+  player.next()
+});
+
+const queue = document.getElementById("queue")
+const timeline = document.getElementById("timeline")
+setInterval(()=>{
+  timeline.innerText = `${Tone.Transport.position} -> ${player.nextQuanTransportTime()}`;
+},100)
+
 
 const position = { x: 0, y: 0 }
 interact('.handle').draggable({
   listeners: {
-    start (event) {
-      console.log(event.type, event.target)
-    },
+    // start (event) {
+    //   console.log(event.type, event.target)
+    // },
     move (event) {
       position.x += event.dx
       position.y += event.dy
+      if(position.x < 0) position.x = 0
+      if(position.y < 0) position.y = 0
+
+      const ratio = Math.min(1.0, position.x / 300)
+      const db = 20*Math.log10(ratio)
+      player.rampTrackVolume(0,db)
 
       event.target.style.transform =
         `translate(${position.x}px, ${position.y}px)`
