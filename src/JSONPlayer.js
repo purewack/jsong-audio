@@ -1,11 +1,13 @@
 import * as Tone from "tone";
+import { version } from "tone";
 
-export 
-class JSONPlayer {
+export class JSONPlayer {
+  //version 0.0.1
 
   #verbose;
   #manifest;
   #section;
+  #sectionRepeats;
   playingNow;
 
   #metronome;
@@ -30,7 +32,10 @@ class JSONPlayer {
     Tone.Transport.bpm.value = this.#manifest.playback.bpm
     Tone.Transport.timeSignature = this.#manifest.playback.meter
 
-    this.#updateSectionFlow(0)
+    this.playingNow = null;
+    this.playingQueue = null;
+    this.#sectionRepeats = 0
+    this.setSection(0)
     this.stop()
   }
 
@@ -41,7 +46,6 @@ class JSONPlayer {
       this.#metronome.triggerAttackRelease(this.metronomeNote,'32n',t);
     },'4n');
 
-    this.#updateSectionFlow(0)
     const r = this.#section.region
     Tone.Transport.scheduleOnce((t)=>{
       this.players.forEach((p)=>{
@@ -64,19 +68,20 @@ class JSONPlayer {
     Tone.Transport.cancel()
     Tone.Transport.clear()
     this.players.forEach((p)=>{
-      p.stop()
+      p.stop('@4n')
     })
 
     this.state = 'stopped'
     if(this.#verbose) console.log("JSONAudio player stopped")
   }
 
-  next(){
-    const nextTime = this.nextQuanTransportTime()
-    const nextSection = this.#section.flowIndex + 1
+  next(force = false){
+    const grain = this.#section.grain;
+    const meterDenominator = Tone.Transport.timeSignature
+    const nextTime = QuanTime(Tone.Transport.position, grain, meterDenominator)
+
     Tone.Transport.scheduleOnce((t)=>{
-      this.#updateSectionFlow(nextSection)
-      this.playingNow = {section: this.#section.name}
+      this.nextSection(force)
       const r = this.#section.region
       this.players.forEach((p)=>{
         p.loopStart = r[0]+'m';
@@ -88,21 +93,60 @@ class JSONPlayer {
     },nextTime)
   }
 
-  #updateSectionFlow(index){
-    const startSection = this.#manifest.playback.flow[index]
-    this.#section = {
-        name: startSection,
-        flowIndex: index,
-        queueId: null,
-        ...this.#manifest.playback.map[startSection]
+  setSection(index, subIndex = null){
+
+    const curFlowLen = this.#manifest.playback.flow.length
+    const curIndex = index % curFlowLen
+    const curSection = this.#manifest.playback.flow[curIndex]
+    const isSubloop = curSection instanceof Array
+
+    let _subIndex = (subIndex !== null ? subIndex : 0)
+    let sectionName = curSection
+    let finiteRepeat = false
+    if(isSubloop){
+      finiteRepeat = Number.isInteger(curSection[0])
+      _subIndex = _subIndex % (curSection.length - (finiteRepeat ? 1 : 0))  
+      sectionName = curSection[finiteRepeat ? _subIndex+1 : _subIndex]
     }
-    if(this.#verbose) console.log(this.#section)
+
+    this.#section = {
+      flowIndex: curIndex,
+      subIndex: _subIndex,
+      isSubloop,
+      targetRepeats: isSubloop ? (finiteRepeat ? curSection[0] : Infinity) : 0,
+      grain: this.#manifest.playback.grain,
+      ...this.#manifest.playback.map[sectionName]
+    }
+    if(this.#verbose) console.log(index, _subIndex, sectionName, {...this.#section})
   }
 
-  nextQuanTransportTime(){
-    const grain = this.#section.grain ? this.#section.grain : this.#manifest.playback.grain
-    const meterDenominator = Tone.Transport.timeSignature
-    return QuanTime(Tone.Transport.position, grain, meterDenominator)
+  nextSection(breakOut = false){
+    const normalAdvance = ()=>{
+      this.setSection(this.#section.flowIndex + 1)
+      if(this.#section.isSubloop) {
+        this.#sectionRepeats = this.#section.targetRepeats 
+        if(this.#verbose) console.log(`Enter subloop: remaining loops: ${this.#sectionRepeats}`)
+      }
+    }
+    const subAdvance = ()=>{
+      this.setSection(this.#section.flowIndex, this.#section.subIndex + 1)
+    }
+
+    if(this.#section?.isSubloop && !breakOut){
+      subAdvance()
+      if(this.#section.subIndex === 0){
+        this.#sectionRepeats -= 1
+        if(this.#verbose) console.log(`Subloop Looped, remaining loops: ${this.#sectionRepeats}`)
+        if(this.#sectionRepeats === 0){
+          if(this.#verbose) console.log("Exit Subloop")
+          normalAdvance()
+        }
+      }
+    }
+    else{
+      if(breakOut && this.#verbose) console.log("Break out of Subloop")
+      normalAdvance()
+    }
   }
 
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){

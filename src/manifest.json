@@ -20,7 +20,15 @@
       "bridge1" : { "region": [32, 40], "grain": 1},
       "verse2" : { "region": [40, 48], "grain": 2}
     },
-    "flow": ["intro", "chorus", "verse1", "bridge1", ["verse2", "bridge1", 4],["chorus"]]
+    "flow": [
+      "intro", 
+      "chorus", 
+      "verse1", 
+      "bridge1", 
+      [4, "verse2", "bridge1"],
+      ["chorus","verse2"],
+      ["intro"]
+    ]
   },
   "tracks": [
     {

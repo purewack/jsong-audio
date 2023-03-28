@@ -27,12 +27,15 @@ document.getElementById("stop").addEventListener("click", () => {
 document.getElementById("next").addEventListener("click", () => {
   player.next()
 });
+document.getElementById("nextForce").addEventListener("click", () => {
+  player.next(true)
+});
 
 const queue = document.getElementById("queue")
 const timeline = document.getElementById("timeline")
-setInterval(()=>{
-  timeline.innerText = `${Tone.Transport.position} -> ${player.nextQuanTransportTime()}`;
-},100)
+// setInterval(()=>{
+//   timeline.innerText = `${Tone.Transport.position} -> ${player.nextQuanTransportTime()}`;
+// },100)
 
 
 const position = { x: 0, y: 0 }
