@@ -11,7 +11,7 @@ export class JSONPlayer {
   playingNow;
 
   #metronome;
-  metronomeNote = 'b6';
+  #meterBeat;
 
   parse(data){
     this.#manifest = structuredClone(data)
@@ -27,7 +27,8 @@ export class JSONPlayer {
     this.#metronome = new Tone.Synth().toDestination()
     this.#metronome.envelope.attack = 0;
     this.#metronome.envelope.release = 0.05;
-    this.#metronome.volume.value = -12;
+    this.#metronome.volume.value = this.#manifest.playback.metronomeDB || 0;
+    this.#meterBeat = 0;
 
     Tone.Transport.bpm.value = this.#manifest.playback.bpm
     Tone.Transport.timeSignature = this.#manifest.playback.meter
@@ -42,8 +43,11 @@ export class JSONPlayer {
   start(){
     if(this.state === 'started') return
 
+    if(this.#manifest.playback.metronome)
     Tone.Transport.scheduleRepeat((t)=>{
-      this.#metronome.triggerAttackRelease(this.metronomeNote,'32n',t);
+      const note = this.#manifest.playback.metronome[this.#meterBeat === 0 ? 0 : 1]
+      this.#metronome.triggerAttackRelease(note,'32n',t);
+      this.#meterBeat = (this.#meterBeat + 1) % Tone.Transport.timeSignature
     },'4n');
 
     const r = this.#section.region
@@ -79,7 +83,7 @@ export class JSONPlayer {
     const grain = this.#section.grain;
     const meterDenominator = Tone.Transport.timeSignature
     const nextTime = QuanTime(Tone.Transport.position, grain, meterDenominator)
-
+    console.log(nextTime)
     Tone.Transport.scheduleOnce((t)=>{
       this.nextSection(force)
       const r = this.#section.region

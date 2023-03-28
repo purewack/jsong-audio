@@ -11,14 +11,16 @@
   "playback": {
     "bpm": 95.0,
     "meter": [4, 4],
+    "metronome": ["B5","G4"],
+    "metronomeDB": -8,
     "length": 56,
     "grain": 4,
     "map": {
       "intro" : { "region": [0, 8]},
-      "chorus" : { "region": [8, 24]},
-      "verse1" : { "region": [24, 32], "grain": 2},
-      "bridge1" : { "region": [32, 40], "grain": 1},
-      "verse2" : { "region": [40, 48], "grain": 2}
+      "chorus" : { "region": [8, 24], "grain": 8},
+      "verse1" : { "region": [24, 32], "grain": 4},
+      "bridge1" : { "region": [32, 40], "grain": 4},
+      "verse2" : { "region": [40, 48], "grain": 4}
     },
     "flow": [
       "intro", 
@@ -50,6 +52,14 @@
     {
       "name": "guitar",
       "source": "guitar.mp3",
+      "volumeDB": 0,
+      "mute": false,
+      "offset": 0,
+      "length": 56
+    },
+    {
+      "name": "lead",
+      "source": "lead.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,

@@ -33,9 +33,10 @@ document.getElementById("nextForce").addEventListener("click", () => {
 
 const queue = document.getElementById("queue")
 const timeline = document.getElementById("timeline")
-// setInterval(()=>{
-//   timeline.innerText = `${Tone.Transport.position} -> ${player.nextQuanTransportTime()}`;
-// },100)
+
+setInterval(()=>{
+  timeline.innerText = Tone.Transport.position;
+},100)
 
 
 const position = { x: 0, y: 0 }
