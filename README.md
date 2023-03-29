@@ -5,6 +5,26 @@
 <img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/purewack/json-audio">
 <a href="https://tonejs.github.io/"><img alt="Tone.js badge" src="https://img.shields.io/badge/Powered%20By-Tone.js-green"></a>
 
+```mermaid
+graph TD
+  a[TrackA];
+  b[TrackB];
+  c[TrackC];
+  ev["User Events (Scroll, Click ...)"]
+  player[JSONPlayer]
+  m[manifest.json]
+
+  a --> player
+  b --> player
+  c --> player
+  m --> player
+  m --> a
+  m --> b
+  m --> c
+  ev --> player
+  player --> o[[Audio output]]
+```
+
 A dynamic music representation format.
 
 This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself contains no music data, only instruction on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
