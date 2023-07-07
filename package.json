@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "interactjs": "^1.10.17",
+    "jsonaudio": "link:./jsonaudio",
     "tone": "14.7.77"
   },
   "devDependencies": {
@@ -19,5 +20,5 @@
   "resolutions": {
     "@babel/preset-env": "7.13.8"
   },
-  "assetsPath": "src/assets"
+  "assetsPath": "src/song"
 }

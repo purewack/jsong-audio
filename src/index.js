@@ -1,8 +1,8 @@
 import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' 
-import { JSONPlayer } from "./JSONPlayer";
-import song from './manifest.json'
+import { JSONPlayer } from "jsonaudio";
+import song from './song/audio.json'
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {

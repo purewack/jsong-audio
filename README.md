@@ -12,7 +12,7 @@ graph TD
   c[TrackC];
   ev["User Events (Scroll, Click ...)"]
   player[JSONPlayer]
-  m[manifest.json]
+  m[audio.json]
 
   a --> player
   b --> player
@@ -30,12 +30,12 @@ A dynamic music representation format.
 This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself contains no music data, only instruction on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
 
 # Dependancies
-As of now, the audio player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides audio playback of multiple audio streams, as well as schedules events aligned to musical time of the song based on its BPM.
+As of now, the music player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides music playback of multiple music streams, as well as schedules events aligned to musical time of the song based on its BPM.
 
 # Concepts
-The <code>manifest.json</code> file describes how the player should play the music and how it should react to events. Below is a typical file structure 
+The <code>audio.json</code> file describes how the player should play the music and how it should react to events. Below is a typical file structure 
 
-<summary style="font-size:2rem"> <code>manifest.json</code> - example file:</summary>
+<summary style="font-size:2rem"> <code>audio.json</code> - example file:</summary>
 <pre>
 {<span style="color: #987284;">
   "<a href="#file-information">type</a>": "jsonAudio",
@@ -74,7 +74,7 @@ The <code>manifest.json</code> file describes how the player should play the mus
   <span style="color: #1B512D;">"<a href="#tracks">tracks</a>": [
     {
       "name": "drums",
-      "source": "drums.mp3",
+      "source": "./drums.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -82,7 +82,7 @@ The <code>manifest.json</code> file describes how the player should play the mus
     },
     {
       "name": "bass",
-      "source": "bass.mp3",
+      "source": "./bass.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -90,7 +90,7 @@ The <code>manifest.json</code> file describes how the player should play the mus
     },
     {
       "name": "guitar",
-      "source": "guitar.mp3",
+      "source": "./guitar.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -98,7 +98,7 @@ The <code>manifest.json</code> file describes how the player should play the mus
     },
     {
       "name": "lead",
-      "source": "lead.mp3",
+      "source": "./lead.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -177,7 +177,7 @@ A subsection is like a Repeat in music, except you can specify how many time the
 <span style="color: #1B512D;">"<a href="#tracks">tracks</a>": [
 {
     "name": "drums",
-    "source": "drums.mp3",
+    "source": "./drums.mp3",
     "volumeDB": 0,
     "mute": false,
     "offset": 0,
@@ -185,8 +185,8 @@ A subsection is like a Repeat in music, except you can specify how many time the
 }, ...
 </pre>
 
-The name is a track name label serving as a reference, the source is the URI to the data file containing the track audio to be loaded into [`Tone.Player`](https://tonejs.github.io/docs/14.7.77/Player.html).
-The length and offset describe the length of the audio file in <a href="https://en.wikipedia.org/wiki/Bar_(music)">Bars</a> and the offset should say when the file should begin playing for the first time.
+The name is a track name label serving as a reference, the source is the URI to the data file containing the track music to be loaded into [`Tone.Player`](https://tonejs.github.io/docs/14.7.77/Player.html).
+The length and offset describe the length of the music file in <a href="https://en.wikipedia.org/wiki/Bar_(music)">Bars</a> and the offset should say when the file should begin playing for the first time.
 
 <br/>
 
@@ -194,27 +194,24 @@ The length and offset describe the length of the audio file in <a href="https://
 ### `JSONPlayer`:
 This class is instanciated with the `new` keyword and has the following methods:
 
-`const player = new JSONPlayer(manifest)`
+`const player = new JSONPlayer(audio.json)`
 
 ### `JSONPlayer.parse(data)`
-> Parses the JSON file internally and loads any audio files required to represent the song.
+> Parses the JSON file internally and loads any music files required to represent the song.
 
 ### `JSONPlayer.start()`
-> Starts audio playback from current section, with current settings 
+> Starts music playback from current section, with current settings 
 
 ### `JSONPlayer.stop()`
-> Stop audio playback.
+> Stop music playback.
 
 ### `JSONPlayer.next(breakOut)`
-> Go to the next section in the flow map defined in `manifest.json`, current grain settings apply.
+> Go to the next section in the flow map defined in `audio.json`, current grain settings apply.
 
 ### `JSONPlayer.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
-> Stop audio playback.
+> Stop music playback.
 
 
-### `./assets/`:
-> The required assets are any number of rendered audio tracks from your song (<a href="https://en.wikipedia.org/wiki/Stem_(audio)">Audio Stems</a>)
-
-### `mainfest.json`:
+### `audio.json`:
 > This file maps out sections of music and loop regions as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections.
 See [Concepts](#concepts)

@@ -1,7 +1,6 @@
-import * as Tone from "tone";
-import { version } from "tone";
+const Tone = require('tone')
 
-export class JSONPlayer {
+class JSONPlayer {
   //version 0.0.1
 
   #verbose;
@@ -11,7 +10,7 @@ export class JSONPlayer {
   playingNow;
 
   #metronome;
-  #meterBeat;
+  #meterBeat;z
 
   parse(data){
     this.#manifest = structuredClone(data)
@@ -21,6 +20,7 @@ export class JSONPlayer {
       const player = new Tone.Player(track.source).toDestination()
       player.volume.value = track.volumeDB
       players.push(player)
+      console.log(player)
     }
     this.players = players
 
@@ -82,7 +82,7 @@ export class JSONPlayer {
   next(force = false){
     const grain = this.#section.grain;
     const meterDenominator = Tone.Transport.timeSignature
-    const nextTime = QuanTime(Tone.Transport.position, grain, meterDenominator)
+    const nextTime = QuanTime(Tone.Transport.position, [grain,4], meterDenominator)
     console.log(nextTime)
     Tone.Transport.scheduleOnce((t)=>{
       this.nextSection(force)
@@ -163,20 +163,28 @@ export class JSONPlayer {
   }
 }
 
-export function QuanTime(nowTime, atBeats, barBeats){
+function QuanTime(nowTime, meter = [4,4], gridAlignStart = undefined){
+  const [atBeats, barBeats] = meter
   const units = nowTime.split(':')
   const nowBar = parseInt(units[0])
   const nowBeat = parseInt(units[1])
 
-  const quantize = (v,q)=>Math.floor((v + q)/q)*q;
+  const quantize = (unit,q)=>Math.trunc((unit + q)/q)*q;
 
+  //if align is less than bar length
   if(atBeats < barBeats){
     const adv =  quantize(nowBeat,atBeats)
     const nextBeat = adv%barBeats
-    const nextBar = nowBar + Math.floor(adv/barBeats)
+    const nextBar = nowBar + Math.trunc(adv/barBeats)
     return `${nextBar}:${nextBeat}:0`
   }
-
-  const adv = atBeats/barBeats
-  return `${quantize(nowBar,adv)}:0:0`
+  else {
+    //bar times, adhere to gridAlign
+    const adv = atBeats/barBeats
+    if(gridAlignStart !== undefined){
+      return `${quantize(nowBar,adv) + gridAlignStart}:0:0`
+    }
+    return `${nowBar + adv}:0:0`
+  }
 }
+module.exports = {JSONPlayer, QuanTime}
