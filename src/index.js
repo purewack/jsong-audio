@@ -9,7 +9,7 @@ audioButton.addEventListener("click", () => {
   Tone.start();
 });
 
-const player = new JSONPlayer(song, true)
+const player = new JSONPlayer(Tone, song, true)
 
 const show = ()=>{
   console.log({...Tone.Transport._timeline._timeline})

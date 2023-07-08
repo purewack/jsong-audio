@@ -1,7 +1,6 @@
-const Tone = require('tone')
-
 class JSONPlayer {
   //version 0.0.1
+  #tone;
 
   #verbose;
   #manifest;
@@ -10,28 +9,42 @@ class JSONPlayer {
   playingNow;
 
   #metronome;
-  #meterBeat;z
+  #meterBeat;
+
+  #load;
 
   parse(data){
     this.#manifest = structuredClone(data)
     const players = []
+
+    this.#load = {
+      required: this.#manifest.tracks.length, 
+      loaded: 0, 
+      failed: 0
+    };
+    this.state = null;
+
     for(const track of this.#manifest.tracks){
       if(this.#verbose) console.log(track)
-      const player = new Tone.Player(track.source).toDestination()
+      const player = new this.#tone.Player(track.source, ()=>{
+        this.#load.loaded++;
+        if(this.#load.loaded+this.#load.failed === this.#load.required) this.state = 'stopped'
+        console.log(this.#load)
+      }).toDestination()
       player.volume.value = track.volumeDB
       players.push(player)
       console.log(player)
     }
     this.players = players
 
-    this.#metronome = new Tone.Synth().toDestination()
+    this.#metronome = new this.#tone.Synth().toDestination()
     this.#metronome.envelope.attack = 0;
     this.#metronome.envelope.release = 0.05;
     this.#metronome.volume.value = this.#manifest.playback.metronomeDB || 0;
     this.#meterBeat = 0;
 
-    Tone.Transport.bpm.value = this.#manifest.playback.bpm
-    Tone.Transport.timeSignature = this.#manifest.playback.meter
+    this.#tone.Transport.bpm.value = this.#manifest.playback.bpm
+    this.#tone.Transport.timeSignature = this.#manifest.playback.meter
 
     this.playingNow = null;
     this.playingQueue = null;
@@ -44,14 +57,14 @@ class JSONPlayer {
     if(this.state === 'started') return
 
     if(this.#manifest.playback.metronome)
-    Tone.Transport.scheduleRepeat((t)=>{
+    this.#tone.Transport.scheduleRepeat((t)=>{
       const note = this.#manifest.playback.metronome[this.#meterBeat === 0 ? 0 : 1]
       this.#metronome.triggerAttackRelease(note,'32n',t);
-      this.#meterBeat = (this.#meterBeat + 1) % Tone.Transport.timeSignature
+      this.#meterBeat = (this.#meterBeat + 1) % this.#tone.Transport.timeSignature
     },'4n');
 
     const r = this.#section.region
-    Tone.Transport.scheduleOnce((t)=>{
+    this.#tone.Transport.scheduleOnce((t)=>{
       this.players.forEach((p)=>{
         p.loopStart = r[0]+'m';
         p.loopEnd = r[1]+'m';
@@ -60,7 +73,7 @@ class JSONPlayer {
       })
     },0)
 
-    Tone.Transport.start('+0.1s')
+    this.#tone.Transport.start('+0.1s')
 
     this.state = 'started'
     if(this.#verbose) console.log("JSONAudio player started")
@@ -68,9 +81,9 @@ class JSONPlayer {
 
   stop(){
     if(this.state === 'stopped') return
-    Tone.Transport.stop()
-    Tone.Transport.cancel()
-    Tone.Transport.clear()
+    this.#tone.Transport.stop()
+    this.#tone.Transport.cancel()
+    this.#tone.Transport.clear()
     this.players.forEach((p)=>{
       p.stop('@4n')
     })
@@ -81,10 +94,10 @@ class JSONPlayer {
 
   next(force = false){
     const grain = this.#section.grain;
-    const meterDenominator = Tone.Transport.timeSignature
-    const nextTime = QuanTime(Tone.Transport.position, [grain,4], meterDenominator)
+    const meterDenominator = this.#tone.Transport.timeSignature
+    const nextTime = QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
     console.log(nextTime)
-    Tone.Transport.scheduleOnce((t)=>{
+    this.#tone.Transport.scheduleOnce((t)=>{
       this.nextSection(force)
       const r = this.#section.region
       this.players.forEach((p)=>{
@@ -98,7 +111,6 @@ class JSONPlayer {
   }
 
   setSection(index, subIndex = null){
-
     const curFlowLen = this.#manifest.playback.flow.length
     const curIndex = index % curFlowLen
     const curSection = this.#manifest.playback.flow[curIndex]
@@ -154,11 +166,14 @@ class JSONPlayer {
   }
 
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
+    if(!this.state) return
     this.players[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
 
-  constructor(data = null, verbose = false){
+  constructor(tone, data = null, verbose = false){
+    this.#tone = tone;
     this.#verbose = verbose
+    this.state = null;
     if(data) this.parse(data)
   }
 }
@@ -187,4 +202,23 @@ function QuanTime(nowTime, meter = [4,4], gridAlignStart = undefined){
     return `${nowBar + adv}:0:0`
   }
 }
+/*
+function QuanTime(nowTime, atBeats, barBeats){
+  const units = nowTime.split(':')
+  const nowBar = parseInt(units[0])
+  const nowBeat = parseInt(units[1])
+
+  const quantize = (v,q)=>Math.floor((v + q)/q)*q;
+
+  if(atBeats < barBeats){
+    const adv =  quantize(nowBeat,atBeats)
+    const nextBeat = adv%barBeats
+    const nextBar = nowBar + Math.floor(adv/barBeats)
+    return `${nextBar}:${nextBeat}:0`
+  }
+
+  const adv = atBeats/barBeats
+  return `${quantize(nowBar,adv)}:0:0`
+}
+*/
 module.exports = {JSONPlayer, QuanTime}
