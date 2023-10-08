@@ -36,7 +36,7 @@ const timeline = document.getElementById("timeline")
 
 setInterval(()=>{
   timeline.innerText = Tone.Transport.position;
-},100)
+},1000)
 
 
 const position = { x: 0, y: 0 }

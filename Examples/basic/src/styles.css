@@ -1,5 +1,19 @@
 body {
+  margin: 0;
+  padding: 0;
   font-family: sans-serif;
+
+  min-height: 100vh;
+
+  display: grid;
+  gap: 1rem;
+  grid-template-areas:  
+    "title title" 
+    "ctrl topcontent" 
+    "ctrl content" 
+    "ctrl content";
+  grid-template-rows: auto auto auto 1fr;
+  grid-template-columns: 1fr 9fr;
 }
 
 .handle {
@@ -18,8 +32,8 @@ body {
   user-select: none;
 }
 
-.cont {
+.interactive {
   border: solid black 2px;
-  height: 100vh;
+  height: 100%;
   overflow: hidden;
 }

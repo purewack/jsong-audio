@@ -6,16 +6,22 @@
   </head>
 
   <body>
-    <button id="audio">Audio Context</button>
-    <button id="play">Play</button>
-    <button id="stop">Stop</button>
-    <button id="next">Next</button>
-    <button id="nextForce">Next</button>
-    <p id="timeline">Timeline</p>
-    <p id="queue">Queue</p>
-    <div class="cont">
+    <h1 style="grid-area: title">JSON Audio Example: Basic [Vanilla](scroll, click)</h1>
+    <section class="controls" style="grid-area: ctrl">
+      <button id="audio">Audio Context</button>
+      <button id="play">Play</button>
+      <button id="stop">Stop</button>
+      <button id="next">Next</button>
+      <button id="nextForce">Next (Force)</button>
+    </section>
+    <section class="time" style="grid-area: topcontent">
+      <span id="timeline">Timeline</span>
+      <span> - </span>
+      <span id="queue">Queue</span>
+    </section>
+    <section class="interactive" style="grid-area: content">
       <div class="handle">Handle</div>
-    </div>
+    </section>
     <script src="src/index.js"></script>
   </body>
 </html>
