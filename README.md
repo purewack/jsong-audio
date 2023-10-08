@@ -27,7 +27,8 @@ graph TD
 
 A dynamic music representation format.
 
-This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself contains no music data, only instruction on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
+This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
+The `.json` file can also contain music encoded as data URI (coming soon)
 
 # Dependancies
 As of now, the music player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides music playback of multiple music streams, as well as schedules events aligned to musical time of the song based on its BPM.
@@ -141,11 +142,11 @@ The grain is provided in <a href="https://en.wikipedia.org/wiki/Beat_(music)#:~:
 ## Map
 <pre>
 <span style="color: #44CCFF;">"map": {
-    "intro" : { "region": [0, 8]},
-    "chorus" : { "region": [8, 24], "grain": 8},
-    "verse1" : { "region": [24, 32], "grain": 4},
+    "intro"   : { "region": [0, 8]},
+    "chorus"  : { "region": [8, 24], "grain": 8},
+    "verse1"  : { "region": [24, 32], "grain": 4},
     "bridge1" : { "region": [32, 40], "grain": 4},
-    "verse2" : { "region": [40, 48], "grain": 4}
+    "verse2"  : { "region": [40, 48], "grain": 4}
 },</span>
 </pre>
 
@@ -170,7 +171,7 @@ The song <a href="https://en.wikipedia.org/wiki/Quantization_(music)">Quantizati
 The `flow` of the song is mapped out with an array of literal names of sections from [`map`](#map), either a singleton entry or a sub array of section called a [sub-section](#subsection).
 
 ### Subsection
-A subsection is like a Repeat in music, except you can specify how many time the section should repeat. `[4, "verse2", "bridge1"],` if no number is specified as the first entry, it is assumed the section repeats infinitely and can only be broken out of through [`JSONPlayer.next(true)`](#jsonplayernextbreakout)
+A subsection is like a Repeat in music, except you can specify how many time the section should repeat. `[4, "verse2", "bridge1"],` if no number is specified as the first entry, it is assumed the section repeats infinitely and can only be broken out of through [`JSONPlayer.next(true)`](#jsonplayernextbreakout) or [`JSONPlayer.goTo(region)`](#jsonplayergotoregionname)
 
 ## Tracks
 <pre>
@@ -190,13 +191,27 @@ The length and offset describe the length of the music file in <a href="https://
 
 <br/>
 
-# API 
+# Event Listeners
+
+### `JSONPlayer.onRegionStart((regionName)=>{})`
+### `JSONPlayer.onRegionEnd((regionName)=>{})`
+
+### `JSONPlayer.onRegionWillStart((regionName)=>{})`
+
+### `JSONPlayer.onRegionWillEnd((regionName)=>{})`
+
+### `JSONPlayer.onRegionTransport((regionName, beat, totalRegionBeats)=>{})`
+
+### `JSONPlayer.onSongTransport((currentRegionName, beat, totalRegionBeats)=>{})`
+
+# Control Methods
 ### `JSONPlayer`:
-This class is instanciated with the `new` keyword and has the following methods:
 
 `const player = new JSONPlayer(audio.json)`
 
-### `JSONPlayer.parse(data)`
+This class is instanciated with the `new` keyword and has the following methods:
+
+### `JSONPlayer.parse(data)` / `new JSONPlayer(data)`
 > Parses the JSON file internally and loads any music files required to represent the song.
 
 ### `JSONPlayer.start()`
@@ -208,10 +223,17 @@ This class is instanciated with the `new` keyword and has the following methods:
 ### `JSONPlayer.next(breakOut)`
 > Go to the next section in the flow map defined in `audio.json`, current grain settings apply.
 
+### `JSONPlayer.goTo(regionName)`
+> Go to the named region section in the region map defined in `audio.json`, current grain settings apply.
+
 ### `JSONPlayer.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
-> Stop music playback.
+> Adjust track volume
+
+### `JSONPlayer.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
+> Adjust track Low Pass filter
 
 
 ### `audio.json`:
-> This file maps out sections of music and loop regions as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections.
-See [Concepts](#concepts)
+> This file maps out sections of music and loop regions as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections. Can contain audio data in form of data URI or can point to sound files (relative path to `.json` file).
+<br/>
+*See [Concepts](#concepts)*
