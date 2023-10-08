@@ -30,6 +30,9 @@ A dynamic music representation format.
 This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
 The `.json` file can also contain music encoded as data URI (coming soon)
 
+# API
+Available in [API.md](API.md)
+
 # Dependancies
 As of now, the music player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides music playback of multiple music streams, as well as schedules events aligned to musical time of the song based on its BPM.
 
@@ -188,52 +191,3 @@ A subsection is like a Repeat in music, except you can specify how many time the
 
 The name is a track name label serving as a reference, the source is the URI to the data file containing the track music to be loaded into [`Tone.Player`](https://tonejs.github.io/docs/14.7.77/Player.html).
 The length and offset describe the length of the music file in <a href="https://en.wikipedia.org/wiki/Bar_(music)">Bars</a> and the offset should say when the file should begin playing for the first time.
-
-<br/>
-
-# Event Listeners
-
-### `JSONPlayer.onRegionStart((regionName)=>{})`
-### `JSONPlayer.onRegionEnd((regionName)=>{})`
-
-### `JSONPlayer.onRegionWillStart((regionName)=>{})`
-
-### `JSONPlayer.onRegionWillEnd((regionName)=>{})`
-
-### `JSONPlayer.onRegionTransport((regionName, beat, totalRegionBeats)=>{})`
-
-### `JSONPlayer.onSongTransport((currentRegionName, beat, totalRegionBeats)=>{})`
-
-# Control Methods
-### `JSONPlayer`:
-
-`const player = new JSONPlayer(audio.json)`
-
-This class is instanciated with the `new` keyword and has the following methods:
-
-### `JSONPlayer.parse(data)` / `new JSONPlayer(data)`
-> Parses the JSON file internally and loads any music files required to represent the song.
-
-### `JSONPlayer.start()`
-> Starts music playback from current section, with current settings 
-
-### `JSONPlayer.stop()`
-> Stop music playback.
-
-### `JSONPlayer.next(breakOut)`
-> Go to the next section in the flow map defined in `audio.json`, current grain settings apply.
-
-### `JSONPlayer.goTo(regionName)`
-> Go to the named region section in the region map defined in `audio.json`, current grain settings apply.
-
-### `JSONPlayer.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
-> Adjust track volume
-
-### `JSONPlayer.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
-> Adjust track Low Pass filter
-
-
-### `audio.json`:
-> This file maps out sections of music and loop regions as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections. Can contain audio data in form of data URI or can point to sound files (relative path to `.json` file).
-<br/>
-*See [Concepts](#concepts)*
