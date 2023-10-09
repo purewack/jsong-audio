@@ -25,15 +25,18 @@ class JSONPlayer {
     this.state = null;
 
     for(const track of this.#manifest.tracks){
-      if(this.#verbose) console.log(track)
-      const player = new this.#tone.Player(track.source, ()=>{
+      const player = new this.#tone.Player().toDestination()
+      player.baseUrl = window.location.origin
+      player.load(track.source).then(()=>{
         this.#load.loaded++;
         if(this.#load.loaded+this.#load.failed === this.#load.required) this.state = 'stopped'
-        console.log('LOADED ',this.#load)
-      }).toDestination()
+        if(this.#verbose) console.log('Track loaded ',track, ' Asset status ', this.#load); 
+      }).catch((e)=>{
+        this.#load.failed++;
+        console.log('Failed loading track ', track, ' ', e)
+      })
       player.volume.value = track.volumeDB
       players.push(player)
-      console.log(player)
     }
     this.players = players
 
@@ -51,7 +54,7 @@ class JSONPlayer {
     this.#sectionRepeats = 0
     this.setSection(0)
     this.stop() 
-    if(this.#verbose) console.log("<i>New</i> ",this)
+    if(this.#verbose) console.log("New ",this)
   }
 
   start(){

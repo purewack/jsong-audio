@@ -1,8 +1,10 @@
 import "./styles.css";
 import * as Tone from "tone";
-import interact from 'interactjs' 
-import { JSONPlayer } from "jsonaudio";
-import song from './song/audio.json'
+import interact from 'interactjs' ;
+import { JSONPlayer } from "./JSONPlayer";
+import song from './static/audio.json';
+
+Tone.ToneAudioBuffer.fromUrl('gong_1.mp3').then(b => console.log('OK',b)).catch(e => console.log('ERORR',e))
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {

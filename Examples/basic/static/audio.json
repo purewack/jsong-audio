@@ -35,7 +35,7 @@
   "tracks": [
     {
       "name": "drums",
-      "source": "./drums.mp3",
+      "source": "test_drums.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -43,7 +43,7 @@
     },
     {
       "name": "bass",
-      "source": "./bass.mp3",
+      "source": "test_bass.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -51,7 +51,7 @@
     },
     {
       "name": "guitar",
-      "source": "./guitar.mp3",
+      "source": "test_guitar.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
@@ -59,7 +59,7 @@
     },
     {
       "name": "lead",
-      "source": "./lead.mp3",
+      "source": "test_lead.mp3",
       "volumeDB": 0,
       "mute": false,
       "offset": 0,
