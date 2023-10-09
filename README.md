@@ -6,12 +6,13 @@
 <a href="https://tonejs.github.io/"><img alt="Tone.js badge" src="https://img.shields.io/badge/Powered%20By-Tone.js-green"></a>
 
 ```mermaid
-graph TD
+graph LR
   a[TrackA];
   b[TrackB];
   c[TrackC];
   ev["User Events (Scroll, Click ...)"]
   player[JSONPlayer]
+  callbacks[Player Event Listeners]
   m[audio.json]
 
   a --> player
@@ -21,14 +22,20 @@ graph TD
   m --> a
   m --> b
   m --> c
+  player --> callbacks
+  callbacks --> ev
   ev --> player
   player --> o[[Audio output]]
 ```
 
-A dynamic music representation format.
+## A dynamic music representation and playback format.
 
-This format is designed specifically to provide dynamic instructions to a `JSONPlayer` on how to manage track volumes and looping of certain sections. The `.json` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
-The `.json` file can also contain music encoded as data URI (coming soon)
+### How does it work?
+This format is designed specifically to provide dynamic instructions to music player *(a [`JSONPlayer`](API.md#control-methods) object)* on how to manage track volumes and looping of certain sections. The `*.audio.json` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
+The `*.audio.json` file can also contain music encoded as data URI (coming soon)
+
+### Inspiration
+The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo)) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level.
 
 # API
 Available in [API.md](API.md)
@@ -45,7 +52,7 @@ The <code>audio.json</code> file describes how the player should play the music 
   "<a href="#file-information">type</a>": "jsonAudio",
   "jsonAudioVersion":"0.0.1",
   "<a href="#file-information">meta</a>": {
-    "title": "Test",
+    "title": "Example JSONg",
     "author": "Damian Nowacki",
     "createdOn" : "20230325",
     "projectVersion": "1.0.0",
@@ -61,9 +68,9 @@ The <code>audio.json</code> file describes how the player should play the music 
     <span style="color: #44CCFF;"><u>"<a href="#map">map</a>": {</u>
       "intro" : { "region": [0, 8]},
       "chorus" : { "region": [8, 24], "grain": 8},
-      "verse1" : { "region": [24, 32], "grain": 4},
-      "bridge1" : { "region": [32, 40], "grain": 4},
-      "verse2" : { "region": [40, 48], "grain": 4}
+      "verse1" : { "region": [24, 32]},
+      "bridge1" : { "region": [32, 40], "grain": 2},
+      "verse2" : { "region": [40, 56], "grain": 2}
     },</span>
     <span style="color: #5E4352;"><u>"<a href="#flow">flow"</a>: [</u>
       "intro", 
@@ -78,37 +85,35 @@ The <code>audio.json</code> file describes how the player should play the music 
   <span style="color: #1B512D;">"<a href="#tracks">tracks</a>": [
     {
       "name": "drums",
-      "source": "./drums.mp3",
       "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "regions" : {
+        "r1" : {
+          "bufferID" : "b1",
+          "bOffset" : 0,
+          "bDuration": 141.9,
+          "rOffset": 0,
+          "rDuration": 56
+        }
+      }
     },
     {
       "name": "bass",
-      "source": "./bass.mp3",
       "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
-    },
-    {
-      "name": "guitar",
-      "source": "./guitar.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
-    },
-    {
-      "name": "lead",
-      "source": "./lead.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "regions" : {
+        "r2" : {
+          "bufferID" : "b2",
+          "bOffset" : 0,
+          "bDuration": 141.9,
+          "rOffset": 0,
+          "rDuration": 56
+        }
+      }
     }
-  ]</span>
+  ],</span>
+  "data" : {
+    "b1": "data:audio/wav;base64,UklGRi...",
+    "b2": "./bass.mp3"
+  }
 }
 </pre>
 <br/>
@@ -174,7 +179,7 @@ The song <a href="https://en.wikipedia.org/wiki/Quantization_(music)">Quantizati
 The `flow` of the song is mapped out with an array of literal names of sections from [`map`](#map), either a singleton entry or a sub array of section called a [sub-section](#subsection).
 
 ### Subsection
-A subsection is like a Repeat in music, except you can specify how many time the section should repeat. `[4, "verse2", "bridge1"],` if no number is specified as the first entry, it is assumed the section repeats infinitely and can only be broken out of through [`JSONPlayer.next(true)`](#jsonplayernextbreakout) or [`JSONPlayer.goTo(region)`](#jsonplayergotoregionname)
+A subsection is like a Repeat in music, except you can specify how many time the section should repeat. `[4, "verse2", "bridge1"],` if no number is specified as the first entry, it is assumed the section repeats infinitely and can only be broken out of through [`JSONPlayer.next(breakout: boolean)`](API.md#jsonplayernextbreakout-regionname) or [`JSONPlayer.goTo(breakout: boolean, regionName: String)`](API.md#jsonplayernextbreakout-regionname)
 
 ## Tracks
 <pre>
@@ -183,11 +188,15 @@ A subsection is like a Repeat in music, except you can specify how many time the
     "name": "drums",
     "source": "./drums.mp3",
     "volumeDB": 0,
-    "mute": false,
-    "offset": 0,
-    "length": 56
+    "regions" : {
+      regionID_1: {},
+      regionID_2: {},
+      ...
+    }
 }, ...
 </pre>
 
-The name is a track name label serving as a reference, the source is the URI to the data file containing the track music to be loaded into [`Tone.Player`](https://tonejs.github.io/docs/14.7.77/Player.html).
-The length and offset describe the length of the music file in <a href="https://en.wikipedia.org/wiki/Bar_(music)">Bars</a> and the offset should say when the file should begin playing for the first time.
+The name is a track name label serving as a reference, the regions describe how and when the track is to load music into [`Tone.Player`](https://tonejs.github.io/docs/14.7.77/Player.html).
+
+## Data
+This section contains either URL or data URI of actual sound files that make up the song

@@ -1,23 +1,27 @@
 
 # Event Listeners
 
-### `JSONPlayer.onLoad((progress,final)=>{})`
+### `JSONPlayer.parse => Promise (isFullyLoaded)=>{}`
+> Returns a `Promise` with a boolean value indicating if all audio files are loaded upon `Promise` resolution, else throws error if no files could be loaded
 
-### `JSONPlayer.onRegionStart((regionName)=>{})`
-### `JSONPlayer.onRegionEnd((regionName)=>{})`
+### `JSONPlayer.onRegionStart = (regionName)=>{}`
+> Called when the active playing region changes and starts playing
+### `JSONPlayer.onRegionEnd = (regionName)=>{}`
 
-### `JSONPlayer.onRegionWillStart((regionName)=>{})`
+### `JSONPlayer.onRegionWillStart = (regionName)=>{}`
 
-### `JSONPlayer.onRegionWillEnd((regionName)=>{})`
+### `JSONPlayer.onRegionWillEnd = (regionName)=>{}`
 
-### `JSONPlayer.onRegionTransport((regionName, beat, totalRegionBeats)=>{})`
+### `JSONPlayer.onRegionTransport = (regionName, beat, totalRegionBeats)=>{}`
 
-### `JSONPlayer.onSongTransport((currentRegionName, beat, totalRegionBeats)=>{})`
+### `JSONPlayer.onSongTransport = (currentRegionName, beat, totalRegionBeats)=>{}`
+
+### `JSONPlayer.onStateChange = (state)=>{}`
 
 # Control Methods
 ### `JSONPlayer`:
 
-`const player = new JSONPlayer(audio.json)`
+`const player = new JSONPlayer(Tone, audio.json, verbose = false)`
 
 This class is instanciated with the `new` keyword and has the following methods:
 
@@ -30,11 +34,10 @@ This class is instanciated with the `new` keyword and has the following methods:
 ### `JSONPlayer.stop()`
 > Stop music playback.
 
-### `JSONPlayer.next(breakOut)`
-> Go to the next section in the flow map defined in `audio.json`, current grain settings apply.
+### `JSONPlayer.next(breakOut, regionName)`
+> Go to the next section in the flow map defined in `audio.json`, current grain settings apply unless `map` setting overrides it.
 
-### `JSONPlayer.goTo(regionName)`
-> Go to the named region section in the region map defined in `audio.json`, current grain settings apply.
+> Or go to the named region section in the region map defined in `audio.json`, current grain settings apply unless `map` setting overrides it.
 
 ### `JSONPlayer.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
 > Adjust track volume
