@@ -2,16 +2,31 @@ import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' ;
 import { JSONPlayer } from "./JSONPlayer";
-import song from './static/audio.json';
-
-Tone.ToneAudioBuffer.fromUrl('gong_1.mp3').then(b => console.log('OK',b)).catch(e => console.log('ERORR',e))
+import song from './static/testsong.audio.json';
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {
   Tone.start();
 });
 
-const player = new JSONPlayer(Tone, song, true)
+const loaderLabel = document.getElementById("loader");
+loaderLabel.innerText = 'Loading...'
+const player = new JSONPlayer(Tone)
+player.setVerbose(true)
+player.parse(song).then((full)=>{
+  loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
+}).catch((reason, data)=>{
+  if(reason === 'loading')
+    loaderLabel.innerText = 'Error loading audio files'
+  else if(reason === 'manifest') {
+    loaderLabel.innerText = 'Error parsing file'
+  }
+})
+
+const queue = document.getElementById("queue")
+player.onRegionStart = (region)=>{
+  queue.innerText = 'onRegionStart ' + region
+}
 
 const show = ()=>{
   console.log({...Tone.Transport._timeline._timeline})
@@ -32,8 +47,10 @@ document.getElementById("next").addEventListener("click", () => {
 document.getElementById("nextForce").addEventListener("click", () => {
   player.next(true)
 });
+document.getElementById("verse1").addEventListener("click", () => {
+  player.next(true, 'verse1')
+});
 
-const queue = document.getElementById("queue")
 const timeline = document.getElementById("timeline")
 
 setInterval(()=>{

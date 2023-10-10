@@ -6,21 +6,28 @@
   </head>
 
   <body>
-    <h1 style="grid-area: title">JSON Audio Example: Basic [Vanilla](scroll, click)</h1>
-    <section class="controls" style="grid-area: ctrl">
+    <h1 class="Title" style="grid-area: title">JSON Audio Example: Basic [Vanilla](scroll, click)</h1>
+    <section class="controls" style="grid-area: ctrl;">
+      <h1>Controls</h1>
       <button id="audio">Audio Context</button>
       <button id="play">Play</button>
       <button id="stop">Stop</button>
       <button id="next">Next</button>
       <button id="nextForce">Next (Force)</button>
+      <button id="verse1">Verse1</button>
     </section>
-    <section class="time" style="grid-area: topcontent">
+    <section class="time" style="grid-area: topcontent;">
+      <h1>Status</h1>
+      <h3 id="loader"></h3>
       <span id="timeline">Timeline</span>
       <span> - </span>
       <span id="queue">Queue</span>
     </section>
-    <section class="interactive" style="grid-area: content">
+    <section class="interactive" style="grid-area: content;">
       <div class="handle">Handle</div>
+    </section>
+    <section class="regionInfo" style="grid-area: region;">
+      <h1>Region Info</h1>
     </section>
     <script type="module" src="index.js"></script>
   </body>

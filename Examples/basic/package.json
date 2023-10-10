@@ -1,6 +1,7 @@
 {
   "name": "example_basic",
   "version": "1.0",
+  "license":"MIT",
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
     "start": "parcel index.html --open",
