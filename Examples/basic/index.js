@@ -1,8 +1,7 @@
 import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' ;
-import { JSONPlayer } from "./JSONPlayer";
-import song from './static/testsong.audio.json';
+import JSONPlayer from "./JSONPlayer";
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {
@@ -11,9 +10,10 @@ audioButton.addEventListener("click", () => {
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
+
 const player = new JSONPlayer(Tone)
-player.setVerbose(true)
-player.parse(song).then((full)=>{
+
+player.parse('short_song').then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
 }).catch((reason, data)=>{
   if(reason === 'loading')
@@ -22,6 +22,11 @@ player.parse(song).then((full)=>{
     loaderLabel.innerText = 'Error parsing file'
   }
 })
+
+const timeline = document.getElementById("timeline")
+player.onSongTransport = (pos)=>{
+  timeline.innerText = pos;
+}
 
 const queue = document.getElementById("queue")
 player.onRegionStart = (region)=>{
@@ -50,12 +55,6 @@ document.getElementById("nextForce").addEventListener("click", () => {
 document.getElementById("verse1").addEventListener("click", () => {
   player.next(true, 'verse1')
 });
-
-const timeline = document.getElementById("timeline")
-
-setInterval(()=>{
-  timeline.innerText = Tone.Transport.position;
-},1000)
 
 
 const position = { x: 0, y: 0 }
