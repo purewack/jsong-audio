@@ -30,21 +30,16 @@ player.onSongTransport = (pos)=>{
 
 const queue = document.getElementById("queue")
 player.onRegionStart = (region)=>{
+  console.log(region)
   queue.innerText = 'onRegionStart ' + region
-}
-
-const show = ()=>{
-  console.log({...Tone.Transport._timeline._timeline})
 }
 
 document.getElementById("play").addEventListener("click", () => {
   Tone.start();
   player.start()
-  show()
 });
 document.getElementById("stop").addEventListener("click", () => {
   player.stop()
-  show()
 });
 document.getElementById("next").addEventListener("click", () => {
   player.next()

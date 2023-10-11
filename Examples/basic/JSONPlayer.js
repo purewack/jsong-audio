@@ -69,7 +69,7 @@ export default class JSONPlayer {
       for(const track of this.#manifest.tracks){
         const a = new this.#tone.Player().toDestination()
         a.volume.value = track.volumeDB
-        a.buffer = this.srcPool[src_keys[0]]
+        a.buffer = this.srcPool[track.source]
         this.trackPlayers.push(a)
       }
     }
@@ -180,13 +180,13 @@ export default class JSONPlayer {
   }
 
 
-  next(breakout, regionName = null){
+  next(breakout, sectionName = null){
     const nextTime = this.#getNextTime()
     if(this.#verbose) console.log('Next schedule to happen at: ', nextTime);
     
     this.#tone.Transport.scheduleOnce((t)=>{
-      if(regionName)
-        this.setSection(regionName)
+      if(sectionName)
+        this.setSection(sectionName)
       else
         this.nextSection(breakout)
       
@@ -224,8 +224,10 @@ export default class JSONPlayer {
       index = section
     }
 
-    if(!index) return
-
+    if(index === null){
+      if(this.#verbose) console.log("No set section index!", typeof section, section )
+      return
+    }
     const curFlowLen = this.#manifest.playback.flow.length
     const curIndex = index % curFlowLen
     const curSection = this.#manifest.playback.flow[curIndex]
