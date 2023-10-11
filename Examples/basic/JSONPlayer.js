@@ -6,7 +6,7 @@ export default class JSONPlayer {
   #manifest; //copy of .json file
   #section; //current section details
   
-  #state = 'default';
+  #state = null;
   set state(value){
     this.#state = value
     this.onStateChange?.(value)
@@ -14,9 +14,17 @@ export default class JSONPlayer {
   get state(){
     return this.#state
   }
-  playingQueue;
-  playingNow; //name of current section that is playing
-  players = []; //tonejs track players
+
+  #playingNow; //name of current section that is playing
+  set playingNow(v){
+    this.#playingNow = v
+    this.onSectionPlayStart?.(v)
+  }
+  get playingNow (){
+    return this.#playingNow
+  }
+
+  trackPlayers = []; //tonejs track players
   srcPool = [];
 
   #metronome; 
@@ -29,10 +37,9 @@ export default class JSONPlayer {
     return this.#meterBeat
   }
 
+//==================Loader==============
   #load;
 
-
-//==================Loader==============
   parse(path){
     return new Promise((resolve, reject)=>{
     
@@ -58,12 +65,12 @@ export default class JSONPlayer {
     };
 
     const spawnTracks = ()=>{
-      this.players = []
+      this.trackPlayers = []
       for(const track of this.#manifest.tracks){
-        const player = new this.#tone.Player().toDestination()
-        player.volume.value = track.volumeDB
-        player.buffer = this.srcPool[src_keys[0]]
-        this.players.push(player)
+        const a = new this.#tone.Player().toDestination()
+        a.volume.value = track.volumeDB
+        a.buffer = this.srcPool[src_keys[0]]
+        this.trackPlayers.push(a)
       }
     }
 
@@ -82,9 +89,10 @@ export default class JSONPlayer {
           spawnTracks()
         }
         //failed load
-        else
+        else{
           reject()
-        
+          this.state = null;
+        }
       }
     }
 
@@ -117,7 +125,6 @@ export default class JSONPlayer {
     this.#tone.Transport.timeSignature = this.#manifest.playback.meter
 
     this.playingNow = null;
-    this.playingQueue = null;
     this.setSection(0)
     this.stop() 
     if(this.#verbose) console.log("Parsed song ",this)
@@ -130,26 +137,29 @@ export default class JSONPlayer {
 
   
 //================Controls===========
-  start(regionName = null){
-    if(this.state === 'started') return
-
-    if(this.#manifest.playback.metronome){
-      this.#tone.Transport.scheduleRepeat((t)=>{
-        const note = this.#manifest.playback.metronome[this.meterBeat === 0 ? 0 : 1]
-        this.#metronome.triggerAttackRelease(note,'32n',t);
-        this.meterBeat = (this.meterBeat + 1) % this.#tone.Transport.timeSignature
-      },'4n');
-    }
-
-    const goToRegion = regionName ? regionName : this.#manifest.playback.flow[0]
-    this.next(true, goToRegion);
+  start(startFrom = null){
+    this.next(true, (startFrom 
+      ? startFrom 
+    : this.state === 'stopped' 
+      ? this.#manifest.playback.flow[0] 
+      : undefined
+    ));
     
-    this.meterBeat = 0;
+    if(this.state === 'stopped'){
 
-    this.#tone.Transport.start('+0.1s')
+      if(this.#manifest.playback.metronome){
+        this.#tone.Transport.scheduleRepeat((t)=>{
+          const note = this.#manifest.playback.metronome[this.meterBeat === 0 ? 0 : 1]
+          this.#metronome.triggerAttackRelease(note,'32n',t);
+          this.meterBeat = (this.meterBeat + 1) % this.#tone.Transport.timeSignature
+        },'4n');
+      }
 
-    this.state = 'started'
-    if(this.#verbose) console.log("JSONAudio player started")
+      this.meterBeat = 0;
+      this.#tone.Transport.start('+0.1s')
+      this.state = 'started'
+      if(this.#verbose) console.log("JSONAudio player started")
+    }
   }
 
   stop(immidiate = true){
@@ -157,7 +167,7 @@ export default class JSONPlayer {
     this.#tone.Transport.stop()
     this.#tone.Transport.cancel()
     this.#tone.Transport.clear()
-    this.players.forEach((p,i)=>{
+    this.trackPlayers.forEach((p,i)=>{
       try{
           p.stop(!immidiate ? this.#getNextTime() : undefined);
       }catch(error){
@@ -176,12 +186,12 @@ export default class JSONPlayer {
     
     this.#tone.Transport.scheduleOnce((t)=>{
       if(regionName)
-        this.setNamedSection(regionName)
+        this.setSection(regionName)
       else
         this.nextSection(breakout)
       
       const s = this.#section.section
-      this.players.forEach((p,i)=>{
+      this.trackPlayers.forEach((p,i)=>{
         p.loopStart = s[0]+'m';
         p.loopEnd = s[1]+'m';
         p.loop = true;
@@ -197,15 +207,25 @@ export default class JSONPlayer {
   }
 
 //================Flow===========
-  setNamedSection(name){
-    let index = 0
-    this.#manifest.playback.flow.forEach((v,i)=>{
-      if(v === name) index = i
-    })
-    this.setSection(index)
-  }
+  setSection(section){
+    let index = null
+    let subIndex = null
 
-  setSection(index, subIndex = null){
+    //[section, subsection]
+    if(Array.isArray(section)){
+      [index, subIndex] = section
+    }
+    else if(typeof section === 'string'){
+      this.#manifest.playback.flow.forEach((v,i)=>{
+        if(v === section) index = i
+      })
+    }
+    else if(typeof section === 'number'){
+      index = section
+    }
+
+    if(!index) return
+
     const curFlowLen = this.#manifest.playback.flow.length
     const curIndex = index % curFlowLen
     const curSection = this.#manifest.playback.flow[curIndex]
@@ -264,7 +284,7 @@ export default class JSONPlayer {
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
     if(!this.state) return
-    this.players[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.trackPlayers[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
 
 

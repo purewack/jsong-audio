@@ -19,7 +19,7 @@ player.parse('short_song').then((full)=>{
   if(reason === 'loading')
     loaderLabel.innerText = 'Error loading audio files'
   else if(reason === 'manifest') {
-    loaderLabel.innerText = 'Error parsing file'
+    loaderLabel.innerText = 'Error parsing .json file'
   }
 })
 
