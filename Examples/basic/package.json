@@ -1,7 +1,7 @@
 {
   "name": "example_basic",
   "version": "1.0",
-  "license":"MIT",
+  "license": "MIT",
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
     "start": "parcel index.html --open",
@@ -14,6 +14,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.2.0",
+    "buffer": "^5.5.0||^6.0.0",
     "parcel": "^2.0.0",
     "parcel-plugin-asset-copier": "^1.1.1",
     "parcel-reporter-static-files-copy": "^1.5.3",

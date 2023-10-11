@@ -1,7 +1,7 @@
 import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' ;
-import JSONPlayer from "./JSONPlayer";
+import JSONgPlayer from "./JSONgPlayer";
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {
@@ -11,7 +11,7 @@ audioButton.addEventListener("click", () => {
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
 
-const player = new JSONPlayer(Tone)
+const player = new JSONgPlayer(Tone)
 
 player.parse('short_song').then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
@@ -19,7 +19,7 @@ player.parse('short_song').then((full)=>{
   if(reason === 'loading')
     loaderLabel.innerText = 'Error loading audio files'
   else if(reason === 'manifest') {
-    loaderLabel.innerText = 'Error parsing .json file'
+    loaderLabel.innerText = 'Error parsing .jsong file'
   }
 })
 

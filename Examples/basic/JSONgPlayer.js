@@ -1,4 +1,4 @@
-export default class JSONPlayer {
+export default class JSONgPlayer {
   //parser version 0.0.1
   #tone;
 
@@ -46,11 +46,13 @@ export default class JSONPlayer {
     const sep = (path.endsWith('/')  ? ' ' : '/')
     const _loadpath = path + sep;
     if(this.#verbose) console.log('Loading from path',_loadpath)
-    fetch(_loadpath + 'audio.json').then(resp => {
-      resp.json().then(data => {
+    fetch(_loadpath + 'audio.jsong').then(resp => {
+      resp.text().then(txt => {
+        // console.log(txt)
+      const data = JSON.parse(txt)
         
-    if(this.#verbose) console.log('JSON loaded',data)
-    if(data?.type !== 'jsonAudio') {
+    if(this.#verbose) console.log('JSONg loaded',data)
+    if(data?.type !== 'jsong') {
       reject('manifest','Invalid manifest file')
       return
     }
@@ -133,6 +135,7 @@ export default class JSONPlayer {
     })
 
     })
+
   }
 
   
@@ -158,7 +161,7 @@ export default class JSONPlayer {
       this.meterBeat = 0;
       this.#tone.Transport.start('+0.1s')
       this.state = 'started'
-      if(this.#verbose) console.log("JSONAudio player started")
+      if(this.#verbose) console.log("JSONgPlayer player started")
     }
   }
 
@@ -175,8 +178,9 @@ export default class JSONPlayer {
       }
     })
 
+    this.meterBeat = 0;
     this.state = 'stopped'
-    if(this.#verbose) console.log("JSONAudio player stopped")
+    if(this.#verbose) console.log("JSONgPlayer player stopped")
   }
 
 
@@ -313,7 +317,7 @@ export default class JSONPlayer {
   #getNextTime(){
     const grain = this.#section.grain;
     const meterDenominator = this.#tone.Transport.timeSignature
-    return JSONPlayer.QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
+    return JSONgPlayer.QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
   }
 
   //Time quantization for scheduling events musically

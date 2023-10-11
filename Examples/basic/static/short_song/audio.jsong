@@ -1,6 +1,6 @@
 {
-  "type": "jsonAudio",
-  "jsonAudioVersion":"0.0.1",
+  "type": "jsong",
+  "jsongVersion":"0.0.1",
   "meta": {
     "title": "Short Test",
     "author": "Damian Nowacki",
@@ -23,8 +23,7 @@
     },
     "flow": [
       "intro", 
-      "bass", 
-      ["chorus", "verse"],
+      ["chorus", "verse"], 
       "bass"
     ]
   },
