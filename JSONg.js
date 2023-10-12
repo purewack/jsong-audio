@@ -1,4 +1,4 @@
-class JSONgPlayer {
+class JSONg {
   //parser version 0.0.1
   #tone;
 
@@ -140,9 +140,35 @@ class JSONgPlayer {
 
   
 //================Controls===========
-  start(startFrom = null){
-    this.next(true, (startFrom 
-      ? startFrom 
+  play(from = null, skip = false){
+    const next = (breakout, sectionName = null)=>{
+      const nextTime = this.#getNextTime()
+      if(this.#verbose) console.log('Next schedule to happen at: ', nextTime);
+      
+      this.#tone.Transport.scheduleOnce((t)=>{
+        if(sectionName)
+          this.setSection(sectionName)
+        else
+          this.nextSection(breakout)
+        
+        const s = this.#section.section
+        this.trackPlayers.forEach((p,i)=>{
+          p.loopStart = s[0]+'m';
+          p.loopEnd = s[1]+'m';
+          p.loop = true;
+          try{
+            p.start(t,s[0]+'m');
+          }catch(error){
+            if(this.#verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
+          }
+        })
+        this.playingNow = this.#section;
+        if(this.#verbose) console.log(this.playingNow)
+      },nextTime)
+    }
+
+    next(true, (from 
+      ? from 
     : this.state === 'stopped' 
       ? this.#manifest.playback.flow[0] 
       : undefined
@@ -161,7 +187,7 @@ class JSONgPlayer {
       this.meterBeat = 0;
       this.#tone.Transport.start('+0.1s')
       this.state = 'started'
-      if(this.#verbose) console.log("JSONgPlayer player started")
+      if(this.#verbose) console.log("JSONg player started")
     }
   }
 
@@ -180,38 +206,13 @@ class JSONgPlayer {
 
     this.meterBeat = 0;
     this.state = 'stopped'
-    if(this.#verbose) console.log("JSONgPlayer player stopped")
+    if(this.#verbose) console.log("JSONg player stopped")
   }
 
 
-  next(breakout, sectionName = null){
-    const nextTime = this.#getNextTime()
-    if(this.#verbose) console.log('Next schedule to happen at: ', nextTime);
-    
-    this.#tone.Transport.scheduleOnce((t)=>{
-      if(sectionName)
-        this.setSection(sectionName)
-      else
-        this.nextSection(breakout)
-      
-      const s = this.#section.section
-      this.trackPlayers.forEach((p,i)=>{
-        p.loopStart = s[0]+'m';
-        p.loopEnd = s[1]+'m';
-        p.loop = true;
-        try{
-          p.start(t,s[0]+'m');
-        }catch(error){
-          if(this.#verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
-        }
-      })
-      this.playingNow = this.#section;
-      if(this.#verbose) console.log(this.playingNow)
-    },nextTime)
-  }
 
 //================Flow===========
-  setSection(section){
+  gotoSection(section){
     let index = null
     let subIndex = null
 
@@ -258,7 +259,7 @@ class JSONgPlayer {
     // if(this.#verbose) console.log(index, _subIndex, sectionName, {...this.#section})
   }
 
-  nextSection(breakout = false){
+  advanceSection(breakout = false){
     const normalAdvance = ()=>{
       this.setSection(this.#section.flowIndex + 1)
       if(this.#section.isSubloop) {
@@ -317,7 +318,7 @@ class JSONgPlayer {
   #getNextTime(){
     const grain = this.#section.grain;
     const meterDenominator = this.#tone.Transport.timeSignature
-    return JSONgPlayer.QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
+    return JSONg.QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
   }
 
   //Time quantization for scheduling events musically
@@ -347,4 +348,4 @@ class JSONgPlayer {
   }
 }
 
-module.exports = {JSONgPlayer}
+module.exports = {JSONg}

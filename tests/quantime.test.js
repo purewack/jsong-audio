@@ -1,4 +1,4 @@
-const {JSONgPlayer} = require('../JSONgPlayer')
+const {JSONg} = require('../JSONg')
 
 describe('quantize time',()=>{
     
