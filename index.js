@@ -1,2 +1,2 @@
-const player = require('./JSONPlayer.js')
-module.exports = player;
+const {JSONgPlayer} = require('./JSONgPlayer.js')
+module.exports = {JSONgPlayer};

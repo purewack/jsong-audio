@@ -1,4 +1,4 @@
-export default class JSONgPlayer {
+class JSONgPlayer {
   //parser version 0.0.1
   #tone;
 
@@ -347,3 +347,4 @@ export default class JSONgPlayer {
   }
 }
 
+module.exports = {JSONgPlayer}

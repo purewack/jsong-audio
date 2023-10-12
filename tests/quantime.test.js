@@ -1,6 +1,8 @@
-const {JSONPlayer} = require('../JSONPlayer')
+const {JSONgPlayer} = require('../JSONgPlayer')
 
-const QuanTime = JSONPlayer.QuanTime
+describe('quantize time',()=>{
+    
+const QuanTime = JSONgPlayer.QuanTime
 
 test('quantize time to nearest bar',()=>{
     expect(QuanTime('0:0:2',[4,4])).toBe('1:0:0')
@@ -35,4 +37,6 @@ test('quantize time to nearest 2bar',()=>{
 
     expect(QuanTime('0:2:2',[8,4],1)).toBe('3:0:0')
     expect(QuanTime('1:1:2',[8,4],0)).toBe('2:0:0')
+})
+
 })
