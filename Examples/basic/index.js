@@ -1,7 +1,8 @@
 import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' ;
-import JSONgPlayer from "./JSONgPlayer";
+// import {JSONg} from "jsong";
+import {JSONg} from "./JSONg"
 
 const audioButton = document.getElementById("audio");
 audioButton.addEventListener("click", () => {
@@ -11,7 +12,7 @@ audioButton.addEventListener("click", () => {
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
 
-const player = new JSONgPlayer(Tone)
+const player = new JSONg(Tone)
 
 player.parse('short_song').then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
@@ -36,7 +37,7 @@ player.onRegionStart = (region)=>{
 
 document.getElementById("play").addEventListener("click", () => {
   Tone.start();
-  player.start()
+  player.play()
 });
 document.getElementById("stop").addEventListener("click", () => {
   player.stop()
@@ -66,7 +67,7 @@ interact('.handle').draggable({
 
       const ratio = Math.min(1.0, position.x / 300)
       const db = 20*Math.log10(ratio)
-      player.rampTrackVolume(0,db)
+      player.rampTrackVolume(1,db)
 
       event.target.style.transform =
         `translate(${position.x}px, ${position.y}px)`

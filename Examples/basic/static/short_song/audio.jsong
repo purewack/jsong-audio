@@ -16,13 +16,13 @@
     "length": 8,
     "grain": 4,
     "map": {
-      "intro" : { "section": [0, 1]},
-      "bass" : { "section": [1, 3]},
-      "verse" : { "section": [3, 5]},
-      "chorus" : { "section": [5, 7]}
+      "intro" : { "region": [0, 1]},
+      "bass" : { "region": [1, 3]},
+      "verse" : { "region": [3, 5]},
+      "chorus" : { "region": [5, 7]}
     },
     "flow": [
-      "intro", [[2, "chorus", "verse"], "bass"]
+      "intro", "[[2, "chorus", "verse"], "bass"]"
     ]
   },
   "tracks": [

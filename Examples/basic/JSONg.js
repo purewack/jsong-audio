@@ -1,7 +1,8 @@
-const {quanTime} = require('./quantime')
-const {nextSection} = require('./nextSection')
-const {buildSection} = require('./buildSection')
-const {setNestedIndex, getNestedIndex} = require('./nestedIndex')
+// const {quanTime} = require('./quantime')
+// const {nextSection} = require('./nextSection')
+// const {buildSection} = require('./buildSection')
+// const {setNestedIndex, getNestedIndex} = require('./nestedIndex')
+const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex} = require('jsong')
 
 class JSONg {
   //parser version 0.0.2
@@ -78,8 +79,7 @@ class JSONg {
     }
 
     this.#manifest = structuredClone(data)
-    console.log(this.#manifest.flow)
-    this.#flow = buildSection(this.#manifest.flow)
+    this.#flow = buildSection(this.#manifest.playback.flow)
     const src_keys = Object.keys(this.#manifest.sources)
 
     this.#load = {
@@ -149,7 +149,7 @@ class JSONg {
     this.#tone.Transport.timeSignature = this.#manifest.playback.meter
 
     this.playingNow = null;
-    this.setSection(0)
+
     this.stop() 
     if(this.verbose) console.log("Parsed song ",this)
     
@@ -164,7 +164,11 @@ class JSONg {
 //================Controls===========
   play(from = null, skip = false){
     if(this.state === 'stopped'){
-      this.schedule(getNestedIndex(this.#flow, [0]))
+      this.#flow.index = [0]
+      const s = getNestedIndex(this.#flow, [0])
+      const section = this.#manifest.playback.map[s]
+      // console.log(section)
+      this.schedule(section)
 
       if(this.#manifest.playback.metronome){
         this.#tone.Transport.scheduleRepeat((t)=>{
@@ -222,8 +226,9 @@ class JSONg {
 
   advanceSection(breakout = false){
     nextSection(this.#flow, breakout)
-    const nowSection = getNestedIndex(this.#flow, this.#flow.index)
-    this.schedule(nowSection)
+    const s = getNestedIndex(this.#flow, this.#flow.index)
+    const section = this.#manifest.playback.map[s]
+    this.schedule(section) 
   }
 
   schedule(section, atScheduleTime = undefined){
@@ -234,11 +239,11 @@ class JSONg {
       if(this.verbose) console.log('Scehdule done for time: ', nextTime)
       atScheduleTime?.()
       this.#trackPlayers.forEach((p,i)=>{
-        p.loopStart = section.loopPoints[0]+'m';
-        p.loopEnd = section.loopPoints[1]+'m';
+        p.loopStart = section.region[0]+'m';
+        p.loopEnd = section.region[1]+'m';
         p.loop = true;
         try{
-          p.start(t,s[0]+'m');
+          p.start(t,section.region[0]+'m');
         }catch(error){
           if(this.verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
         }

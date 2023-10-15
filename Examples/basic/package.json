@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "interactjs": "^1.10.17",
-    "jsonaudio": "link:../../.",
+    "jsong": "link:../../.",
     "tone": "14.7.77"
   },
   "devDependencies": {
