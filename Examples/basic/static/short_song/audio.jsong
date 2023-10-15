@@ -22,7 +22,7 @@
       "chorus" : { "section": [5, 7]}
     },
     "flow": [
-      "intro", [2, ["chorus", "verse"], "bass"]
+      "intro", [[2, "chorus", "verse"], "bass"]
     ]
   },
   "tracks": [

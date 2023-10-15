@@ -1,11 +1,18 @@
 class JSONg {
-  //parser version 0.0.1
+  //parser version 0.0.2
   #tone;
 
-  #verbose; //debug messages
   #manifest; //copy of .json file
-  #section; //current section details
-  
+
+  //events
+  onStateChange = null;
+  onSongTransport = null;
+  onSectionTransport = null;
+  onSectionPlayStart = null;
+  onSectionPlayEnd = null;
+  onSectionWillStart = null;
+  onSectionWillEnd = null;
+
   #state = null;
   set state(value){
     this.#state = value
@@ -18,17 +25,25 @@ class JSONg {
   #playingNow; //name of current section that is playing
   set playingNow(v){
     this.#playingNow = v
-    this.onSectionPlayStart?.(v)
+    // this.onSectionPlayStart?.(v)
   }
   get playingNow (){
     return this.#playingNow
   }
 
-  trackPlayers = []; //tonejs track players
-  srcPool = [];
+// audio players and sources
+  #trackPlayers = [];
+  #srcPool = [];
 
+  //metronome
   #metronome; 
-  #meterBeat;
+
+  #meterBeat = {
+    songCurrent: 0,
+    songTotal: 0,
+    sectionCurrent: 0,
+    sectionTotal: 0,
+  };
   set meterBeat(v){
     this.#meterBeat = v
     this.onSongTransport?.(this.#tone.Transport.position)
@@ -45,13 +60,13 @@ class JSONg {
     
     const sep = (path.endsWith('/')  ? ' ' : '/')
     const _loadpath = path + sep;
-    if(this.#verbose) console.log('Loading from path',_loadpath)
+    if(this.verbose) console.log('Loading from path',_loadpath)
     fetch(_loadpath + 'audio.jsong').then(resp => {
       resp.text().then(txt => {
         // console.log(txt)
       const data = JSON.parse(txt)
         
-    if(this.#verbose) console.log('JSONg loaded',data)
+    if(this.verbose) console.log('JSONg loaded',data)
     if(data?.type !== 'jsong') {
       reject('manifest','Invalid manifest file')
       return
@@ -71,8 +86,8 @@ class JSONg {
       for(const track of this.#manifest.tracks){
         const a = new this.#tone.Player().toDestination()
         a.volume.value = track.volumeDB
-        a.buffer = this.srcPool[track.source]
-        this.trackPlayers.push(a)
+        a.buffer = this.#srcPool[track.source]
+        this.#trackPlayers.push(a)
       }
     }
 
@@ -80,7 +95,7 @@ class JSONg {
       if(this.#load.loaded+this.#load.failed === this.#load.required) {
         this.state = 'stopped'
         //full load
-        if(this.#verbose) console.log('Loading sequence done', this.#load); 
+        if(this.verbose) console.log('Loading sequence done', this.#load); 
         if(this.#load.loaded === this.#load.required){
           resolve(true)
           spawnTracks()
@@ -98,19 +113,19 @@ class JSONg {
       }
     }
 
-    this.srcPool = {} 
+    this.#srcPool = {} 
     for(const src_id of src_keys){
       const data = this.#manifest.sources[src_id]
       const buffer = new this.#tone.ToneAudioBuffer();
-      if(this.#verbose) console.log('Current source id', src_id)
+      if(this.verbose) console.log('Current source id', src_id)
       buffer.baseUrl = window.location.origin
 
       const url = data.startsWith('data') ? data : _loadpath + data
       buffer.load(url).then((tonebuffer)=>{
         this.#load.loaded++;
-        this.srcPool[src_id] = tonebuffer
+        this.#srcPool[src_id] = tonebuffer
         checkLoad()
-        if(this.#verbose) console.log('Source loaded ', src_id, tonebuffer)
+        if(this.verbose) console.log('Source loaded ', src_id, tonebuffer)
       }).catch((e)=>{
         this.#load.failed++;
         checkLoad()
@@ -129,7 +144,7 @@ class JSONg {
     this.playingNow = null;
     this.setSection(0)
     this.stop() 
-    if(this.#verbose) console.log("Parsed song ",this)
+    if(this.verbose) console.log("Parsed song ",this)
     
       })
     })
@@ -141,37 +156,10 @@ class JSONg {
   
 //================Controls===========
   play(from = null, skip = false){
-    const next = (breakout, sectionName = null)=>{
-      const nextTime = this.#getNextTime()
-      if(this.#verbose) console.log('Next schedule to happen at: ', nextTime);
-      
-      this.#tone.Transport.scheduleOnce((t)=>{
-        if(sectionName)
-          this.setSection(sectionName)
-        else
-          this.nextSection(breakout)
-        
-        const s = this.#section.section
-        this.trackPlayers.forEach((p,i)=>{
-          p.loopStart = s[0]+'m';
-          p.loopEnd = s[1]+'m';
-          p.loop = true;
-          try{
-            p.start(t,s[0]+'m');
-          }catch(error){
-            if(this.#verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
-          }
-        })
-        this.playingNow = this.#section;
-        if(this.#verbose) console.log(this.playingNow)
-      },nextTime)
-    }
-
-    next(true, (from 
-      ? from 
-    : this.state === 'stopped' 
+  
+    next(true, (this.state === 'stopped' 
       ? this.#manifest.playback.flow[0] 
-      : undefined
+      : from
     ));
     
     if(this.state === 'stopped'){
@@ -187,7 +175,6 @@ class JSONg {
       this.meterBeat = 0;
       this.#tone.Transport.start('+0.1s')
       this.state = 'started'
-      if(this.#verbose) console.log("JSONg player started")
     }
   }
 
@@ -196,57 +183,25 @@ class JSONg {
     this.#tone.Transport.stop()
     this.#tone.Transport.cancel()
     this.#tone.Transport.clear()
-    this.trackPlayers.forEach((p,i)=>{
+    this.#trackPlayers.forEach((p,i)=>{
       try{
           p.stop(!immidiate ? this.#getNextTime() : undefined);
       }catch(error){
-        if(this.#verbose) console.log('Empty track stopping ',this.#manifest.tracks[i]);
+        if(this.verbose) console.log('Empty track stopping ',this.#manifest.tracks[i]);
       }
     })
 
     this.meterBeat = 0;
     this.state = 'stopped'
-    if(this.#verbose) console.log("JSONg player stopped")
+    if(this.verbose) console.log("JSONg player stopped")
   }
 
 
 
 //================Flow===========
+  #section; //current section details
   gotoSection(section){
-    let index = null
-    let subIndex = null
-
-    //[section, subsection]
-    if(Array.isArray(section)){
-      [index, subIndex] = section
-    }
-    else if(typeof section === 'string'){
-      this.#manifest.playback.flow.forEach((v,i)=>{
-        if(v === section) index = i
-      })
-    }
-    else if(typeof section === 'number'){
-      index = section
-    }
-
-    if(index === null){
-      if(this.#verbose) console.log("No set section index!", typeof section, section )
-      return
-    }
-    const curFlowLen = this.#manifest.playback.flow.length
-    const curIndex = index % curFlowLen
-    const curSection = this.#manifest.playback.flow[curIndex]
-    const isSubloop = curSection instanceof Array
-
-    let _subIndex = (subIndex !== null ? subIndex : 0)
-    let sectionName = curSection
-    let finiteRepeat = false
-    if(isSubloop){
-      finiteRepeat = Number.isInteger(curSection[0])
-      _subIndex = _subIndex % (curSection.length - (finiteRepeat ? 1 : 0))  
-      sectionName = curSection[finiteRepeat ? _subIndex+1 : _subIndex]
-    }
-
+    
     this.#section = {
       flowIndex: curIndex,
       subIndex: _subIndex,
@@ -256,7 +211,7 @@ class JSONg {
       grain: this.#manifest.playback.grain,
       ...this.#manifest.playback.map[sectionName]
     }
-    // if(this.#verbose) console.log(index, _subIndex, sectionName, {...this.#section})
+    // if(this.verbose) console.log(index, _subIndex, sectionName, {...this.#section})
   }
 
   advanceSection(breakout = false){
@@ -264,47 +219,59 @@ class JSONg {
       this.setSection(this.#section.flowIndex + 1)
       if(this.#section.isSubloop) {
         this.#section.currentRepeats = this.#section.targetRepeats 
-        if(this.#verbose) console.log(`Enter subloop: remaining loops: ${this.#section.currentRepeats}`)
+        if(this.verbose) console.log(`Enter subloop: remaining loops: ${this.#section.currentRepeats}`)
       }
-    }
-    const subAdvance = ()=>{
-      this.setSection(this.#section.flowIndex, this.#section.subIndex + 1)
     }
 
-    if(this.#section?.isSubloop && !breakout){
-      subAdvance()
-      if(this.#section.subIndex === 0){
-        this.#section.currentRepeats -= 1
-        if(this.#verbose) console.log(`Subloop Looped, remaining loops: ${this.#section.currentRepeats}`)
-        if(this.#section.currentRepeats === 0){
-          if(this.#verbose) console.log("Exit Subloop")
-          normalAdvance()
-        }
-      }
-    }
-    else{
-      if(breakout && this.#verbose) console.log("Break out of Subloop")
-      normalAdvance()
-    }
+    if(breakout && this.verbose) console.log("Break out of Subloop")
+    normalAdvance()
   }
+
+  schedule(section, atScheduleTime = undefined){
+    const nextTime = this.#getNextTime(section)
+    if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
+    
+    this.#tone.Transport.scheduleOnce((t)=>{
+      if(this.verbose) console.log('Scehdule done for time: ', nextTime)
+      atScheduleTime?.()
+      this.#trackPlayers.forEach((p,i)=>{
+        p.loopStart = section.loopPoints[0]+'m';
+        p.loopEnd = section.loopPoints[1]+'m';
+        p.loop = true;
+        try{
+          p.start(t,s[0]+'m');
+        }catch(error){
+          if(this.verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
+        }
+      })
+      this.playingNow = section;
+      if(this.verbose) console.log(this.playingNow)
+    },nextTime)
+  }
+
 
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
     if(!this.state) return
-    this.trackPlayers[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
 
 
 //================Various==========
   constructor(tone, data = null, verbose = true){
     this.#tone = tone;
-    this.#verbose = verbose
+    this.verbose = verbose
     this.state = null;
-    if(this.#verbose) console.log("new", this)
+    if(this.verbose) console.log("New", this);
   }
 
-  setVerbose(state){
+  #verbose = false;
+  set verbose(state){
     this.#verbose = state;
+    if(state) console.log("JSONg player verbose mode");
+  }
+  get verbose(){
+    return this.#verbose;
   }
 
   #nextRegionTransportValue(){
@@ -315,8 +282,8 @@ class JSONg {
   }
 
 //=======Time===============
-  #getNextTime(){
-    const grain = this.#section.grain;
+  #getNextTime(section){
+    const grain = section?.grain ? section.grain : this.#manifest.playback.grain;
     const meterDenominator = this.#tone.Transport.timeSignature
     return JSONg.QuanTime(this.#tone.Transport.position, [grain, meterDenominator])
   }

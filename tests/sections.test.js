@@ -2,10 +2,11 @@ const {JSONg} = require('../JSONg')
 
 describe('section flow',()=>{
 
-JSONG.
+const player = new JSONg()
+
 
 test('quantize time to nearest bar',()=>{
-    expect().toBe([])
+    expect(player).toBe([])
 
 
 })
