@@ -59,3 +59,8 @@ button {
 .interactive {
   overflow: hidden;
 }
+
+.controls{
+  display: flex;
+  flex-direction: column;
+}

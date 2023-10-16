@@ -40,21 +40,17 @@ const ntimeline = document.getElementById("ntimeline")
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
 player.onSectionPlayEnd = (index)=>{
-  console.log(index)
   squeue.innerText = 'ended ' + index
 }
 player.onSectionWillEnd = (index, when)=>{
-  console.log(index)
   squeue.innerText = '|| ' + index
 }
 
 player.onSectionWillPlay = (index, when)=>{
-  console.log(index)
   queue.innerText = '>> ' + index
   ntimeline.innerText = when;
 }
-player.onSectionPlayStart = (index)=>{
-  console.log(index)
+player.onSectionPlayStart = (index)=>{ 
   queue.innerText = 'playing ' + index
 }
 
@@ -63,17 +59,15 @@ document.getElementById("play").addEventListener("click", () => {
   Tone.start();
   player.play()
 });
+document.getElementById("from").addEventListener("click", () => {
+  Tone.start();
+  player.play([1], true)
+});
+document.getElementById("skip").addEventListener("click", () => {
+  player.play(null, true)
+});
 document.getElementById("stop").addEventListener("click", () => {
   player.stop()
-});
-document.getElementById("next").addEventListener("click", () => {
-  player.next()
-});
-document.getElementById("nextForce").addEventListener("click", () => {
-  player.next(true)
-});
-document.getElementById("verse1").addEventListener("click", () => {
-  player.next(true, 'verse1')
 });
 
 

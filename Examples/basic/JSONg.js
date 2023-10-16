@@ -168,8 +168,8 @@ class JSONg {
   play(from = null, skip = false){
 
     if(this.state === 'stopped'){
-      this.#flow.index = [0]
-      const s = getNestedIndex(this.#flow, [0])
+      this.#flow.index = from || [0]
+      const s = getNestedIndex(this.#flow, this.#flow.index)
       const section = this.#manifest.playback.map[s]
       // console.log(section)
       this.schedule(section, '0:0:0')
@@ -187,7 +187,7 @@ class JSONg {
       this.state = 'started'
     }
     else if(this.state === 'started'){
-      this.advanceSection()
+      this.advanceSection(skip)
     }
   }
 
