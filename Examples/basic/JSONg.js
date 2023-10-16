@@ -290,8 +290,14 @@ class JSONg {
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
     if(!this.state) return
-    this.#trackPlayers[trackIndex].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
-    this.#trackPlayers[trackIndex].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    let idx = trackIndex
+    if(typeof trackIndex === 'string'){
+      this.#manifest.tracks.forEach((o,i)=>{
+        if(o.name === trackIndex) idx = i
+      })
+    }
+    this.#trackPlayers[idx].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
 
 

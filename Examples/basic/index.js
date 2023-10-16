@@ -85,7 +85,7 @@ interact('.handle').draggable({
 
       const ratio = Math.min(1.0, position.x / 300)
       const db = 20*Math.log10(ratio)
-      player.rampTrackVolume(1,db)
+      player.rampTrackVolume('lead',db)
 
       event.target.style.transform =
         `translate(${position.x}px, ${position.y}px)`
