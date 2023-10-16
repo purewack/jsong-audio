@@ -94,7 +94,14 @@ class JSONg {
         const a = new this.#tone.Player().toDestination()
         a.volume.value = track.volumeDB
         a.buffer = this.#srcPool[track.source]
-        this.#trackPlayers.push(a)
+
+        const b = new this.#tone.Player().toDestination()
+        b.volume.value = track.volumeDB
+        b.buffer = this.#srcPool[track.source]
+
+        this.#trackPlayers.push({
+          a,b, current: a
+        })
       }
     }
 
@@ -194,7 +201,9 @@ class JSONg {
     this.#tone.Transport.clear()
     this.#trackPlayers.forEach((p,i)=>{
       try{
-          p.stop(!immidiate ? this.#getNextTime() : undefined);
+          p.a.stop(!immidiate ? this.#getNextTime() : undefined);
+          p.b.stop(!immidiate ? this.#getNextTime() : undefined);
+          p.current = p.a
       }catch(error){
         if(this.verbose) console.log('Empty track stopping ',this.#manifest.tracks[i]);
       }
@@ -236,14 +245,18 @@ class JSONg {
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
     this.#tone.Transport.scheduleOnce((t)=>{
-      if(this.verbose) console.log('Scehdule done for time: ', nextTime)
+      if(this.verbose) console.log('Scehdule done for time: ', nextTime, t)
       atScheduleTime?.()
-      this.#trackPlayers.forEach((p,i)=>{
+      this.#trackPlayers.forEach((track,i)=>{
+        const p = track.current === track.a ? track.b : track.a
+        
         p.loopStart = section.region[0]+'m';
         p.loopEnd = section.region[1]+'m';
         p.loop = true;
         try{
+          track.current.stop(t);
           p.start(t,section.region[0]+'m');
+          track.current = p;
         }catch(error){
           if(this.verbose) console.log('Empty track playing ',this.#manifest.tracks[i]);
         }
@@ -257,7 +270,8 @@ class JSONg {
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
     if(!this.state) return
-    this.#trackPlayers[trackIndex].volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[trackIndex].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[trackIndex].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
 
 
