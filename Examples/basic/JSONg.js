@@ -172,7 +172,7 @@ class JSONg {
       const s = getNestedIndex(this.#flow, [0])
       const section = this.#manifest.playback.map[s]
       // console.log(section)
-      this.schedule(section)
+      this.schedule(section, '0:0:0')
 
       if(this.#manifest.playback.metronome){
         this.#tone.Transport.scheduleRepeat((t)=>{
@@ -235,17 +235,20 @@ class JSONg {
     if(this.#pending) return
     
     const nowIndex = [...this.#flow.index]
+    const nowSection = this.#manifest.playback.map[getNestedIndex(this.#flow, nowIndex)]
+    
     nextSection(this.#flow, breakout)
+    
     const nextIndex = [...this.#flow.index]
-    const s = getNestedIndex(this.#flow, nextIndex)
-    const section = this.#manifest.playback.map[s]
+    const _nextSection = this.#manifest.playback.map[getNestedIndex(this.#flow, nextIndex)]
+    const nextTime =  this.#getNextTime(nowSection)
 
     this.#tone.Draw.schedule(() => {
-      this.onSectionWillEnd?.(nowIndex)
-      this.onSectionWillPlay?.(nextIndex)
+      this.onSectionWillEnd?.(nowIndex, nextTime)
+      this.onSectionWillPlay?.(nextIndex, nextTime)
     }, this.#tone.now());
     
-    this.schedule(section, ()=>{
+    this.schedule(_nextSection, nextTime, ()=>{
       this.#tone.Draw.schedule(() => {
         this.onSectionPlayEnd?.(nowIndex)
         this.onSectionPlayStart?.(nextIndex)
@@ -253,10 +256,11 @@ class JSONg {
     }) 
   }
 
-  schedule(section, onSchedueCallback = undefined){
+  schedule(section, whenPositionTime = undefined, onSchedueCallback = undefined){
     if(this.#pending) return
     this.#pending = true
-    const nextTime = this.#getNextTime(section)
+    
+    const nextTime = typeof whenPositionTime === 'string' ? whenPositionTime : this.#getNextTime(section)
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
     this.#tone.Transport.scheduleOnce((t)=>{
@@ -319,6 +323,7 @@ class JSONg {
   #getNextTime(section){
     const grain = section?.grain ? section.grain : this.#manifest.playback.grain;
     const meterDenominator = this.#tone.Transport.timeSignature
+    if(this.verbose) console.log('using grain ', grain, 'for section', section)
     return quanTime(this.#tone.Transport.position, [grain, meterDenominator])
   }
 

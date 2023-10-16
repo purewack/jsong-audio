@@ -34,6 +34,8 @@ const timeline = document.getElementById("timeline")
 player.onSongTransport = (pos)=>{
   timeline.innerText = pos;
 }
+const ntimeline = document.getElementById("ntimeline")
+  
 
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
@@ -41,14 +43,15 @@ player.onSectionPlayEnd = (index)=>{
   console.log(index)
   squeue.innerText = 'ended ' + index
 }
-player.onSectionWillEnd = (index)=>{
+player.onSectionWillEnd = (index, when)=>{
   console.log(index)
   squeue.innerText = '|| ' + index
 }
 
-player.onSectionWillPlay = (index)=>{
+player.onSectionWillPlay = (index, when)=>{
   console.log(index)
   queue.innerText = '>> ' + index
+  ntimeline.innerText = when;
 }
 player.onSectionPlayStart = (index)=>{
   console.log(index)
