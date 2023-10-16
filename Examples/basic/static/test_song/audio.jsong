@@ -28,7 +28,7 @@
       "verse1", 
       "bridge1", 
       [4, "verse2", "bridge1"],
-      ["chorus","verse2"],
+      ["chorus","verse2"]
     ]
   },
   "tracks": [

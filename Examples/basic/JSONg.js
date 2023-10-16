@@ -153,6 +153,7 @@ class JSONg {
     this.playingNow = null;
 
     this.stop() 
+    this.state = null;
     if(this.verbose) console.log("Parsed song ",this)
     
       })
@@ -165,6 +166,7 @@ class JSONg {
   
 //================Controls===========
   play(from = null, skip = false){
+
     if(this.state === 'stopped'){
       this.#flow.index = [0]
       const s = getNestedIndex(this.#flow, [0])
@@ -184,7 +186,7 @@ class JSONg {
       this.#tone.Transport.start('+0.1s')
       this.state = 'started'
     }
-    else {
+    else if(this.state === 'started'){
       this.advanceSection()
     }
   }
@@ -212,6 +214,7 @@ class JSONg {
 
 
 //================Flow===========
+  #pending = false;
   #flow;
   #section; //current section details
   // gotoSection(section){
@@ -229,6 +232,8 @@ class JSONg {
   // }
 
   advanceSection(breakout = false){
+    if(this.#pending) return
+    
     const nowIndex = [...this.#flow.index]
     nextSection(this.#flow, breakout)
     const nextIndex = [...this.#flow.index]
@@ -249,6 +254,8 @@ class JSONg {
   }
 
   schedule(section, onSchedueCallback = undefined){
+    if(this.#pending) return
+    this.#pending = true
     const nextTime = this.#getNextTime(section)
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
@@ -270,6 +277,7 @@ class JSONg {
       })
       this.playingNow = section;
       onSchedueCallback?.()
+      this.#pending = false
       if(this.verbose) console.log(this.playingNow)
     },nextTime)
   }
