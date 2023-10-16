@@ -2,48 +2,38 @@
 // const {nextSection} = require('./nextSection')
 // const {buildSection} = require('./buildSection')
 // const {setNestedIndex, getNestedIndex} = require('./nestedIndex')
-const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex} = require('jsong')
+const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex} = require('jsong');
 
 class JSONg {
   //parser version 0.0.2
   #tone;
 
   #manifest; //copy of .json file
+  // audio players and sources
+  #trackPlayers = [];
+  #srcPool = [];
 
-  //events
-  onStateChange = null;
-  onSongTransport = null;
-  onSectionTransport = null;
   onSectionPlayStart = null;
   onSectionPlayEnd = null;
   onSectionWillStart = null;
   onSectionWillEnd = null;
 
+  onStateChange = null;
   #state = null;
   set state(value){
     this.#state = value
-    this.onStateChange?.(value)
+    this.#tone.Draw.schedule(() => {
+      this.onStateChange?.(value)
+    }, this.#tone.now());
   }
   get state(){
     return this.#state
   }
 
-  #playingNow; //name of current section that is playing
-  set playingNow(v){
-    this.#playingNow = v
-    // this.onSectionPlayStart?.(v)
-  }
-  get playingNow (){
-    return this.#playingNow
-  }
-
-// audio players and sources
-  #trackPlayers = [];
-  #srcPool = [];
-
-  //metronome
+  //transport and meter
+  onSongTransport = null;
+  onSectionTransport = null;
   #metronome; 
-
   #meterBeat = {
     songCurrent: 0,
     songTotal: 0,
@@ -52,7 +42,9 @@ class JSONg {
   };
   set meterBeat(v){
     this.#meterBeat = v
-    this.onSongTransport?.(this.#tone.Transport.position)
+    this.#tone.Draw.schedule(() => {
+      this.onSongTransport?.(this.#tone.Transport.position)
+    }, this.#tone.now());
   }
   get meterBeat(){
     return this.#meterBeat
@@ -81,6 +73,7 @@ class JSONg {
     this.#manifest = structuredClone(data)
     this.#flow = buildSection(this.#manifest.playback.flow)
     const src_keys = Object.keys(this.#manifest.sources)
+    if(this.#verbose) console.log(JSON.stringify(this.#manifest.playback.flow), this.#flow)
 
     this.#load = {
       required: this.#manifest.tracks.length, 
@@ -91,13 +84,15 @@ class JSONg {
     const spawnTracks = ()=>{
       this.trackPlayers = []
       for(const track of this.#manifest.tracks){
+        const name = track.source ? track.source : track.name;
+
         const a = new this.#tone.Player().toDestination()
         a.volume.value = track.volumeDB
-        a.buffer = this.#srcPool[track.source]
+        a.buffer = this.#srcPool[name]
 
         const b = new this.#tone.Player().toDestination()
         b.volume.value = track.volumeDB
-        b.buffer = this.#srcPool[track.source]
+        b.buffer = this.#srcPool[name]
 
         this.#trackPlayers.push({
           a,b, current: a
@@ -131,7 +126,7 @@ class JSONg {
     for(const src_id of src_keys){
       const data = this.#manifest.sources[src_id]
       const buffer = new this.#tone.ToneAudioBuffer();
-      if(this.verbose) console.log('Current source id', src_id)
+      // if(this.verbose) console.log('Current source id', src_id)
       buffer.baseUrl = window.location.origin
 
       const url = data.startsWith('data') ? data : _loadpath + data
@@ -234,19 +229,31 @@ class JSONg {
   // }
 
   advanceSection(breakout = false){
+    const nowIndex = [...this.#flow.index]
     nextSection(this.#flow, breakout)
-    const s = getNestedIndex(this.#flow, this.#flow.index)
+    const nextIndex = [...this.#flow.index]
+    const s = getNestedIndex(this.#flow, nextIndex)
     const section = this.#manifest.playback.map[s]
-    this.schedule(section) 
+
+    this.#tone.Draw.schedule(() => {
+      this.onSectionWillEnd?.(nowIndex)
+      this.onSectionWillPlay?.(nextIndex)
+    }, this.#tone.now());
+    
+    this.schedule(section, ()=>{
+      this.#tone.Draw.schedule(() => {
+        this.onSectionPlayEnd?.(nowIndex)
+        this.onSectionPlayStart?.(nextIndex)
+      }, this.#tone.now());
+    }) 
   }
 
-  schedule(section, atScheduleTime = undefined){
+  schedule(section, onSchedueCallback = undefined){
     const nextTime = this.#getNextTime(section)
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
     this.#tone.Transport.scheduleOnce((t)=>{
       if(this.verbose) console.log('Scehdule done for time: ', nextTime, t)
-      atScheduleTime?.()
       this.#trackPlayers.forEach((track,i)=>{
         const p = track.current === track.a ? track.b : track.a
         
@@ -262,6 +269,7 @@ class JSONg {
         }
       })
       this.playingNow = section;
+      onSchedueCallback?.()
       if(this.verbose) console.log(this.playingNow)
     },nextTime)
   }

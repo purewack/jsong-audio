@@ -1,6 +1,6 @@
 {
-  "type": "jsonAudio",
-  "jsonAudioVersion":"0.0.1",
+  "type": "jsong",
+  "jsongVersion":"0.0.1",
   "meta": {
     "title": "Test",
     "author": "Damian Nowacki",
@@ -29,41 +29,30 @@
       "bridge1", 
       [4, "verse2", "bridge1"],
       ["chorus","verse2"],
-      ["intro"]
     ]
   },
   "tracks": [
     {
       "name": "drums",
-      "source": "test_drums.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "volumeDB": 0
     },
     {
       "name": "bass",
-      "source": "test_bass.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "volumeDB": 0
     },
     {
       "name": "guitar",
-      "source": "test_guitar.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "volumeDB": 0
     },
     {
       "name": "lead",
-      "source": "test_lead.mp3",
-      "volumeDB": 0,
-      "mute": false,
-      "offset": 0,
-      "length": 56
+      "volumeDB": 0
     }
-  ]
+  ],
+  "sources" : {
+    "bass" : "test_bass.mp3",
+    "drums" : "test_drums.mp3",
+    "guitar": "test_guitar.mp3",
+    "lead" : "test_lead.mp3"
+  }
 }

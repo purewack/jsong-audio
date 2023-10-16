@@ -14,7 +14,7 @@ loaderLabel.innerText = 'Loading...'
 
 const player = new JSONg(Tone)
 
-player.parse('short_song').then((full)=>{
+player.parse('test_song').then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
 }).catch((reason, data)=>{
   if(reason === 'loading')
@@ -24,16 +24,37 @@ player.parse('short_song').then((full)=>{
   }
 })
 
+
+const state = document.getElementById("state")
+player.onStateChange = (st)=>{
+  state.innerText = st
+}
+
 const timeline = document.getElementById("timeline")
 player.onSongTransport = (pos)=>{
   timeline.innerText = pos;
 }
 
-const queue = document.getElementById("queue")
-player.onRegionStart = (region)=>{
-  console.log(region)
-  queue.innerText = 'onRegionStart ' + region
+const squeue = document.getElementById("prequeue")
+const queue = document.getElementById("postqueue")
+player.onSectionPlayEnd = (index)=>{
+  console.log(index)
+  squeue.innerText = 'ended ' + index
 }
+player.onSectionWillEnd = (index)=>{
+  console.log(index)
+  squeue.innerText = '|| ' + index
+}
+
+player.onSectionWillPlay = (index)=>{
+  console.log(index)
+  queue.innerText = '>> ' + index
+}
+player.onSectionPlayStart = (index)=>{
+  console.log(index)
+  queue.innerText = 'playing ' + index
+}
+
 
 document.getElementById("play").addEventListener("click", () => {
   Tone.start();
