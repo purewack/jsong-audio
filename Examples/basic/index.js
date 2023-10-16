@@ -36,6 +36,14 @@ player.onSongTransport = (pos)=>{
 }
 const ntimeline = document.getElementById("ntimeline")
   
+const playbutton = document.getElementById("play")
+playbutton.onclick = (ev) => {
+  console.log(ev.target, ev.target.innerText)
+  if(ev.target.innerText === 'Play')
+    player.play()
+  else
+    player.cancel()
+};
 
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
@@ -43,22 +51,27 @@ player.onSectionPlayEnd = (index)=>{
   squeue.innerText = 'ended ' + index
 }
 player.onSectionWillEnd = (index, when)=>{
+  if(!index) squeue.innerText = 'cancelled'
   squeue.innerText = '|| ' + index
 }
 
 player.onSectionWillPlay = (index, when)=>{
-  queue.innerText = '>> ' + index
-  ntimeline.innerText = when;
+  if(!index) {
+    squeue.innerText = 'cancelled'
+    playbutton.innerText = 'Play'
+  }
+  else{
+    queue.innerText = '>> ' + index
+    ntimeline.innerText = when;
+    playbutton.innerText = 'Cancel'
+  }
 }
 player.onSectionPlayStart = (index)=>{ 
   queue.innerText = 'playing ' + index
+  playbutton.innerText = 'Play'
 }
 
 
-document.getElementById("play").addEventListener("click", () => {
-  Tone.start();
-  player.play()
-});
 document.getElementById("from").addEventListener("click", () => {
   Tone.start();
   player.play([1], true)

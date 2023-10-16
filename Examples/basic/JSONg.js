@@ -166,6 +166,7 @@ class JSONg {
   
 //================Controls===========
   play(from = null, skip = false){
+    this.#tone.start()
 
     if(this.state === 'stopped'){
       this.#flow.index = from || [0]
@@ -214,22 +215,8 @@ class JSONg {
 
 
 //================Flow===========
-  #pending = false;
+  #pending = null;
   #flow;
-  #section; //current section details
-  // gotoSection(section){
-    
-  //   this.#section = {
-  //     flowIndex: curIndex,
-  //     subIndex: _subIndex,
-  //     isSubloop,
-  //     currentRepeats: 0,
-  //     targetRepeats: isSubloop ? (finiteRepeat ? curSection[0] : Infinity) : 0,
-  //     grain: this.#manifest.playback.grain,
-  //     ...this.#manifest.playback.map[sectionName]
-  //   }
-  //   // if(this.verbose) console.log(index, _subIndex, sectionName, {...this.#section})
-  // }
 
   advanceSection(breakout = false){
     if(this.#pending) return
@@ -258,12 +245,11 @@ class JSONg {
 
   schedule(section, whenPositionTime = undefined, onSchedueCallback = undefined){
     if(this.#pending) return
-    this.#pending = true
     
     const nextTime = typeof whenPositionTime === 'string' ? whenPositionTime : this.#getNextTime(section)
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
-    this.#tone.Transport.scheduleOnce((t)=>{
+    this.#pending = this.#tone.Transport.scheduleOnce((t)=>{
       if(this.verbose) console.log('Scehdule done for time: ', nextTime, t)
       this.#trackPlayers.forEach((track,i)=>{
         const p = track.current === track.a ? track.b : track.a
@@ -286,6 +272,13 @@ class JSONg {
     },nextTime)
   }
 
+  cancel(){
+    if(!this.#pending) return
+    this.#tone.Transport.clear(this.#pending)
+    this.#pending = null
+    this.onSectionWillEnd?.(false)
+    this.onSectionWillPlay?.(false)
+  }
 
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
