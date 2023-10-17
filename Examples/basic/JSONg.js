@@ -91,16 +91,20 @@ class JSONg {
       for(const track of this.#manifest.tracks){
         const name = track.source ? track.source : track.name;
 
-        const a = new this.#tone.Player().toDestination()
+        const a = new this.#tone.Player()
         a.volume.value = track.volumeDB
         a.buffer = this.#srcPool[name]
 
-        const b = new this.#tone.Player().toDestination()
+        const b = new this.#tone.Player()
         b.volume.value = track.volumeDB
         b.buffer = this.#srcPool[name]
 
+        const filter = new this.#tone.Filter(20000, "lowpass").toDestination()
+        a.connect(filter)
+        b.connect(filter)
+
         this.#trackPlayers.push({
-          a,b, current: a
+          a,b, current: a, filter
         })
       }
     }
@@ -194,15 +198,15 @@ class JSONg {
     }
   }
 
-  stop(immidiate = true){
+  stop(immediate = true){
     if(this.state === 'stopped') return
     this.#tone.Transport.stop()
     this.#tone.Transport.cancel()
     this.#tone.Transport.clear()
     this.#trackPlayers.forEach((p,i)=>{
       try{
-          p.a.stop(!immidiate ? this.#getNextTime() : undefined);
-          p.b.stop(!immidiate ? this.#getNextTime() : undefined);
+          p.a.stop(!immediate ? this.#getNextTime() : undefined);
+          p.b.stop(!immediate ? this.#getNextTime() : undefined);
           p.current = p.a
       }catch(error){
         if(this.verbose) console.log('Empty track stopping ',this.#manifest.tracks[i]);
@@ -213,6 +217,15 @@ class JSONg {
     if(this.verbose) console.log("JSONg player stopped")
   }
 
+  next(){
+    if(this.state === 'playing')
+    this.play(null, false)
+  }
+
+  skip(){
+    if(this.state === 'playing')
+    this.play(null, true)
+  }
 
 
 //================Flow===========
@@ -244,7 +257,7 @@ class JSONg {
     }) 
   }
 
-  schedule(sectionIndex, whenPositionTime = undefined, onSchedueCallback = undefined){
+  schedule(sectionIndex, whenPositionTime = undefined, onScheduleCallback = undefined){
     if(this.#pending) return
     const section = this.#manifest.playback.map[getNestedIndex(this.#flow, sectionIndex)]
 
@@ -252,7 +265,7 @@ class JSONg {
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
     this.#pending = this.#tone.Transport.scheduleOnce((t)=>{
-      if(this.verbose) console.log('Scehdule done for time: ', nextTime, t)
+      if(this.verbose) console.log('Schedule done for time: ', nextTime, t)
       this.#trackPlayers.forEach((track,i)=>{
         const p = track.current === track.a ? track.b : track.a
         
@@ -268,7 +281,7 @@ class JSONg {
         }
       })
       this.playingNow = section;
-      onSchedueCallback?.() 
+      onScheduleCallback?.() 
       this.#flow.index = sectionIndex
       this.#sectionBeat = -1
       this.#sectionLen = (section.region[1] - section.region[0]) * this.#tone.Transport.timeSignature
@@ -297,7 +310,16 @@ class JSONg {
     this.#trackPlayers[idx].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
     this.#trackPlayers[idx].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
-
+  rampTrackFilter(trackIndex, percentage, inTime = 0, sync = true){
+    if(!this.state) return
+    let idx = trackIndex
+    if(typeof trackIndex === 'string'){
+      this.#manifest.tracks.forEach((o,i)=>{
+        if(o.name === trackIndex) idx = i
+      })
+    }
+    this.#trackPlayers[idx].filter.frequency.rampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
+  }
 
 //================Various==========
   constructor(tone, data = null, verbose = true){

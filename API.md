@@ -1,52 +1,63 @@
 
 # Event Listeners
 
-### `JSONPlayer.parse => Promise (isFullyLoaded)=>{}`
+### `JSONg.parse => Promise (isFullyLoaded)=>{}`
 > Returns a `Promise` with a boolean value indicating if all audio files are loaded upon `Promise` resolution, else throws error if no files could be loaded
 
-### `JSONPlayer.onRegionStart = (regionName)=>{}`
-> Called when the active playing region changes and starts playing
-### `JSONPlayer.onRegionEnd = (regionName)=>{}`
+### `JSONg.onSectionStart = (sectionName)=>{}`
+> Called when the active playing section changes and starts playing
+### `JSONg.onSectionEnd = (sectionName)=>{}`
+> Called when the active playing section changes and stops playing
+### `JSONg.onSectionWillStart = (sectionName)=>{}` `JSONg.onSectionWillEnd = (sectionName)=>{}`
+> Called when the active playing will stop and a new section will start
 
-### `JSONPlayer.onRegionWillStart = (regionName)=>{}`
 
-### `JSONPlayer.onRegionWillEnd = (regionName)=>{}`
+### `JSONg.onTransport = (timePosition, [sectionBeat, sectionBeats])=>{}`
+> Callback for timeline ticks and section position, `timePosition` is in the format `measure:beat:16th`. Section transport is `sectionBeat` / `sectionBeats`
 
-### `JSONPlayer.onRegionTransport = (regionName, beat, totalRegionBeats)=>{}`
-
-### `JSONPlayer.onSongTransport = (currentRegionName, beat, totalRegionBeats)=>{}`
-
-### `JSONPlayer.onStateChange = (state)=>{}`
+### `JSONg.onStateChange = (state)=>{}`
+> Possible states include `null` when uninitialized, `stopped`, & `started`
 
 # Control Methods
-### `JSONPlayer`:
+### `JSONg`:
 
-`const player = new JSONPlayer(Tone, audio.json, verbose = false)`
+`const player = new JSONg(Tone, verbose = false)`
 
-This class is instanciated with the `new` keyword and has the following methods:
+This class is instantiated with the `new` keyword and has the following methods:
 
-### `JSONPlayer.parse(data)` / `new JSONPlayer(data)`
-> Parses the JSON file internally and loads any music files required to represent the song.
+### `JSONg.parse(data)`
+> Parses the `.jsong` file internally and loads any music files required to represent the song.
 
-### `JSONPlayer.start()`
-> Starts music playback from current section, with current settings 
+### `JSONg.parse(jsong, dataPath)`
+> Manually specify the path to the `.jsong` file and the path to the sources, then parse accordingly.
 
-### `JSONPlayer.stop()`
+### `JSONg.stop()`
 > Stop music playback.
 
-### `JSONPlayer.next(breakOut, regionName)`
-> Go to the next section in the flow map defined in `audio.json`, current grain settings apply unless `map` setting overrides it.
+### `JSONg.cancel()`
+> Cancel any pending section changes
 
-> Or go to the named region section in the region map defined in `audio.json`, current grain settings apply unless `map` setting overrides it.
+### `JSONg.play()`
+> Starts music playback from the first section, with current settings 
+> After playing commences, any subsequent calls act like `JSONg.next()`
 
-### `JSONPlayer.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
+### `JSONg.play(index)`
+> Starts music playback from the indexed section if stopped, with current settings 
+
+### `JSONg.next()`
+> Go to the next section, NOT braking out of any infinite loops in the flow map defined in `audio.jsong`, current grain settings apply unless `map` setting overrides it.
+
+### `JSONg.skip()`
+> Go to the next section, braking out of any infinite loops in the flow map defined in `audio.jsong`, current grain settings apply unless `map` setting overrides it.
+
+### `JSONg.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
 > Adjust track volume
 
-### `JSONPlayer.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
+### `JSONg.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
 > Adjust track Low Pass filter
 
 
-### `audio.json`:
-> This file maps out sections of music and loop regions as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections. Can contain audio data in form of data URI or can point to sound files (relative path to `.json` file).
+### `audio.jsong`:
+> This file maps out sections of music and loop sections as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections. Can contain audio data in form of data URI or can point to sound files (relative path to `.jsong` file).
 <br/>
 *See [Concepts](README.md#concepts)*
