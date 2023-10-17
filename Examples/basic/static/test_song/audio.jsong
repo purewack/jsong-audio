@@ -57,7 +57,7 @@
   "sources" : {
     "bass" : "test_bass.mp3",
     "drums" : "test_drums.mp3",
-    "guitar": "test_guitar.mp3",
-    "lead" : "test_lead.mp3"
+    "guitar": "./test_guitar.mp3",
+    "lead" : "./test_lead.mp3"
   }
 }

@@ -1,4 +1,4 @@
-# Layout of *.audio.json Manifest file
+# Layout of *.jsong Manifest file
 ```
 {
     "type": "jsong",

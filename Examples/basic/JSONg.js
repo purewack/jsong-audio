@@ -45,8 +45,6 @@ class JSONg {
   set meterBeat(v){
     this.#meterBeat = v
     this.#tone.Draw.schedule(() => {
-      const ts = this.#tone.Time(this.#tone.Transport.position).toSeconds()
-      
       const nowIndex = [...this.#sectionsFlowMap.index]
       const nowSection = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, nowIndex)]
       if(nowSection){
@@ -65,16 +63,20 @@ class JSONg {
 //==================Loader==============
   #load;
 
-  parse(path){
-    return new Promise((resolve, reject)=>{
-    
-    const sep = (path.endsWith('/')  ? ' ' : '/')
-    const _loadpath = path + sep;
-    if(this.verbose) console.log('Loading from path',_loadpath)
-    fetch(_loadpath + 'audio.jsong').then(resp => {
-      resp.text().then(txt => {
-        // console.log(txt)
-      const data = JSON.parse(txt)
+parse(folderPath){
+  const sep = (folderPath.endsWith('/')  ? ' ' : '/')
+  const _loadpath = folderPath + sep;
+  if(this.verbose) console.log('Loading from path',_loadpath)
+  return this.parse(_loadpath + 'audio.jsong', null);
+}
+
+parse(manifestPath, dataPath){
+  return new Promise((resolve, reject)=>{
+  
+  fetch(manifestPath).then(resp => {
+    resp.text().then(txt => {
+      // console.log(txt)
+    const data = JSON.parse(txt)
         
     if(this.verbose) console.log('JSONg loaded',data)
     if(data?.type !== 'jsong') {
@@ -82,16 +84,16 @@ class JSONg {
       return
     }
 
-    this.stop(true)
+    this.stop(0)
     this.state = null; 
 
     this.#playbackInfo = {
       bpm: data.playback.bpm,
       meter: data.playback.meter,
-      metronome: data.playback.metronome,
-      metronomeDB: data.playback.metronomeDB,
       totalMeasures: data.playback.totalMeasures,
-      grain: data.playback.grain,
+      grain: data.playback?.grain || 4,
+      metronome: data.playback?.metronome || ["B5","G4"],
+      metronomeDB: data.playback?.metronomeDB || -6,
     }
     this.#tracksList = [...data.tracks]
     this.#playbackFlow = [...data.playback.flow]
@@ -162,8 +164,8 @@ class JSONg {
       const buffer = new this.#tone.ToneAudioBuffer();
       // if(this.verbose) console.log('Current source id', src_id)
       buffer.baseUrl = window.location.origin
-
-      const url = data.startsWith('data') ? data : _loadpath + data
+      const _dataPath = dataPath ? dataPath : manifestPath
+      const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
       buffer.load(url).then((tonebuffer)=>{
         this.#load.loaded++;
         this.#sourceBuffers[src_id] = tonebuffer
@@ -188,12 +190,12 @@ class JSONg {
 
     if(this.verbose) console.log("Parsed song ",this)
     
-      })
     })
+  })
 
-    })
+  })
 
-  }
+}
 
   
 //================Controls===========
@@ -216,12 +218,17 @@ class JSONg {
 
       this.#tone.Transport.cancel()
       this.#sectionsFlowMap.index = from || [0]
-      this?.onSectionWillEnd?.(null)
-      this?.onSectionWillStart?.(this.#sectionsFlowMap.index)
+
+      this.#tone.Draw.schedule(() => {
+        this?.onSectionWillEnd?.(null)
+        this?.onSectionWillStart?.(this.#sectionsFlowMap.index)
+      },this.#tone.now())
 
       this.schedule(this.#sectionsFlowMap.index, '0:0:0', ()=>{
-        this?.onSectionPlayEnd?.(null)
-        this?.onSectionPlayStart?.(this.#sectionsFlowMap.index)
+        this.#tone.Draw.schedule(() => {
+          this?.onSectionPlayEnd?.(null)
+          this?.onSectionPlayStart?.(this.#sectionsFlowMap.index)
+        },this.#tone.now())
         if(!fadein) return
         this.#trackPlayers.forEach((t,i)=>{
           this.rampTrackVolume(i,this.#tracksList[i].volumeDB,fadein)

@@ -9,7 +9,7 @@ loaderLabel.innerText = 'Loading...'
 
 const player = new JSONg(Tone)
 
-player.parse('test_song').then((full)=>{
+player.parse('test_song/audio.jsong', 'test_song').then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
 }).catch((reason, data)=>{
   if(reason === 'loading')
