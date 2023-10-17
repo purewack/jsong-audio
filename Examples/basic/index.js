@@ -1,8 +1,8 @@
 import "./styles.css";
 import * as Tone from "tone";
 import interact from 'interactjs' ;
-// import {JSONg} from "jsong";
-import {JSONg} from "./JSONg"
+import {JSONg} from "jsong";
+// import {JSONg} from "./JSONg"
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
