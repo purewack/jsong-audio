@@ -16,8 +16,8 @@ class JSONg {
   #sourcesMap;
 
   // audio players and sources
-  #trackPlayers = [];
-  #sourceBuffers = [];
+  #trackPlayers = null;
+  #sourceBuffers = null;
 
   onSectionPlayStart = null;
   onSectionPlayEnd = null;
@@ -67,7 +67,7 @@ parse(folderPath){
   const sep = (folderPath.endsWith('/')  ? ' ' : '/')
   const _loadpath = folderPath + sep;
   if(this.verbose) console.log('Loading from path',_loadpath)
-  return this.parse(_loadpath + 'audio.jsong', null);
+  return this.parse(_loadpath + 'audio.jsong', _loadpath);
 }
 
 parse(manifestPath, dataPath){
@@ -84,8 +84,6 @@ parse(manifestPath, dataPath){
       return
     }
 
-    this.stop(0)
-    this.state = null; 
 
     this.#playbackInfo = {
       bpm: data.playback.bpm,
@@ -110,8 +108,25 @@ parse(manifestPath, dataPath){
       failed: 0
     };
 
+    if(this.#trackPlayers){
+      this.stop(0)
+      this.state = null; 
+    }
+
+    if(this.#sourceBuffers){
+      this.#tone.Transport.cancel()
+      this.#trackPlayers.forEach((t)=>{
+        t.a.dispose()
+        t.b.dispose()
+      })
+      Object.keys(this.#sourceBuffers).forEach((k)=>{
+        this.#sourceBuffers[k].dispose()
+      })
+      if(this.verbose) console.log('Audio reset')
+    }
+
     const spawnTracks = ()=>{
-      this.trackPlayers = []
+      this.#trackPlayers = []
       for(const track of this.#tracksList){
         const name = track.source ? track.source : track.name;
 
@@ -178,9 +193,8 @@ parse(manifestPath, dataPath){
       })
     }
 
-    this.#metronome = new this.#tone.Synth().toDestination()
-    this.#metronome.envelope.attack = 0;
-    this.#metronome.envelope.release = 0.05;
+    this.#meterBeat = 0
+    this.#tone.Transport.position = '0:0:0'
     this.#metronome.volume.value = this.#playbackInfo.metronomeDB || 0;
     
     this.#tone.Transport.bpm.value = this.#playbackInfo.bpm
@@ -207,8 +221,8 @@ parse(manifestPath, dataPath){
       this.#tone.start()
       this.#trackPlayers.forEach((t,i)=>{
         if(fadein){
-          t.a.volume.value = -50;
-          t.b.volume.value = -50;
+          t.a.volume.value = -60;
+          t.b.volume.value = -60;
         }
         else{
           t.a.volume.value = this.#tracksList[i].volumeDB
@@ -235,14 +249,16 @@ parse(manifestPath, dataPath){
         })
       })
 
+      this.meterBeat = 0
+      this.#sectionBeat = -1
+      this.#tone.Transport.position = '0:0:0'
       this.#tone.Transport.scheduleRepeat((t)=>{
         const note = this.#playbackInfo.metronome[this.meterBeat === 0 ? 0 : 1]
         this.meterBeat = (this.meterBeat + 1) % this.#tone.Transport.timeSignature
         if(this.#playbackInfo.metronome || this.verbose)
-          this.#metronome.triggerAttackRelease(note,'32n',t);
+          this.#metronome.triggerAttackRelease(note,'64n',t);
       },'4n');
 
-      this.meterBeat = 0;
       this.#tone.Transport.start('+0.1s')
       this.state = 'started'
     }
@@ -253,21 +269,21 @@ parse(manifestPath, dataPath){
 
   stop(after = '4n', fadeout= true){
     if(this.state === 'stopped' || this.state === 'stopping') return
-    this.state = 'stopping';
+    this.state = !after ? 'stopped' : 'stopping';
     const afterSec = this.#tone.Time(after).toSeconds()
     const when = after ? afterSec + this.#tone.Time(this.#tone.Transport.position)
     : this.#tone.now();
-    console.log(when, this.#tone.now())
     
     if(fadeout && after){
       this.#trackPlayers.forEach((p,i)=>{
-        this.rampTrackVolume(i,-50, afterSec);
+        this.rampTrackVolume(i,-60, afterSec);
       })
-      this?.onSectionWillStart?.(null) 
-      this?.onSectionWillEnd?.(this.#sectionsFlowMap?.index)  
+      this.#tone.Draw.schedule(() => {
+        this?.onSectionWillStart?.(null) 
+        this?.onSectionWillEnd?.(this.#sectionsFlowMap?.index)  
+      }, this.#tone.now())
     }
-
-    this.#tone.Transport.scheduleOnce((t)=>{
+    const stopping = (t)=>{
       this.#tone.Transport.stop(t)
       this.#tone.Transport.cancel()
       this.#trackPlayers.forEach((p,i)=>{
@@ -279,12 +295,17 @@ parse(manifestPath, dataPath){
           if(this.verbose) console.log('Empty track stopping ',this.#tracksList[i]);
         }
       })
-
-      this?.onSectionPlayStart?.(null) 
-      this?.onSectionPlayEnd?.(this.#sectionsFlowMap.index)  
+      this.#tone.Draw.schedule(() => {
+        this?.onSectionPlayStart?.(null) 
+        this?.onSectionPlayEnd?.(this.#sectionsFlowMap.index) 
+      },this.#tone.now()) 
       this.state = 'stopped'
-    },when)
-    
+    }
+    if(after)
+      this.#tone.Transport.scheduleOnce(stopping,when)
+    else 
+      stopping(when)
+
     if(this.verbose) console.log("JSONg player stopped")
   }
 
@@ -371,23 +392,27 @@ parse(manifestPath, dataPath){
 //================Effects===========
   rampTrackVolume(trackIndex, db, inTime = 0, sync = true){
     if(!this.state) return
-    let idx = trackIndex
+    let idx = null
     if(typeof trackIndex === 'string'){
       this.#tracksList.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
+      if(!idx) return
     }
+    idx = trackIndex
     this.#trackPlayers[idx].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
     this.#trackPlayers[idx].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
   }
   rampTrackFilter(trackIndex, percentage, inTime = 0, sync = true){
     if(!this.state) return
-    let idx = trackIndex
+    let idx = null
     if(typeof trackIndex === 'string'){
       this.#tracksList.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
+      if(!idx) return
     }
+    idx = trackIndex
     this.#trackPlayers[idx].filter.frequency.rampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
   }
 
@@ -412,6 +437,9 @@ get verbose(){
     this.#tone = tone;
     this.verbose = verbose
     this.state = null;
+    this.#metronome = new this.#tone.Synth().toDestination()
+    this.#metronome.envelope.attack = 0;
+    this.#metronome.envelope.release = 0.05;
     if(this.verbose) console.log("New", this);
   }
 

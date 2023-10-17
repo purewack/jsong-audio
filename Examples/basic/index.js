@@ -9,7 +9,9 @@ loaderLabel.innerText = 'Loading...'
 
 const player = new JSONg(Tone)
 
-player.parse('test_song/audio.jsong', 'test_song').then((full)=>{
+
+const songLoad = (song)=>{
+player.parse(song + '/audio.jsong', song).then((full)=>{
   loaderLabel.innerText = full ? 'Ready' : 'Partial Load'
 }).catch((reason, data)=>{
   if(reason === 'loading')
@@ -18,6 +20,15 @@ player.parse('test_song/audio.jsong', 'test_song').then((full)=>{
     loaderLabel.innerText = 'Error parsing .jsong file'
   }
 })
+}
+songLoad('test_song')
+
+document.getElementById("audio1").onclick = ()=>{
+  songLoad('test_song')
+}
+document.getElementById("audio2").onclick = ()=>{
+  songLoad('short_song')
+}
 
 
 const state = document.getElementById("state")
