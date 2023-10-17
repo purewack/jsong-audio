@@ -30,22 +30,68 @@ graph LR
 
 ## A dynamic music representation and playback format.
 
-### How does it work?
-This format is designed specifically to provide dynamic instructions to music player *(a [`JSONg`](API.md#control-methods) object)* on how to manage track volumes and looping of certain sections. The `*.jsong` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
-The `*.jsong` file can also contain music encoded as data URI (coming soon)
+# What is it and how does it work?
+This format is designed specifically to provide dynamic instructions to dynamic music interpreter *(a [`JSONg`](API.md#control-methods) player)* on how to manage tracks, volumes, looping and user interactions. 
+
+The `*.jsong` file itself has instructions on how to playback the music based on dynamic user input events, such as a page scroll, or mouse hover...
+
+The `*.jsong` file can also contain music encoded as data URI to allow a stand alone, single file approach.
 
 ### Inspiration
-The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo)) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level.
+The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo)) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level. One big inspiration is also [Ableton Live](https://ableton.com) in how it allows to dynamically mix and match audio clips to build a song 'live', much of the code and analogies are based on how Live behaves.
 
 # API
-Available in [API.md](API.md)
+Available in [API.md](API.md). The core functions of the player are described. For examples see the 'Examples' folder.
 
 # Dependencies
-As of now, the music player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides music playback of multiple music streams, as well as schedules events aligned to musical time of the song based on its BPM.
+As of now, the music player and event scheduler is <a href="https://tonejs.github.io/">Tone.js</a>. It provides music playback of multiple music streams, as well as the scheduling of events, aligned to musical time of the song based on its BPM.
 
 # Concepts
-The <code>audio.jsong</code> file describes how the player should play the music and how it should react to events. Below is a typical file structure 
+The <code>*.jsong</code> file describes how the player should play the music and how it should react to events. Below is a typical file structure.
 
+## Project File and loading
+To begin, create a new player by making a new object
+`const player = new JSONg(verbose: boolean)`
+
+You may then provide the `*.jsong` file containing all the music within, or, provide a name of a folder containing all music data as well as a `audio.jsong` manifest file. 
+
+## Playback
+By default, if you call the [`play`](API.md#jsongplayindex--undefined-skip--false-fadeintime--1m) and [`stop`](API.md#jsongstopafter--time-fadeout--true) functions, a small fade in and fade out is provided. This is optional and you can either specify your own length (in [Tone units](https://github.com/Tonejs/Tone.js/wiki/Time)) or provide a 0 for instant start and stop.
+
+## Flow
+The *flow* describes how the song should flow from section to section. This array of section names can contain other arrays within, similar to [repeats](https://en.wikipedia.org/wiki/Repeat_sign) in music. 
+```
+[
+  "intro", ["bass", [2, "chorus", "verse"]]
+]
+```
+In this example the *intro* section is the first one and will normally be played first (unless overridden).
+The second entry is a double repeat array.
+ 
+The outer array (`["bass", ...]`) repeats infinitely unless the player is instructed to break out of the loop. 
+
+The inner most array (`[2, "chorus", "verse"]`) has the number of maximum repeats as the first entry, in this case, this means after the second time the player reaches the verse it will step out of the loop and move onto the next section, here it would be `"bass"`.
+
+## Indexing
+To refer to the sections in the flow, a multi stage index is used, for example to refer to `"intro"` an index of `[0]` is used. For nested sections like the `"bass"`, an index of `[1,0]` is used, where the first number is the top level of the flow and any number following is in another level of the flow:
+```
+index   sections
+[0]     "intro",
+[1]     [  
+[1,0]     "bass",
+[1,1]     [
+*          2, 
+[1,1,0]    "chorus", 
+[1,1,1]    "verse"
+          ]
+        ] 
+```
+**Note: the repetition limit number is ignored and should be skipped when counting indexes*
+
+## Events 
+There are a number of events that the player emits to further help you with the dynamic and interactive aspect of the player. The most useful being the [onSectionPlayStart](API.md#jsongonsectionplaystart--index) or [onSectionWillStart](API.md#jsongonsectionwillstart--index)
+
+## Example File layout
 <summary style="font-size:2rem"> <code>audio.jsong</code> - example file:</summary>
 <pre>
 {<span style="color: #987284;">

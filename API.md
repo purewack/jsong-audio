@@ -4,12 +4,15 @@
 ### `JSONg.parse => Promise (isFullyLoaded)=>{}`
 > Returns a `Promise` with a boolean value indicating if all audio files are loaded upon `Promise` resolution, else throws error if no files could be loaded
 
-### `JSONg.onSectionStart = (sectionName)=>{}`
+### `JSONg.onSectionPlayStart = (index)=>{}`
 > Called when the active playing section changes and starts playing
-### `JSONg.onSectionEnd = (sectionName)=>{}`
+### `JSONg.onSectionPlayEnd = (index)=>{}`
 > Called when the active playing section changes and stops playing
-### `JSONg.onSectionWillStart = (sectionName)=>{}` `JSONg.onSectionWillEnd = (sectionName)=>{}`
-> Called when the active playing will stop and a new section will start
+### `JSONg.onSectionWillStart = (index)=>{}` 
+> Called when the active playing is about to start soon
+
+### `JSONg.onSectionWillEnd = (index)=>{}`
+> Called when the active playing will stop soon
 
 
 ### `JSONg.onTransport = (timePosition, [sectionBeat, sectionBeats])=>{}`
@@ -25,19 +28,23 @@
 
 This class is instantiated with the `new` keyword and has the following methods:
 
-### `JSONg.parse(data)`
-> Parses the `.jsong` file internally and loads any music files required to represent the song.
+## File Loading
+
+### `JSONg.parse(song_folder)`
+> Parses the `audio.jsong` file internally and loads any music files required to represent the song from provided folder name.
 
 ### `JSONg.parse(jsong, dataPath)`
-> Manually specify the path to the `.jsong` file and the path to the sources, then parse accordingly.
+> Manually specify the path to the `.jsong` file and the path to the sources, then parse accordingly from explicit paths.
 
-### `JSONg.stop(after = Time, fadeout = true)`
-> Stop music playback. Optionally specify a delay time with or without fading out the music
+## Playback
 
 ### `JSONg.cancel()`
 > Cancel any pending section changes
 
-### `JSONg.play(index, skip, fadeInTime = '1m')`
+### `JSONg.stop(after = Time, fadeout = true)`
+> Stop music playback. Optionally specify a delay time with or without fading out the music
+
+### `JSONg.play(index = undefined, skip = false, fadeInTime = '1m')`
 > Starts music playback from the first section, with current settings 
 > After playing commences, any subsequent calls act like `JSONg.next()`
 
@@ -56,12 +63,15 @@ This class is instantiated with the `new` keyword and has the following methods:
 
 > Go to the next section, braking out of any infinite loops in the flow map defined in `audio.jsong`, current grain settings apply unless `map` setting overrides it.
 
+## Effects
+
 ### `JSONg.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
 > Adjust track volume
 
 ### `JSONg.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
-> Adjust track Low Pass filter
+> Adjust track Low Pass filter, `freq` is a percentage from 100Hz - 19.9kHz
 
+# Other
 
 ### `audio.jsong`:
 > This file maps out sections of music and loop sections as well as all other settings for the player like track volumes and the flow of music for guiding the player through the sections. Can contain audio data in form of data URI or can point to sound files (relative path to `.jsong` file).
