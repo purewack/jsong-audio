@@ -31,23 +31,29 @@ This class is instantiated with the `new` keyword and has the following methods:
 ### `JSONg.parse(jsong, dataPath)`
 > Manually specify the path to the `.jsong` file and the path to the sources, then parse accordingly.
 
-### `JSONg.stop()`
-> Stop music playback.
+### `JSONg.stop(after = Time, fadeout = true)`
+> Stop music playback. Optionally specify a delay time with or without fading out the music
 
 ### `JSONg.cancel()`
 > Cancel any pending section changes
 
-### `JSONg.play()`
+### `JSONg.play(index, skip, fadeInTime = '1m')`
 > Starts music playback from the first section, with current settings 
 > After playing commences, any subsequent calls act like `JSONg.next()`
+
+> Optionally specify a fade in time or provide null for immediate playback
 
 ### `JSONg.play(index)`
 > Starts music playback from the indexed section if stopped, with current settings 
 
 ### `JSONg.next()`
+> Same as `JSONg.play(null, false)`
+
 > Go to the next section, NOT braking out of any infinite loops in the flow map defined in `audio.jsong`, current grain settings apply unless `map` setting overrides it.
 
 ### `JSONg.skip()`
+> Same as `JSONg.play(null, true)`
+
 > Go to the next section, braking out of any infinite loops in the flow map defined in `audio.jsong`, current grain settings apply unless `map` setting overrides it.
 
 ### `JSONg.rampTrackVolume(trackIndex, db, inTime = 0, sync = true)`
