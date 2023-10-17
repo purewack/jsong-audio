@@ -4,11 +4,6 @@ import interact from 'interactjs' ;
 // import {JSONg} from "jsong";
 import {JSONg} from "./JSONg"
 
-const audioButton = document.getElementById("audio");
-audioButton.addEventListener("click", () => {
-  Tone.start();
-});
-
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
 
@@ -27,6 +22,7 @@ player.parse('test_song').then((full)=>{
 
 const state = document.getElementById("state")
 player.onStateChange = (st)=>{
+  console.log(st)
   state.innerText = st
 }
 
@@ -38,7 +34,6 @@ const ntimeline = document.getElementById("ntimeline")
   
 const playbutton = document.getElementById("play")
 playbutton.onclick = (ev) => {
-  console.log(ev.target, ev.target.innerText)
   if(ev.target.innerText === 'Play')
     player.play()
   else
@@ -117,7 +112,7 @@ interact('.handle.filter').draggable({
       if(position.y < 0) position.y = 0
 
       const ratio = Math.min(1.0, position.x / 300)
-      player.rampTrackFilter('lead',ratio)
+      player.rampTrackFilter('drums',ratio)
 
       event.target.style.transform =
         `translate(${position.x}px, ${position.y}px)`

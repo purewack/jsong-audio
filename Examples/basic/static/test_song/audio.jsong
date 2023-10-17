@@ -35,7 +35,11 @@
   "tracks": [
     {
       "name": "drums",
-      "volumeDB": 0
+      "volumeDB": 0,
+      "filter": {
+        "rolloff": -24,
+        "resonance": 2
+      }
     },
     {
       "name": "bass",

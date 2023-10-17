@@ -122,6 +122,9 @@ class JSONg {
         b.buffer = this.#sourceBuffers[name]
 
         const filter = new this.#tone.Filter(20000, "lowpass").toDestination()
+        if(track?.filter?.resonance) filter.set('Q',track.filter.resonance) 
+        if(track?.filter?.rolloff) filter.rolloff = track.filter.rolloff
+        else filter.rolloff = -24;
         a.connect(filter)
         b.connect(filter)
 
