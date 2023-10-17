@@ -31,8 +31,8 @@ player.onStateChange = (st)=>{
 }
 
 const timeline = document.getElementById("timeline")
-player.onSongTransport = (pos)=>{
-  timeline.innerText = pos;
+player.onTransport = (song, section)=>{
+  timeline.innerText = `${song} [${section[0]}/${section[1]}]`;
 }
 const ntimeline = document.getElementById("ntimeline")
   

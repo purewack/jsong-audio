@@ -31,19 +31,24 @@ class JSONg {
   }
 
   //transport and meter
-  onSongTransport = null;
-  onSectionTransport = null;
+  onTransport = null;
   #metronome; 
-  #meterBeat = {
-    songCurrent: 0,
-    songTotal: 0,
-    sectionCurrent: 0,
-    sectionTotal: 0,
-  };
+  #meterBeat = 0
+  #sectionBeat = 0
+  #sectionLen = 0
   set meterBeat(v){
     this.#meterBeat = v
     this.#tone.Draw.schedule(() => {
-      this.onSongTransport?.(this.#tone.Transport.position)
+      const ts = this.#tone.Time(this.#tone.Transport.position).toSeconds()
+      
+      const nowIndex = [...this.#flow.index]
+      const nowSection = this.#manifest.playback.map[getNestedIndex(this.#flow, nowIndex)]
+      if(nowSection){
+        this.#sectionBeat = (this.#sectionBeat+1) % this.#sectionLen
+        this.onTransport?.(this.#tone.Transport.position, [this.#sectionBeat,this.#sectionLen])
+      }
+      else 
+        this.onTransport?.(this.#tone.Transport.position)
     }, this.#tone.now());
   }
   get meterBeat(){
@@ -170,10 +175,7 @@ class JSONg {
 
     if(this.state === 'stopped'){
       this.#flow.index = from || [0]
-      const s = getNestedIndex(this.#flow, this.#flow.index)
-      const section = this.#manifest.playback.map[s]
-      // console.log(section)
-      this.schedule(section, '0:0:0')
+      this.schedule(this.#flow.index, '0:0:0')
 
       if(this.#manifest.playback.metronome){
         this.#tone.Transport.scheduleRepeat((t)=>{
@@ -207,7 +209,6 @@ class JSONg {
       }
     })
 
-    this.meterBeat = 0;
     this.state = 'stopped'
     if(this.verbose) console.log("JSONg player stopped")
   }
@@ -227,7 +228,7 @@ class JSONg {
     nextSection(this.#flow, breakout)
     
     const nextIndex = [...this.#flow.index]
-    const _nextSection = this.#manifest.playback.map[getNestedIndex(this.#flow, nextIndex)]
+    this.#flow.index = nowIndex
     const nextTime =  this.#getNextTime(nowSection)
 
     this.#tone.Draw.schedule(() => {
@@ -235,7 +236,7 @@ class JSONg {
       this.onSectionWillPlay?.(nextIndex, nextTime)
     }, this.#tone.now());
     
-    this.schedule(_nextSection, nextTime, ()=>{
+    this.schedule(nextIndex, nextTime, ()=>{
       this.#tone.Draw.schedule(() => {
         this.onSectionPlayEnd?.(nowIndex)
         this.onSectionPlayStart?.(nextIndex)
@@ -243,9 +244,10 @@ class JSONg {
     }) 
   }
 
-  schedule(section, whenPositionTime = undefined, onSchedueCallback = undefined){
+  schedule(sectionIndex, whenPositionTime = undefined, onSchedueCallback = undefined){
     if(this.#pending) return
-    
+    const section = this.#manifest.playback.map[getNestedIndex(this.#flow, sectionIndex)]
+
     const nextTime = typeof whenPositionTime === 'string' ? whenPositionTime : this.#getNextTime(section)
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime, ' ...');
     
@@ -266,7 +268,10 @@ class JSONg {
         }
       })
       this.playingNow = section;
-      onSchedueCallback?.()
+      onSchedueCallback?.() 
+      this.#flow.index = sectionIndex
+      this.#sectionBeat = -1
+      this.#sectionLen = (section.region[1] - section.region[0]) * this.#tone.Transport.timeSignature
       this.#pending = false
       if(this.verbose) console.log(this.playingNow)
     },nextTime)
