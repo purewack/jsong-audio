@@ -1,8 +1,8 @@
 # Layout of *.audio.json Manifest file
 ```
 {
-    "type": "jsonAudio",
-    "jsonAudioVersion":"0.0.1",
+    "type": "jsong",
+    "jsongVersion":"0.0.1",
     "meta": {...},
     "playback" :{
         "map": {},
@@ -16,8 +16,8 @@
 # File Information
 
 ```
-"type": "jsonAudio",
-"jsonAudioVersion":"0.0.1",
+"type": "jsong",
+"jsongVersion":"0.0.1",
 ```
 > File type and version indentifier
 
@@ -35,13 +35,14 @@
     "title": "Test",
     "author": "Damian Nowacki",
     "createdOn" : "20230325",
+    "timestamp" : "1679741210",
     "projectVersion": "1.0.0",
-    "createdUsing": ""
+    "createdUsing": "melonjuice"
   },
 ```
 > Song title and creator details.
 
-> `"createdUsing"` is used by the parser internally to determine what editor was used to generate the file
+> `"createdUsing"` is used by the parser internally to determine what editor was used to generate the file, typically the melonJuice generator
 
 # Playback Information
 
@@ -56,7 +57,7 @@
 "playback" : {
     "bpm": 95.0,
     "meter": [4, 4],
-    "length": 56,
+    "totalMeasures": 56,
     "grain": 4,
     "metronome": ["B5","G4"],
     "metronomeDB": -8,
@@ -68,7 +69,7 @@
 
 > `"meter"` : array [Integer, Integer] - also known as a [Time Signature](https://en.wikipedia.org/wiki/Time_signature), used for timing of events, first entry is the number of beats in bar, second is the length of each beat 
 
-> `"length"` : Integer - song total length in bars
+> `"totalMeasures"` : Integer - song total length in bars / measures
 
 > `"grain"` : Integer - the default timing quantization in beats
 
@@ -117,11 +118,10 @@
     "verse1", 
     "bridge1", 
     [4, "verse2", "bridge1"],
-    ["chorus","verse2"],
-    ["intro"]
+    [["chorus","verse2"],"intro"]
 ]
 ```
-> `"flow"` : `[ String || [String] ]` - an array containing the song structure and how repeats should work in subsection arrays (see [Concepts](README.md#subsection))
+> `"flow"` : `[ String || [String] ]` - an array containing the song structure and how repeats should work in subsection arrays (see [Concepts](README.md#subsection)), nesting level not limited, therefore you can include arrays in arrays, beware that is a repeat limit is not imposed then the player will get stuck in a loop if not using [`JSONg.skip()`](API.md#jsongskip)
 
 ## Tracks
 
@@ -132,43 +132,20 @@
 }
 ```
 
-### Track data
+### Track data entry
 ```
 {
 	"name": "drums",
 	"volumeDB": 0,
-	"regions": {
-        regionID : {}
-    }
+    "source" : "lnkwgpyw"
 }
 ```
 > `"name"` : String - track name
 
 > `"volumeDB"` : float - default track volume in the mix
 
-> `"regions"` : [Object] - description of regions that make up the track in time
+> `"source"` : String - optional name of the source file, if not specified, the track name is used instead to refer to a buffer
 
-### Track -> Region data
-```
-"lnkwgpz7" : {
-    "bufferId":"lnkwgpyw"
-    "bOffset":0
-    "bDuration":1.5515999999940395
-    "rOffset":0
-    "rDuration":2.3273999999910595
-}
-```
-> `"regionID"` : String - unique id refering to this region and the key from `"track"."regions"`
-
-> `"bufferID"` : String - unique id refering to the sound file buffer which is used by this region
-
-> `"bOffset"` : float - start time offset in the source buffer (`seconds`)
-
-> `"bDuration"` :  float - total length of source buffer (`seconds`)
-
-> `"rOffset"` : float - time offset when the region starts playing in the timeline (`beats`)
-
-> `"rDuration"` : float - the amout of time the region plays for in the timeline (`beats`)
 ## Data 
 
 *Location in file*
@@ -180,9 +157,10 @@
 }
 ```
 
-Single entry:
+Example entry:
 ```
 {
+    "lnkwgpyh" : "./bass.mp3",
     "lnkwgpyw" : "data:audio/wav;base64,UklGRi..."
 }
 ```

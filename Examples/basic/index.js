@@ -85,7 +85,7 @@ document.getElementById("stop").addEventListener("click", () => {
 
 
 const position = { x: 0, y: 0 }
-interact('.handle').draggable({
+interact('.handle.volume').draggable({
   listeners: {
     // start (event) {
     //   console.log(event.type, event.target)
@@ -99,6 +99,25 @@ interact('.handle').draggable({
       const ratio = Math.min(1.0, position.x / 300)
       const db = 20*Math.log10(ratio)
       player.rampTrackVolume('lead',db)
+
+      event.target.style.transform =
+        `translate(${position.x}px, ${position.y}px)`
+    },
+  }
+})
+interact('.handle.filter').draggable({
+  listeners: {
+    // start (event) {
+    //   console.log(event.type, event.target)
+    // },
+    move (event) {
+      position.x += event.dx
+      position.y += event.dy
+      if(position.x < 0) position.x = 0
+      if(position.y < 0) position.y = 0
+
+      const ratio = Math.min(1.0, position.x / 300)
+      player.rampTrackFilter('lead',ratio)
 
       event.target.style.transform =
         `translate(${position.x}px, ${position.y}px)`

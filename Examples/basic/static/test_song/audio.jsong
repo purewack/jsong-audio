@@ -5,6 +5,7 @@
     "title": "Test",
     "author": "Damian Nowacki",
     "createdOn" : "20230325",
+    "timestamp" : "1679741210",
     "projectVersion": "1.0.0",
     "createdUsing": ""
   },
@@ -13,7 +14,7 @@
     "meter": [4, 4],
     "metronome": ["B5","G4"],
     "metronomeDB": -8,
-    "length": 56,
+    "totalMeasures": 56,
     "grain": 4,
     "map": {
       "intro" : { "region": [0, 8]},
