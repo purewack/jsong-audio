@@ -197,13 +197,36 @@ class JSONg {
 
   
 //================Controls===========
-  play(from = null, skip = false){
-    this.#tone.start()
-    if(this.state === 'stopping') return;
+  play(from = null, skip = false, fadein = '1m'){
 
-    if(this.state === 'stopped'){
+    if(this.state === 'stopping') return;
+    
+    if(this.state === 'stopped'){    
+      this.#tone.start()
+      this.#trackPlayers.forEach((t,i)=>{
+        if(fadein){
+          t.a.volume.value = -50;
+          t.b.volume.value = -50;
+        }
+        else{
+          t.a.volume.value = this.#tracksList[i].volumeDB
+          t.b.volume.value = this.#tracksList[i].volumeDB
+        }
+      })
+
+      this.#tone.Transport.cancel()
       this.#sectionsFlowMap.index = from || [0]
-      this.schedule(this.#sectionsFlowMap.index, '0:0:0')
+      this?.onSectionWillEnd?.(null)
+      this?.onSectionWillStart?.(this.#sectionsFlowMap.index)
+
+      this.schedule(this.#sectionsFlowMap.index, '0:0:0', ()=>{
+        this?.onSectionPlayEnd?.(null)
+        this?.onSectionPlayStart?.(this.#sectionsFlowMap.index)
+        if(!fadein) return
+        this.#trackPlayers.forEach((t,i)=>{
+          this.rampTrackVolume(i,this.#tracksList[i].volumeDB,fadein)
+        })
+      })
 
       this.#tone.Transport.scheduleRepeat((t)=>{
         const note = this.#playbackInfo.metronome[this.meterBeat === 0 ? 0 : 1]
@@ -211,7 +234,6 @@ class JSONg {
         if(this.#playbackInfo.metronome || this.verbose)
           this.#metronome.triggerAttackRelease(note,'32n',t);
       },'4n');
-      
 
       this.meterBeat = 0;
       this.#tone.Transport.start('+0.1s')
@@ -222,22 +244,39 @@ class JSONg {
     }
   }
 
-  stop(immediate = true){
-    if(this.state === 'stopped') return
-    this.#tone.Transport.stop()
+  stop(after = '4n', fadeout= true){
+    if(this.state === 'stopped' || this.state === 'stopping') return
+    this.state = 'stopping';
+    const afterSec = this.#tone.Time(after).toSeconds()
+    const when = after ? afterSec + this.#tone.Time(this.#tone.Transport.position)
+    : this.#tone.now();
+    console.log(when, this.#tone.now())
+    
+    if(fadeout && after){
+      this.#trackPlayers.forEach((p,i)=>{
+        this.rampTrackVolume(i,-50, afterSec);
+      })
+      this?.onSectionWillStart?.(null) 
+      this?.onSectionWillEnd?.(this.#sectionsFlowMap?.index)  
+    }
+
+    this.#tone.Transport.scheduleOnce((t)=>{
+      this.#tone.Transport.stop(t)
       this.#tone.Transport.cancel()
-    this.#tone.Transport.clear()
       this.#trackPlayers.forEach((p,i)=>{
         try{
-          p.a.stop(!immediate ? this.#getNextTime() : undefined);
-          p.b.stop(!immediate ? this.#getNextTime() : undefined);
+            p.a.stop(t);
+            p.b.stop(t);
             p.current = p.a
         }catch(error){
-        if(this.verbose) console.log('Empty track stopping ',this.#manifest.tracks[i]);
+          if(this.verbose) console.log('Empty track stopping ',this.#tracksList[i]);
         }
       })
 
+      this?.onSectionPlayStart?.(null) 
+      this?.onSectionPlayEnd?.(this.#sectionsFlowMap.index)  
       this.state = 'stopped'
+    },when)
     
     if(this.verbose) console.log("JSONg player stopped")
   }
