@@ -402,8 +402,8 @@ parse(manifestPath, dataPath){
     else{
       idx = trackIndex
     }
-    this.#trackPlayers[idx].a.volume.exponentialRampTo(db,inTime, sync ? '@4n' : undefined)
-    this.#trackPlayers[idx].b.volume.exponentialRampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].a.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].b.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
   }
   rampTrackFilter(trackIndex, percentage, inTime = 0, sync = true){
     if(!this.state) return
@@ -426,7 +426,7 @@ parse(manifestPath, dataPath){
       this.rampTrackVolume(i, 0,inTime,sync)
     })
     fromIndexes.forEach(i=>{
-      this.rampTrackVolume(i,-40,inTime,sync)
+      this.rampTrackVolume(i,-50,inTime,sync)
     }) 
   }
 
