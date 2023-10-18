@@ -402,8 +402,8 @@ parse(manifestPath, dataPath){
     else{
       idx = trackIndex
     }
-    this.#trackPlayers[idx].a.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
-    this.#trackPlayers[idx].b.volume.rampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].a.volume.exponentialRampTo(db,inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].b.volume.exponentialRampTo(db,inTime, sync ? '@4n' : undefined)
   }
   rampTrackFilter(trackIndex, percentage, inTime = 0, sync = true){
     if(!this.state) return
@@ -418,10 +418,17 @@ parse(manifestPath, dataPath){
       idx = trackIndex
     }
 
-    console.log(idx, percentage)
-    this.#trackPlayers[idx].filter.frequency.rampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
+    this.#trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
   }
-
+  crossFadeTracks(fromIndexes, toIndexes, inTime = 0, sync = true){
+    if(!this.state) return
+    toIndexes.forEach(i=>{
+      this.rampTrackVolume(i, 0,inTime,sync)
+    })
+    fromIndexes.forEach(i=>{
+      this.rampTrackVolume(i,-40,inTime,sync)
+    }) 
+  }
 
 //================Various==========
 getNextTime(section){

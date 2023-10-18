@@ -89,6 +89,13 @@ document.getElementById("stop").addEventListener("click", () => {
   player.stop()
 });
 
+document.getElementById("xa").addEventListener("click", () => {
+  player.crossFadeTracks(['bass'],['guitar'],'1m');
+});
+document.getElementById("xb").addEventListener("click", () => {
+  player.crossFadeTracks(['guitar'],['bass'],'1m');
+});
+
 
 const position = { x: 0, y: 0 }
 interact('.handle.volume').draggable({
