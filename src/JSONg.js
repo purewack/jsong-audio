@@ -329,9 +329,14 @@ parse(manifestPath, dataPath){
     const nowIndex = [...this.#sectionsFlowMap.index]
     const nowSection = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, nowIndex)]
     
-    nextSection(this.#sectionsFlowMap, breakout)
+    let nextIndex
+    if(breakout instanceof Array)
+      nextIndex = breakout
+    else{
+      nextSection(this.#sectionsFlowMap, breakout)
+      nextIndex = [...this.#sectionsFlowMap.index]
+    }
     
-    const nextIndex = [...this.#sectionsFlowMap.index]
     this.#sectionsFlowMap.index = nowIndex
     const nextTime =  this.getNextTime(nowSection)
 

@@ -23,14 +23,6 @@ player.parse(song + '/audio.jsong', song).then((full)=>{
 }
 songLoad('test_song')
 
-document.getElementById("audio1").onclick = ()=>{
-  songLoad('test_song')
-}
-document.getElementById("audio2").onclick = ()=>{
-  songLoad('short_song')
-}
-
-
 const state = document.getElementById("state")
 player.onStateChange = (st)=>{
   console.log(st)
@@ -50,6 +42,28 @@ playbutton.onclick = (ev) => {
   else
     player.cancel()
 };
+document.getElementById("intro").addEventListener("click", () => {
+  player.advanceSection([0])
+});
+document.getElementById("from").addEventListener("click", () => {
+  Tone.start();
+  player.play([1], true, 0)
+});
+document.getElementById("skip").addEventListener("click", () => {
+  player.play(null, true)
+});
+document.getElementById("stop").addEventListener("click", () => {
+  player.stop()
+});
+
+document.getElementById("xa").addEventListener("click", () => {
+  player.crossFadeTracks(['bass'],['guitar'],'1m');
+});
+document.getElementById("xb").addEventListener("click", () => {
+  player.crossFadeTracks(['guitar'],['bass'],'1m');
+});
+
+
 
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
@@ -76,26 +90,6 @@ player.onSectionPlayStart = (index)=>{
   queue.innerText = 'playing ' + index
   playbutton.innerText = 'Play'
 }
-
-
-document.getElementById("from").addEventListener("click", () => {
-  Tone.start();
-  player.play([1], true)
-});
-document.getElementById("skip").addEventListener("click", () => {
-  player.play(null, true)
-});
-document.getElementById("stop").addEventListener("click", () => {
-  player.stop()
-});
-
-document.getElementById("xa").addEventListener("click", () => {
-  player.crossFadeTracks(['bass'],['guitar'],'1m');
-});
-document.getElementById("xb").addEventListener("click", () => {
-  player.crossFadeTracks(['guitar'],['bass'],'1m');
-});
-
 
 const position = { x: 0, y: 0 }
 interact('.handle.volume').draggable({

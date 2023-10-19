@@ -9,14 +9,14 @@
     <h1 class="Title" style="grid-area: title">JSONg Example: Basic [Vanilla](scroll, click)</h1>
     <section class="controls" style="grid-area: ctrl;">
       <h1>Controls</h1>
-      <button id="audio1">Load song 1</button>
-      <button id="audio2">Load song 2</button>
+      <button id="stop">Stop</button>
       <button id="play">Play</button>
       <button id="from">Play (no intro)</button>
       <button id="skip">Next (Force)</button>
-      <button id="stop">Stop</button>
-      <button id="xa">fade bass to guitar</button>
-      <button id="xb">fade guitar to bass</button>
+      <button id="intro">GoTo Intro [0]</button>
+      <br/>
+      <button id="xa">Fade bass -> guitar</button>
+      <button id="xb">Fade guitar -> bass</button>
     </section>
     <section class="time" style="grid-area: topcontent;">
       <h1>Status</h1>
@@ -34,8 +34,15 @@
       <h1>Region Info</h1>
     </section>
     <section class="interactive" style="grid-area: content;">
-      <div class="handle volume">V</div>
-      <div class="handle filter">F</div>
+      <header><h1>Scroll !</h1></header>
+      <div>
+        <div class="scrollTrigger" id="chorusScroll"><h1>Scroll Observer trigger</h1></div>
+        <h1>Chorus section</h1>
+      </div>
+      <div>
+        <div class="scrollTrigger" id="loop1Scroll"><h1>Scroll Observer trigger</h1></div>
+        <h1>Loop 1 section</h1>
+      </div>
     </section>
     <script type="module" src="index.js"></script>
   </body>

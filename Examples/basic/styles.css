@@ -7,7 +7,7 @@ body {
   padding: 0;
   font-family: sans-serif;
 
-  min-height: 100vh;
+  max-height: 100vh;
 
   display: grid;
   gap: 1rem;
@@ -57,9 +57,37 @@ button {
 }
 
 .interactive {
-  overflow: hidden;
+  max-height: 100%;
+  overflow: scroll;
 }
 
+.interactive > * {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  color: white;
+  background-color: lightpink;
+  border: solid white 2px;
+  border-radius: 1rem;
+}
+.interactive > * h1 {
+  font-size: 3rem;
+  margin-block: auto;
+}
+.interactive .scrollTrigger {
+  background-color: lightcoral;
+  margin-bottom: auto;
+}
+.interactive > *:nth-child(2){
+  color: black;
+  background-color: lightgoldenrodyellow;
+}
+.interactive > *:nth-child(3){
+  color: black;
+  background-color: lightgreen;
+}
 .controls{
   display: flex;
   flex-direction: column;
