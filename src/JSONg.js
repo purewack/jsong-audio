@@ -1,6 +1,7 @@
 const {quanTime} = require('./quantime')
 const {nextSection} = require('./nextSection')
 const {buildSection} = require('./buildSection')
+const {getLoopCount} = require('./getLoopCount')
 const {setNestedIndex, getNestedIndex} = require('./nestedIndex')
 // const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex} = require('jsong');
 
@@ -364,7 +365,7 @@ parse(manifestPath, dataPath){
       if(this.verbose) console.log('Schedule done for time: ', nextTime, t)
       this.#trackPlayers.forEach((track,i)=>{
         const p = track.current === track.a ? track.b : track.a
-        
+
         p.loopStart = section.region[0]+'m';
         p.loopEnd = section.region[1]+'m';
         p.loop = true;
