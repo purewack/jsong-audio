@@ -369,8 +369,23 @@ parse(manifestPath, dataPath){
         p.loopEnd = section.region[1]+'m';
         p.loop = true;
         try{
-          track.current.stop(t);
-          p.start(t,section.region[0]+'m');
+          if(section?.legato){
+            const legatoDT = this.#tone.Time(section.legato + 'n').toSeconds()
+            console.log('legato', t, legatoDT)
+            
+            track.current.volume.setValueAtTime(0, t + legatoDT);
+            track.current.volume.linearRampToValueAtTime(-60, t + legatoDT)
+            track.current.stop(t + legatoDT);
+            track.current.volume.setValueAtTime(0, t + legatoDT + 0.01)
+            
+            p.volume.setValueAtTime(-60, t + legatoDT);
+            p.volume.linearRampToValueAtTime(0, t + legatoDT)
+            p.start(t,section.region[0]+'m');
+          }
+          else{
+            track.current.stop(t);
+            p.start(t,section.region[0]+'m');
+          }
           track.current = p;
         }catch(error){
           if(this.verbose) console.log('Empty track playing ',this.#tracksList[i]);
