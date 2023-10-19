@@ -399,7 +399,7 @@ parse(manifestPath, dataPath){
     if(!this.state) return
     let idx = null
     if(typeof trackIndex === 'string'){
-      this.#tracksList.forEach((o,i)=>{
+      this.#tracksList?.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
       if(idx === null) return
@@ -407,8 +407,10 @@ parse(manifestPath, dataPath){
     else{
       idx = trackIndex
     }
+    if(this.#trackPlayers?.[idx]){
     this.#trackPlayers[idx].a.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
     this.#trackPlayers[idx].b.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
+    }
   }
   rampTrackFilter(trackIndex, percentage, inTime = 0, sync = true){
     if(!this.state) return
@@ -425,12 +427,12 @@ parse(manifestPath, dataPath){
 
     this.#trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
   }
-  crossFadeTracks(fromIndexes, toIndexes, inTime = 0, sync = true){
-    if(!this.state) return
-    toIndexes.forEach(i=>{
+  crossFadeTracks(outIndexes, inIndexes, inTime = '1m', sync = true){
+    inIndexes?.forEach(i=>{
       this.rampTrackVolume(i, 0,inTime,sync)
     })
-    fromIndexes.forEach(i=>{
+    if(!this.state) return
+    outIndexes?.forEach(i=>{
       this.rampTrackVolume(i,-50,inTime,sync)
     }) 
   }
