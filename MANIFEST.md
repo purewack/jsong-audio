@@ -71,11 +71,11 @@
 
 > `"totalMeasures"` : Integer - song total length in bars / measures
 
-> `"grain"` : Integer - the default timing quantization in beats
+> `"grain"` : Integer - the default timing quantization in beats, if not defined, the default is taken from the meter to equal one bar length.
 
 ### Metronome (optional)
 
-> `"metronome"` : array [String, String] - first array index is the pitch of the metronome click of the first beat of a bar, second array index is the pitch of all other clicks, if this key is missing, the metronome will not be enabled
+> `"metronome"` : array [String, String] - first array index is the pitch of the metronome click of the first beat of a bar, second array index is the pitch of all other clicks, if not defined, the metronome will not be enabled, unless in verbose mode, then metronome is always on.
 
 > `"metronomeDB"` : float - volume of the metronome
 
@@ -97,9 +97,15 @@
     "chorus" : { "region": [8, 24], "grain": 8},
     "verse1" : { "region": [24, 32], "grain": 4},
     "bridge1" : { "region": [32, 40], "grain": 4},
-    "verse2" : { "region": [40, 48], "grain": 4}
+    "verse2" : { "region": [40, 48], "grain": 4, "legato": 4}
 },
 ```
+> `"region"` : `Array [Number, Number]` - defines a loop area for a section, start and end points are measured in bars. 
+
+> `"grain"` : `Integer` - defines the granularity of the triggering, i.e. in how many beats the next action in queue can take place. Unit is in beats. If property is not defined, the global setting takes precedence, defined in [`"playback"`](#playback-information)
+
+> `"legato"` : `Integer` - defines the time taken to fade in from the currently playing section to this section. Automatically crossfades all track from to this section, if this property is defined, otherwise no transition is made.
+
 
 ## Flow
 
