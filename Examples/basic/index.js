@@ -1,8 +1,6 @@
 import "./styles.css";
 import * as Tone from "tone";
-import interact from 'interactjs' ;
 import {JSONg} from "jsong";
-// import {JSONg} from "./JSONg"
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
@@ -91,43 +89,35 @@ player.onSectionPlayStart = (index)=>{
   playbutton.innerText = 'Play'
 }
 
-const position = { x: 0, y: 0 }
-interact('.handle.volume').draggable({
-  listeners: {
-    // start (event) {
-    //   console.log(event.type, event.target)
-    // },
-    move (event) {
-      position.x += event.dx
-      position.y += event.dy
-      if(position.x < 0) position.x = 0
-      if(position.y < 0) position.y = 0
+const onPlayerForceSection = (index)=>{
+  console.log('switch to section', index)
+  if(player.state === 'started')
+  player.advanceSection(index)
+}
 
-      const ratio = Math.min(1.0, position.x / 300)
-      const db = 20*Math.log10(ratio)
-      player.rampTrackVolume('lead',db)
+const isObservingCallback = (entries, observer) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('Intersect')
+      const s = entry.target.dataset?.forceSection
+      if(s){
+        onPlayerForceSection(JSON.parse(s))
+      }
+    }
+  });
+}
 
-      event.target.style.transform =
-        `translate(${position.x}px, ${position.y}px)`
-    },
-  }
-})
-interact('.handle.filter').draggable({
-  listeners: {
-    // start (event) {
-    //   console.log(event.type, event.target)
-    // },
-    move (event) {
-      position.x += event.dx
-      position.y += event.dy
-      if(position.x < 0) position.x = 0
-      if(position.y < 0) position.y = 0
+const observer100 = new IntersectionObserver(isObservingCallback, {
+  root: document.body,
+  rootMargin: '0px',
+  threshold: 1.0,
+});
+const observer50 = new IntersectionObserver(isObservingCallback, {
+  root: document.body,
+  rootMargin: '0px',
+  threshold: 0.5,
+});
 
-      const ratio = Math.min(1.0, position.x / 300)
-      player.rampTrackFilter('drums',ratio)
-
-      event.target.style.transform =
-        `translate(${position.x}px, ${position.y}px)`
-    },
-  }
-})
+document.querySelectorAll('.scrollTrigger').forEach(t=>{
+  observer50.observe(t)
+});

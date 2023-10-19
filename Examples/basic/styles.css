@@ -92,3 +92,8 @@ button {
   display: flex;
   flex-direction: column;
 }
+
+.Intersect {
+  background-color: red;
+  color: white;
+}
