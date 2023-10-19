@@ -24,6 +24,7 @@ class JSONg {
   onSectionPlayEnd = null;
   onSectionWillStart = null;
   onSectionWillEnd = null;
+  onSectionRepeat = null;
 
   onStateChange = null;
   #state = null;
@@ -336,6 +337,10 @@ parse(manifestPath, dataPath){
     else{
       nextSection(this.#sectionsFlowMap, breakout)
       nextIndex = [...this.#sectionsFlowMap.index]
+      
+      this.#tone.Draw.schedule(() => {
+        this.onSectionRepeat?.(nowIndex, getLoopCount(this.#sectionsFlowMap, nowIndex), nextIndex, getLoopCount(this.#sectionsFlowMap, nextIndex))
+      })
     }
     
     this.#sectionsFlowMap.index = nowIndex
@@ -406,8 +411,11 @@ parse(manifestPath, dataPath){
     if(!this.#pending) return
     this.#tone.Transport.clear(this.#pending)
     this.#pending = null
+    
+    this.#tone.Draw.schedule(() => {
     this.onSectionWillEnd?.(false)
     this.onSectionWillPlay?.(false)
+    })
   }
 
 //================Effects===========

@@ -62,6 +62,9 @@ document.getElementById("xb").addEventListener("click", () => {
 });
 
 
+player.onSectionRepeat = (indexNow, repsNow, indexNext, repsNext)=>{ 
+  document.getElementById("reps").innerText = JSON.stringify(indexNow) + ' ' + repsNow + ' | ' + JSON.stringify(indexNext) + ' ' + repsNext
+}
 
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
