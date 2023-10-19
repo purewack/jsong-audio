@@ -324,7 +324,7 @@ parse(manifestPath, dataPath){
   #pending = null;
 
   advanceSection(breakout = false){
-    if(this.#pending) return
+    if(this.#pending) this.cancel()
     
     const nowIndex = [...this.#sectionsFlowMap.index]
     const nowSection = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, nowIndex)]
