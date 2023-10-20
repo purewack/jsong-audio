@@ -3,7 +3,7 @@ const {nextSection} = require('./nextSection')
 const {buildSection} = require('./buildSection')
 const {getLoopCount} = require('./getLoopCount')
 const {setNestedIndex, getNestedIndex} = require('./nestedIndex')
-// const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex} = require('jsong');
+// const {quanTime, nextSection, buildSection, setNestedIndex, getNestedIndex, getLoopCount} = require('jsong');
 
 class JSONg {
   //parser version 0.0.2
@@ -15,6 +15,11 @@ class JSONg {
   #playbackMap;
   #sectionsFlowMap;
   #sourcesMap;
+
+  playbackMap(key){ 
+    const k = key.split('-')
+    return [this.#playbackMap[k[0]] , k]
+  }
 
   // audio players and sources
   #trackPlayers = null;
@@ -48,7 +53,7 @@ class JSONg {
     this.#meterBeat = v
     this.#tone.Draw.schedule(() => {
       const nowIndex = [...this.#sectionsFlowMap.index]
-      const nowSection = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, nowIndex)]
+      const nowSection = this.playbackMap(getNestedIndex(this.#sectionsFlowMap, nowIndex))[0]
       if(nowSection){
         this.#sectionBeat = (this.#sectionBeat+1) % this.#sectionLen
         this.onTransport?.(this.#tone.Transport.position, [this.#sectionBeat,this.#sectionLen])
@@ -131,14 +136,16 @@ parse(manifestPath, dataPath){
       this.#trackPlayers = []
       for(const track of this.#tracksList){
         const name = track.source ? track.source : track.name;
+        const v = track?.volumeDB || 0
+        const buf = this.#sourceBuffers[name]
 
         const a = new this.#tone.Player()
-        a.volume.value = track.volumeDB
-        a.buffer = this.#sourceBuffers[name]
+        a.volume.value = v
+        a.buffer = buf
 
         const b = new this.#tone.Player()
-        b.volume.value = track.volumeDB
-        b.buffer = this.#sourceBuffers[name]
+        b.volume.value = v
+        b.buffer = buf
 
         const filter = new this.#tone.Filter(20000, "lowpass").toDestination()
         if(track?.filter?.resonance) filter.set('Q',track.filter.resonance) 
@@ -148,7 +155,7 @@ parse(manifestPath, dataPath){
         b.connect(filter)
 
         this.#trackPlayers.push({
-          a,b, current: a, filter
+          name, a,b, current: a, filter, volumeLimit: v
         })
       }
     }
@@ -222,13 +229,14 @@ parse(manifestPath, dataPath){
     if(this.state === 'stopped'){    
       this.#tone.start()
       this.#trackPlayers.forEach((t,i)=>{
+        const vol = this.#tracksList[i]?.volumeDB || 0
         if(fadein){
           t.a.volume.value = -60;
           t.b.volume.value = -60;
         }
         else{
-          t.a.volume.value = this.#tracksList[i].volumeDB
-          t.b.volume.value = this.#tracksList[i].volumeDB
+          t.a.volume.value = vol
+          t.b.volume.value = vol
         }
       })
 
@@ -247,7 +255,8 @@ parse(manifestPath, dataPath){
         },this.#tone.now())
         if(!fadein) return
         this.#trackPlayers.forEach((t,i)=>{
-          this.rampTrackVolume(i,this.#tracksList[i].volumeDB,fadein)
+          const vol = this.#tracksList[i]?.volumeDB || 0
+          this.rampTrackVolume(i, vol, fadein)
         })
       })
 
@@ -325,11 +334,11 @@ parse(manifestPath, dataPath){
 //================Flow===========
   #pending = null;
 
-  advanceSection(breakout = false){
+  advanceSection(breakout = false, auto = false){
     if(this.#pending) this.cancel()
     
     const nowIndex = [...this.#sectionsFlowMap.index]
-    const nowSection = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, nowIndex)]
+    const nowSection = this.playbackMap(getNestedIndex(this.#sectionsFlowMap, nowIndex))[0]
     
     let nextIndex
     if(breakout instanceof Array)
@@ -339,12 +348,17 @@ parse(manifestPath, dataPath){
       nextIndex = [...this.#sectionsFlowMap.index]
       
       this.#tone.Draw.schedule(() => {
-        this.onSectionRepeat?.(nowIndex, getLoopCount(this.#sectionsFlowMap, nowIndex), nextIndex, getLoopCount(this.#sectionsFlowMap, nextIndex))
+        const loopIndex = [...nowIndex]
+        loopIndex[loopIndex.length-1] += 1
+        if(getNestedIndex(this.#sectionsFlowMap,loopIndex) === undefined)
+          this.onSectionRepeat?.(nowIndex, getLoopCount(this.#sectionsFlowMap, nowIndex))
       })
     }
     
     this.#sectionsFlowMap.index = nowIndex
-    const nextTime =  this.getNextTime(nowSection)
+    const regionGrainLength =  (nowSection.region[1] - nowSection.region[0]) * this.#tone.Transport.timeSignature;
+    const grain = auto ? regionGrainLength : nowSection?.grain
+    const nextTime =  this.getNextTime(grain)
 
     this.#tone.Draw.schedule(() => {
       this.onSectionWillEnd?.(nowIndex, nextTime)
@@ -359,57 +373,99 @@ parse(manifestPath, dataPath){
     }) 
   }
 
-  schedule(sectionIndex, whenPositionTime = undefined, onScheduleCallback = undefined){
+  schedule(sectionIndex, nextTime, onScheduleCallback = undefined){
     if(this.#pending) return
-    const section = this.#playbackMap[getNestedIndex(this.#sectionsFlowMap, sectionIndex)]
+    const sectionID = getNestedIndex(this.#sectionsFlowMap, sectionIndex)
+    const [section, sectionFlags] = this.playbackMap(sectionID)
 
-    const nextTime = typeof whenPositionTime === 'string' ? whenPositionTime : this.getNextTime(section)
+    let sectionOverrides = {}
+    sectionFlags.forEach(f=>{
+      if(f === '>') sectionOverrides = {...sectionOverrides, autoNext: true}
+      if(f === 'X' || f === 'x') sectionOverrides = {...sectionOverrides, legato: true}
+    })
+    if(this.verbose) console.log('Section overrides', sectionOverrides)
+
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime);
     
-    this.#pending = this.#tone.Transport.scheduleOnce((t)=>{
+    this.#pending = {id: null, when: nextTime}
+    this.#pending.id = this.#tone.Transport.scheduleOnce((t)=>{
       if(this.verbose) console.log('Schedule done for time: ', nextTime, t)
       this.#trackPlayers.forEach((track,i)=>{
-        const p = track.current === track.a ? track.b : track.a
+        const nextTrack = track.current === track.a ? track.b : track.a
 
-        p.loopStart = section.region[0]+'m';
-        p.loopEnd = section.region[1]+'m';
-        p.loop = true;
+        nextTrack.loopStart = section.region[0]+'m';
+        nextTrack.loopEnd = section.region[1]+'m';
+        nextTrack.loop = true;
         try{
-          if(section?.legato){
-            const legatoDT = this.#tone.Time(section.legato + 'n').toSeconds()
+          const nonLegatoStart = ()=>{
+            console.log('non legato section', sectionIndex, track.name)
+            track.current.stop(t);
+            nextTrack.volume.setValueAtTime(track.volumeLimit, t)
+            nextTrack.start(t,section.region[0]+'m');
+          }
+          const doLegatoStart = (legatoTrack, legatoDT) => {
+              track.current.volume.setValueAtTime(track.volumeLimit, t + legatoDT);
+              track.current.volume.linearRampToValueAtTime(-60, t + legatoDT)
+              track.current.stop(t + legatoDT);
+
+              nextTrack.volume.setValueAtTime(-60, t + legatoDT);
+              nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + legatoDT)
+              nextTrack.start(t,section.region[0]+'m');
+              
+              if(this.verbose) console.log('legato track xfade', track.name, legatoTrack)
+          }
+
+          if(sectionOverrides?.legato){
+            console.log('legato section', sectionIndex)
+            let legatoDT
+            let legatoTracks = null
+            if(typeof section?.legato === 'object'){
+              legatoDT = this.#tone.Time((section?.legato?.duration || 4) + 'n').toSeconds()
+              legatoTracks = section.legato?.xfades
+            }
+            else
+              legatoDT = this.#tone.Time((section?.legato || 4) + 'n').toSeconds()
+            
             console.log('legato', t, legatoDT)
             
-            track.current.volume.setValueAtTime(0, t + legatoDT);
-            track.current.volume.linearRampToValueAtTime(-60, t + legatoDT)
-            track.current.stop(t + legatoDT);
-            
-            p.volume.setValueAtTime(-60, t + legatoDT);
-            p.volume.linearRampToValueAtTime(0, t + legatoDT)
-            p.start(t,section.region[0]+'m');
+            if(legatoTracks){
+              let legatoTrackFound = false
+              legatoTracks.forEach((legatoTrack)=>{
+                if(track.name === legatoTrack){
+                  legatoTrackFound = true
+                  doLegatoStart(legatoTrack,legatoDT)
+                }
+              })
+              if(!legatoTrackFound) nonLegatoStart()
+            }
+            else
+              doLegatoStart(track.name, legatoDT)
           }
           else{
-            track.current.stop(t);
-            p.volume.setValueAtTime(0, t)
-            p.start(t,section.region[0]+'m');
+            nonLegatoStart()
           }
-          track.current = p;
+          track.current = nextTrack;
         }catch(error){
-          if(this.verbose) console.log('Empty track playing ',this.#tracksList[i]);
+          if(this.verbose) console.log('Empty track playing ',this.#tracksList[i], error);
         }
       })
-      this.playingNow = sectionIndex;
+      this.playingNow = {index:sectionIndex, name: sectionID};
       if(this.verbose) console.log('Playing now',this.playingNow)
       onScheduleCallback?.()
       this.#sectionsFlowMap.index = [...sectionIndex]
       this.#sectionBeat = -1
       this.#sectionLen = (section.region[1] - section.region[0]) * this.#tone.Transport.timeSignature
       this.#pending = false
+
+      if(sectionOverrides?.autoNext){
+        this.advanceSection(false, true)
+      }
     },nextTime)
   }
 
   cancel(){
     if(!this.#pending) return
-    this.#tone.Transport.clear(this.#pending)
+    this.#tone.Transport.clear(this.#pending.id)
     this.#pending = null
     
     this.#tone.Draw.schedule(() => {
@@ -462,10 +518,10 @@ parse(manifestPath, dataPath){
   }
 
 //================Various==========
-getNextTime(section){
-  const grain = section?.grain ? section.grain : this.#playbackInfo.grain;
+getNextTime(grain = undefined){
+  const _grain = grain || this.#playbackInfo.grain;
   const meterDenominator = this.#tone.Transport.timeSignature
-  return quanTime(this.#tone.Transport.position, [grain, meterDenominator])
+  return quanTime(this.#tone.Transport.position, [_grain, meterDenominator])
 }
 
 

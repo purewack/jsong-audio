@@ -9,6 +9,12 @@ describe("NestedIndex", () => {
         0: "yoyo",
         hello: "world",
       },
+      3: {
+        0: "next",
+        1: "is",
+        2: "object",
+        3: {section:"helloobject", autoNext: true}
+      }
     },
     1: "hi",
   };
@@ -25,7 +31,7 @@ describe("NestedIndex", () => {
     expect(getNestedIndex(nest, [0, 2, "hello"])).toEqual("world");
   });
   test("get unexpected index", () => {
-    expect(getNestedIndex(nest, [0, 3])).toBeUndefined();
+    expect(getNestedIndex(nest, [0, 100])).toBeUndefined();
     expect(getNestedIndex(nest, [1, 2, 3, 4])).toBeUndefined();
     expect(getNestedIndex(nest, [])).toBeUndefined();
   });
@@ -46,4 +52,8 @@ describe("NestedIndex", () => {
     setNestedIndex("deepWorld", nest, [0, 2, "hello"]);
     expect(getNestedIndex(nest, [0, 2, "hello"])).toEqual("deepWorld");
   });
+
+  test("get object item", ()=>{
+    expect(getNestedIndex(nest, [0,3,3])).toMatchObject({section:"helloobject", autoNext: true})
+  })
 });

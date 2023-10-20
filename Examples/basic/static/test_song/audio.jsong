@@ -21,38 +21,36 @@
       "chorus" : { "region": [8, 24], "grain": 8},
       "verse1" : { "region": [24, 32], "grain": 4},
       "bridge1" : { "region": [32, 40], "grain": 4},
-      "verse2" : { "region": [40, 48], "grain": 4},
-      "verse2_l" : { "region": [40, 48], "grain": 4, "legato":4}
+      "verse2" : { "region": [40, 48], "grain": 4, "legato":{
+        "duration":4,
+        "xfades": ["guitar","lead"]
+      }}
     },
     "flow": [
-      "intro", 
+      "intro-X", 
       "chorus", 
       "verse1", 
-      "bridge1", 
-      [4, "verse2_l", "bridge1"],
+      "bridge1-X", 
+      [4, "verse2-X->", "bridge1-X"],
       ["chorus","verse2"]
     ]
   },
   "tracks": [
     {
       "name": "drums",
-      "volumeDB": 0,
       "filter": {
         "rolloff": -24,
         "resonance": 2
       }
     },
     {
-      "name": "bass",
-      "volumeDB": 0
+      "name": "bass"
     },
     {
-      "name": "guitar",
-      "volumeDB": 0
+      "name": "guitar"
     },
     {
-      "name": "lead",
-      "volumeDB": 0
+      "name": "lead"
     }
   ],
   "sources" : {

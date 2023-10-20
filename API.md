@@ -15,6 +15,10 @@
 > Called when the active playing will stop soon
 
 
+### `JSONg.onSectionRepeat = (index, repeats)=>{}`
+> Called when the active playing sub loop repeats
+
+
 ### `JSONg.onTransport = (timePosition, [sectionBeat, sectionBeats])=>{}`
 > Callback for timeline ticks and section position, `timePosition` is in the format `measure:beat:16th`. Section transport is `sectionBeat` / `sectionBeats`
 
