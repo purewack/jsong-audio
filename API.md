@@ -75,6 +75,9 @@ This class is instantiated with the `new` keyword and has the following methods:
 ### `JSONg.rampTrackFilter(trackIndex, freq, inTime = 0, sync = true)`
 > Adjust track Low Pass filter, `freq` is a percentage from 100Hz - 19.9kHz
 
+### `JSONg.crossFadeTracks(outIndexes, inIndexes, inTime = '1m', sync = true)`
+> Cross fade `outIndexes` track out, fade in `inIndexes` tracks, all taking place over the duration specified by `inTime`. If `sync` then this action is aligned to the transport grid
+
 # Other
 
 ### `audio.jsong`:

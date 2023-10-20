@@ -98,13 +98,20 @@
     "verse1" : { "region": [24, 32], "grain": 4},
     "bridge1" : { "region": [32, 40], "grain": 4},
     "verse2" : { "region": [40, 48], "grain": 4, "legato": 4}
+    "verse3" : { "region": [40, 48], "grain": 4, "legato": {
+        "duration": 8,
+        "xfades": ["guitar", "lead"]
+    }}
 },
 ```
 > `"region"` : `Array [Number, Number]` - defines a loop area for a section, start and end points are measured in bars. 
 
 > `"grain"` : `Integer` - defines the granularity of the triggering, i.e. in how many beats the next action in queue can take place. Unit is in beats. If property is not defined, the global setting takes precedence, defined in [`"playback"`](#playback-information)
 
-> `"legato"` : `Integer` - defines the time taken to fade in from the currently playing section to this section. Automatically crossfades all track from to this section, if this property is defined, otherwise no transition is made.
+> `"legato"` : `Integer || {Integer?, [String...]?}` - defines the time taken to fade in from the currently playing section to this section. 
+<br/> Automatically crossfades all track from to this section, if this property is defined, otherwise no transition is made.
+<br/>
+This property can also be an object with specific definition of which tracks should be crossfaded.
 
 
 ## Flow

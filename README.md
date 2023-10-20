@@ -38,7 +38,7 @@ The `*.jsong` file itself has instructions on how to playback the music based on
 The `*.jsong` file can also contain music encoded as data URI to allow a stand alone, single file approach.
 
 ### Inspiration
-The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo)) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level. One big inspiration is also [Ableton Live](https://ableton.com) in how it allows to dynamically mix and match audio clips to build a song 'live', much of the code and analogies are based on how Live behaves.
+The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level. One big inspiration is also [Ableton Live](https://ableton.com) in how it allows to dynamically mix and match audio clips to build a song 'live', much of the code and analogies are based on how Live behaves.
 
 # API
 Available in [API.md](API.md). The core functions of the player are described. For examples see the 'Examples' folder.
@@ -87,6 +87,40 @@ index   sections
         ] 
 ```
 **Note: the repetition limit number is ignored and should be skipped when counting indexes*
+
+## Flags
+The sections in the flow can contain flags instructing the player on how the section should flow. Supported flags are `X` for cross fading into the *next* section, and `>` for automatically continuing on to the next section without user input. 
+
+The list of flags is separated using `-` symbol, immediately after the flow name. 
+
+Example:
+```
+["intro->", "verse1-X", "chorus-X->", "verse"]
+```
+The `intro->` will automatically play `verse1` after it reaches its own end.
+
+`verse1-X` will crossfade into `chorus` while `chorus` will do both.
+
+## Section Overrides
+The map section can contain override values referring to the crossfade parameters, by default the 'legato' mode uses global grain timings but you can override this by specifying your own grain in beats time.
+
+You may also specify which tracks get crossfaded and which switch instantly by specyifying an expanded override.
+
+
+Example with just grain:
+```
+"verse2" : { "region": [40, 48], "grain": 4, "legato": 8 }
+```
+Here the crossfade will take 8 beats to finish
+
+Example with specific cross fade:
+```
+"verse2" : { "region": [40, 48], "grain": 4, "legato":{
+        "duration":4,
+        "xfades": ["guitar","lead"]
+      }}
+```
+Here in 4 beats time the `guitar` and `lead` tracks will crossfade into the next section and other tracks not mentioned will transition instantly.
 
 ## Events 
 There are a number of events that the player emits to further help you with the dynamic and interactive aspect of the player. The most useful being the [onSectionPlayStart](API.md#jsongonsectionplaystart--index) or [onSectionWillStart](API.md#jsongonsectionwillstart--index)
