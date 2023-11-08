@@ -1,6 +1,6 @@
-const { getLoopCount } = require("../src/getLoopCount");
-const { buildSection } = require("../src/buildSection");
-const { setNestedIndex } = require("../src/nestedIndex");
+const { getLoopCount } = require("./getLoopCount");
+const { buildSection } = require("./buildSection");
+const { setNestedIndex } = require("./nestedIndex");
 
 const flow = ["intro", [[2, {"section":"chorus", "autoNext":true}, "verse"], "bass"]];
 const sections = buildSection(flow);

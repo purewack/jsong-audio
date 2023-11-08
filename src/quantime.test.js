@@ -1,4 +1,4 @@
-const {quanTime} = require('../src/quantime');
+const {quanTime} = require('./quantime');
 
 describe('Quantize time',()=>{
 

@@ -1,4 +1,4 @@
-const { setNestedIndex, getNestedIndex } = require("../src/nestedIndex.js");
+const { setNestedIndex, getNestedIndex } = require("./nestedIndex.js");
 
 describe("NestedIndex", () => {
   const nest = {

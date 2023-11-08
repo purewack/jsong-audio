@@ -1,5 +1,5 @@
-const { nextSection } = require("../src/nextSection");
-const { buildSection } = require("../src/buildSection");
+const { nextSection } = require("./nextSection");
+const { buildSection } = require("./buildSection");
 
 const flow = ["intro", [[2, "chorus", "verse"], "bass"]];
 const sections = buildSection(flow);
