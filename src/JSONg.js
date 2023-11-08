@@ -211,8 +211,10 @@ parse(manifestPath, dataPath){
 
     this.playingNow = null;
 
-    if(this.verbose) console.log("Parsed song ",this)
-    
+    if(this.verbose) {
+      console.log("Parsed song ",this)
+      console.log("meter ",this.#tone.Transport.timeSignature, this.#playbackInfo)
+    }
     })
   })
 
@@ -519,7 +521,7 @@ parse(manifestPath, dataPath){
 
 //================Various==========
 getNextTime(grain = undefined){
-  const _grain = grain || this.#playbackInfo.grain;
+  const _grain = grain || this.#playbackInfo?.grain || this.#playbackInfo?.meter?.[0] || this.#tone.Transport.timeSignature;
   const meterDenominator = this.#tone.Transport.timeSignature
   return quanTime(this.#tone.Transport.position, [_grain, meterDenominator])
 }

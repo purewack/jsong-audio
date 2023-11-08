@@ -1,5 +1,5 @@
-function quanTime(nowTime, meter = [4,4], gridAlignStart = undefined){
-  const [atBeats, barBeats] = meter
+function quanTime(nowTime, meterInfo = [4,4], gridAlignStart = undefined){
+  const [atBeats, barBeats] = meterInfo
   const units = nowTime.split(':')
   const nowBar = parseInt(units[0])
   const nowBeat = parseInt(units[1])

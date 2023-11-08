@@ -19,7 +19,7 @@ player.parse(song + '/audio.jsong', song).then((full)=>{
   }
 })
 }
-songLoad('test_song')
+songLoad('test_song2')
 
 const state = document.getElementById("state")
 player.onStateChange = (st)=>{
