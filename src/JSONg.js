@@ -49,6 +49,7 @@ class JSONg {
   #meterBeat = 0
   #sectionBeat = 0
   #sectionLen = 0
+  #sectionLastLaunchTime = '0:0:0'
   set meterBeat(v){
     this.#meterBeat = v
     this.#tone.Draw.schedule(() => {
@@ -254,6 +255,7 @@ parse(manifestPath, dataPath){
         this.#tone.Draw.schedule(() => {
           this?.onSectionPlayEnd?.(null)
           this?.onSectionPlayStart?.(this.#sectionsFlowMap.index)
+          this.#sectionLastLaunchTime = this.#tone.Transport.position
         },this.#tone.now())
         if(!fadein) return
         this.#trackPlayers.forEach((t,i)=>{
@@ -311,6 +313,7 @@ parse(manifestPath, dataPath){
       this.#tone.Draw.schedule(() => {
         this?.onSectionPlayStart?.(null) 
         this?.onSectionPlayEnd?.(this.#sectionsFlowMap.index) 
+        this.#sectionLastLaunchTime = null
       },this.#tone.now()) 
       this.state = 'stopped'
     }
@@ -371,6 +374,7 @@ parse(manifestPath, dataPath){
       this.#tone.Draw.schedule(() => {
         this.onSectionPlayEnd?.(nowIndex)
         this.onSectionPlayStart?.(nextIndex)
+        this.#sectionLastLaunchTime = this.#tone.Transport.position
       }, this.#tone.now());
     }) 
   }
@@ -521,9 +525,10 @@ parse(manifestPath, dataPath){
 
 //================Various==========
 getNextTime(grain = undefined){
-  const _grain = grain || this.#playbackInfo?.grain || this.#playbackInfo?.meter?.[0] || this.#tone.Transport.timeSignature;
-  const meterDenominator = this.#tone.Transport.timeSignature
-  return quanTime(this.#tone.Transport.position, [_grain, meterDenominator])
+  const _grain = grain || this.#playbackInfo?.grain || this.#playbackInfo?.meter?.[0];
+  const nt = quanTime(this.#tone.Transport.position, _grain, this.#playbackInfo?.meter)
+  if(this.#verbose) console.log('nexttime',this.#tone.Transport.position, nt)
+  return nt
 }
 
 

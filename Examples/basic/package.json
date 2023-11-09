@@ -4,6 +4,7 @@
   "license": "MIT",
   "browserslist": "> 0.5%, last 2 versions, not dead",
   "scripts": {
+    "clean": "rm -r .parcel-cache dist",
     "start": "parcel index.html --open",
     "build": "parcel build index.html"
   },
