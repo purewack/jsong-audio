@@ -97,7 +97,7 @@ parse(manifestPath, dataPath){
       bpm: data.playback.bpm,
       meter: data.playback.meter,
       totalMeasures: data.playback.totalMeasures,
-      grain: data.playback?.grain || 4,
+      grain: data.playback?.grain || (data.playback.meter[0] / (data.playback.meter[1]/4)) || null,
       metronome: data.playback?.metronome || ["B5","G4"],
       metronomeDB: data.playback?.metronomeDB || -6,
     }
@@ -527,7 +527,7 @@ parse(manifestPath, dataPath){
 getNextTime(grain = undefined){
   const _grain = grain || this.#playbackInfo?.grain || this.#playbackInfo?.meter?.[0];
   const nt = quanTime(this.#tone.Transport.position, _grain, this.#playbackInfo?.meter)
-  if(this.#verbose) console.log('nexttime',this.#tone.Transport.position, nt)
+  if(this.#verbose) console.log('nexttime',this.#tone.Transport.position, nt, _grain, this.#playbackInfo?.meter)
   return nt
 }
 

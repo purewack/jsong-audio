@@ -50,6 +50,7 @@ describe('Quantize time 3/4',()=>{
         expect(quanTime('1:0:2',3,[3,4])).toBe('2:0:0')
         expect(quanTime('1:1:2',3,[3,4])).toBe('2:0:0')
         expect(quanTime('1:2:3',3,[3,4])).toBe('2:0:0')
+        expect(quanTime('13:1:2.163', 3, [3,4])).toBe('14:0:0')
     })    
     
     test('quantize time to nearest 2bar',()=>{
