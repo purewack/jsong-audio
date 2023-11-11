@@ -245,6 +245,7 @@ parse(manifestPath, dataPath){
 
       this.#tone.Transport.cancel()
       this.#sectionsFlowMap.index = from || [0]
+      if(getNestedIndex(this.#sectionsFlowMap, this.#sectionsFlowMap.index) === undefined) return null;
 
       this.#tone.Draw.schedule(() => {
         this?.onSectionWillEnd?.(null)
@@ -343,6 +344,7 @@ parse(manifestPath, dataPath){
     if(this.#pending) this.cancel()
     
     const nowIndex = [...this.#sectionsFlowMap.index]
+    if(getNestedIndex(this.#sectionsFlowMap, nowIndex) === undefined) return null;
     const nowSection = this.playbackMap(getNestedIndex(this.#sectionsFlowMap, nowIndex))[0]
     
     let nextIndex
@@ -526,8 +528,8 @@ parse(manifestPath, dataPath){
 //================Various==========
 getNextTime(grain = undefined){
   const _grain = grain || this.#playbackInfo?.grain || this.#playbackInfo?.meter?.[0];
-  const nt = quanTime(this.#tone.Transport.position, _grain, this.#playbackInfo?.meter)
-  if(this.#verbose) console.log('nexttime',this.#tone.Transport.position, nt, _grain, this.#playbackInfo?.meter)
+  const nt = quanTime(this.#tone.Transport.position, _grain, this.#playbackInfo?.meter, this.#sectionLastLaunchTime)
+  if(this.#verbose) console.log('nexttime',nt,this.#tone.Transport.position, _grain, this.#playbackInfo?.meter, this.#sectionLastLaunchTime)
   return nt
 }
 
