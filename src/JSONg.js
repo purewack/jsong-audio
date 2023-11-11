@@ -471,6 +471,13 @@ parse(manifestPath, dataPath){
     },nextTime)
   }
 
+  // //TODO: add this function
+  // injectNamedSection(name){
+  //   if(!this.#sectionsFlowMap[name]) return null
+  //   const namedIdx = ??
+  //   const idx = getNestedIndex(this.#sectionsFlowMap, namedIdx)
+  // }
+
   cancel(){
     if(!this.#pending) return
     this.#tone.Transport.clear(this.#pending.id)

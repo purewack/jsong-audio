@@ -23,6 +23,7 @@ function quanTime(nowPosition, atBeats = 4, meter = [4,4], lastStartAlignPositio
       // console.log('more grid pre',adv ,nowBar, nowBeat)
       //take the quantization back from last gridAlignStart time
       if(typeof lastStartAlignPosition === 'string'){
+        //TODO: change from while loop to more efficient calculation
         let nextGridBar = splitTime(lastStartAlignPosition)[0];
         // console.log('more grid',adv, nextGridBar)
         while(nextGridBar <= nowBar) nextGridBar += adv;
