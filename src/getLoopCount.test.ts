@@ -1,6 +1,6 @@
-const { getLoopCount } = require("./getLoopCount");
-const { buildSection } = require("./buildSection");
-const { setNestedIndex } = require("./nestedIndex");
+import getLoopCount from "./getLoopCount";
+import buildSection from "./buildSection";
+import { setNestedIndex } from "./nestedIndex";
 
 const flow = ["intro", [[2, "chorus", "verse"], "bass"]];
 const sections = buildSection(flow);
