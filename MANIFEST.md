@@ -108,7 +108,7 @@
 
 > `"grain"` : `Integer` - defines the granularity of the triggering, i.e. in how many beats the next action in queue can take place. Unit is in beats. If property is not defined, the global setting takes precedence, defined in [`"playback"`](#playback-information)
 
-> `"legato"` : `Integer || {Integer?, [String...]?}` - defines the time taken to fade in from the currently playing section to this section. 
+> `"legato"` : `Integer || {Integer? ^ string[]?}` - defines the time taken to fade in from the currently playing section to this section. 
 <br/> Automatically crossfades all track from to this section, if this property is defined, otherwise no transition is made.
 <br/>
 This property can also be an object with specific definition of which tracks should be crossfaded.

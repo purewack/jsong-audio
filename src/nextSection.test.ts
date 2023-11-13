@@ -1,4 +1,4 @@
-import { nextSection } from "./nextSection";
+import nextSection from "./nextSection";
 import buildSection from "./buildSection";
 
 const flow = ["intro", [[2, "chorus", "verse"], "bass"]];
