@@ -1,4 +1,4 @@
-import Tone, { FilterRollOff } from "tone"
+import * as Tone from "tone";
 import quanTime from './quantime'
 import nextSection from './nextSection'
 import buildSection from './buildSection'
@@ -7,7 +7,6 @@ import {getNestedIndex} from './nestedIndex'
 import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
 import { 
   FlowValue, 
-  NestedIndex, 
   PlayerPlaybackInfo, 
   PlayerPlaybackMap, 
   PlayerPlaybackState, 
@@ -20,6 +19,7 @@ import {
   PlayerTrack, 
   SectionType 
 } from "./types"
+import { JsonObjectExpression } from "typescript";
 
 class JSONg {
   //parser version 0.0.2
@@ -111,15 +111,31 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     return this.parse(_loadpath + 'audio.jsong', _loadpath);
   }
 
-  return new Promise((resolve: (reason: string, detail?: string)=>void, reject: (reason: string, detail?: string)=>void)=>{
+
+  if(this.verbose) console.log("Parse begin", manifestPath, dataPath)
+
+  return new Promise((resolve: (reason: string, detail?: any)=>void, reject: (reason: string, detail?: any)=>void)=>{
   
   fetch(manifestPath).then(resp => {
+    if(this.verbose) console.log("JSON fetch prepare", resp)
+    
     resp.text().then(txt => {
       // console.log(txt)
-    const data = JSON.parse(txt)
-        
+    if(this.verbose) console.log("Parse prepare", txt)
+    
+    let data: any;
+    try {
+    data = JSON.parse(txt)
+    }
+    catch(error){
+      if(this.verbose) console.log('JSONg Parse error')
+      reject('JSON parse', error)
+      return
+    }
+
     if(this.verbose) console.log('JSONg loaded',data)
     if(data?.type !== 'jsong') {
+      if(this.verbose) console.log('Invalid manifest file reject')
       reject('manifest','Invalid manifest file')
       return
     }
@@ -182,7 +198,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
 
         const filter = new Tone.Filter(20000, "lowpass").toDestination()
         if(track?.filter?.resonance) filter.set({'Q':track.filter.resonance}) 
-        if(track?.filter?.rolloff) filter.set({'rolloff': track.filter.rolloff as FilterRollOff})
+        if(track?.filter?.rolloff) filter.set({'rolloff': track.filter.rolloff as Tone.FilterRollOff})
         else filter.rolloff = -24;
         a.connect(filter)
         b.connect(filter)
@@ -421,7 +437,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     const [section, sectionFlags] = this.playbackMap(sectionID)
 
     let sectionOverrides: PlayerSectionOverrides = {}
-    sectionFlags.forEach(f=>{
+    sectionFlags.forEach((f: PlayerSectionOverrideFlags) =>{
       if(f === '>') sectionOverrides = {...sectionOverrides, autoNext: true}
       if(f === 'X' || f === 'x') sectionOverrides = {...sectionOverrides, legato: true}
     })
@@ -588,11 +604,14 @@ get verbose(){
 }
   constructor(verbose:boolean = true){
     this.verbose = verbose
+    if(this.verbose) console.log("JSONg");
+    Tone.start().then(()=>{
     this.state = null;
     this.#metronome = new Tone.Synth().toDestination()
     this.#metronome.envelope.attack = 0;
     this.#metronome.envelope.release = 0.05;
     if(this.verbose) console.log("New", this);
+    })
   }
 
 

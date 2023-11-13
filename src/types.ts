@@ -47,7 +47,7 @@ export interface PlayerPlaybackMap {
 export type PlayerSectionChangeHandler = (index: undefined | null | PlayerSectionIndex, when?: string)=>void;
 export type PlayerSectionRepeatHandler = (index: PlayerSectionIndex, loops: number)=>void;
 
-export type PlayerSectionOverrideFlags = null | ">" | "X"
+export type PlayerSectionOverrideFlags = null | ">" | "X" | "x"
 export interface PlayerSectionOverrides { 
     legato?: boolean;
     autoNext?: boolean;

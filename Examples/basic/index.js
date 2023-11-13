@@ -1,11 +1,10 @@
 import "./styles.css";
-import * as Tone from "tone";
 import {JSONg} from "jsong";
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
 
-const player = new JSONg(Tone)
+const player = new JSONg(true)
 
 
 const songLoad = (song)=>{
