@@ -30,24 +30,25 @@ export interface PlayerSourceMap {
     [key: string] : string
 }
 
+export interface PlayerPlaybackMapType { 
+    region: [number, number];
+    grain?: number;
+    legato?: number | {
+        duration: number;
+        xfades: undefined | string[];
+    } | {
+        duration: undefined | number;
+        xfades: string[];
+    }
+}
 export interface PlayerPlaybackMap {
-    [key: string] : { 
-        region: [number, number];
-        grain?: number;
-        legato?: number | {
-            duration: number;
-            xfades: undefined | string[];
-        } | {
-            duration: undefined | number;
-            xfades: string[];
-        }
-    },
+    [key: string] : PlayerPlaybackMapType,
 }
 
 export type PlayerSectionChangeHandler = (index: undefined | null | PlayerSectionIndex, when?: string)=>void;
 export type PlayerSectionRepeatHandler = (index: PlayerSectionIndex, loops: number)=>void;
 
-export type PlayerSectionOverrideFlags = null | ">" | "X" | "x"
+export type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
 export interface PlayerSectionOverrides { 
     legato?: boolean;
     autoNext?: boolean;

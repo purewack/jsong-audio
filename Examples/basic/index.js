@@ -1,5 +1,5 @@
 import "./styles.css";
-import {JSONg} from "jsong";
+import JSONg from "jsong";
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
@@ -27,8 +27,8 @@ player.onStateChange = (st)=>{
 }
 
 const timeline = document.getElementById("timeline")
-player.onTransport = (song, section)=>{
-  timeline.innerText = `${song} [${section[0]}/${section[1]}]`;
+player.onTransport = (song, sectionPercentage, section)=>{
+  timeline.innerText = `${song} (${sectionPercentage}) [${section[0]}/${section[1]}]`;
 }
 const ntimeline = document.getElementById("ntimeline")
   
