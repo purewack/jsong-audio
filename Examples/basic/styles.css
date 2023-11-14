@@ -20,6 +20,13 @@ body {
   grid-template-columns: 1fr 9fr;
 }
 
+/* body {
+  background: black;
+}
+body > h1 {
+  color: white;
+} */
+
 section {
   background-color: aliceblue;
   border: solid lightgray 1px;
@@ -96,4 +103,58 @@ button {
 .Intersect {
   background-color: red;
   color: white;
+}
+
+
+.Label {
+  border-radius: 0.5rem;
+  padding: 0.25rem;
+  font-size: 0.9rem;
+  padding-inline: 0.5rem;
+  color: white;
+}
+
+.Label:nth-child(1n) {
+  background-color: hsl(100, 70%, 25%);
+}
+.Label:nth-child(2n) {
+  background-color: hsl(300, 70%, 25%);
+}
+.Label:nth-child(3n) {
+  background-color: hsl(230, 70%, 25%);
+}
+.Label:nth-child(4n) {
+  background-color: hsl(0, 70%, 25%);
+}
+
+.LiveStatus { 
+  width: 50%;
+  display: grid;
+  gap: 0.25rem;
+  grid-template: 
+  "st st st" 
+  "was pr now" 
+  "time pr ntime"
+  /1fr 1rem 1fr;
+}
+.LiveStatus::after {
+  content: '>';
+  place-self: center;
+  grid-area: pr;
+}
+
+#state {
+  grid-area: st;
+}
+#prequeue {
+  grid-area: was;
+}
+#postqueue {
+  grid-area: now;
+}
+#timeline {
+  grid-area: time;
+}
+#ntimeline {
+  grid-area: ntime;
 }

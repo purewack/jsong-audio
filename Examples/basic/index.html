@@ -3,6 +3,7 @@
   <head>
     <title>JSONg Player</title>
     <meta charset="UTF-8" />
+    <link rel="stylesheet" href="styles.css">
   </head>
 
   <body>
@@ -11,9 +12,10 @@
       <h1>Controls</h1>
       <button id="stop">Stop</button>
       <button id="play">Play</button>
-      <button id="from">Play (no intro)</button>
-      <button id="skip">Next (Force)</button>
-      <button id="intro">GoTo Intro [0]</button>
+      <button id="from">Play [1]</button>
+      <button id="offgrid">Play (off-grid)</button>
+      <button id="skip">Skip (Force)</button>
+      <button id="intro">GoTo [0]</button>
       <br/>
       <button id="xa">Fade bass -> guitar</button>
       <button id="xb">Fade guitar -> bass</button>
@@ -21,14 +23,13 @@
     <section class="time" style="grid-area: topcontent;">
       <h1>Status</h1>
       <h3 id="loader"></h3>
-      <span id="state">State</span>
-      <span> - </span>
-      <span id="prequeue">Queue</span>
-      <span id="postqueue">Queue</span>
-      <span> - </span>
-      <span id="timeline">Timeline</span>
-      <span> . </span>
-      <span id="ntimeline">Timeline</span>
+      <div class="LiveStatus">
+        <span id="state" class="Label">State:</span>
+        <span id="prequeue" class="Label">Was:</span>
+        <span id="postqueue" class="Label">Will: </span>
+        <span id="timeline" class="Label">T:</span>
+        <span id="ntimeline" class="Label">NextT:</span>
+      </div>
     </section>
     <section class="regionInfo" style="grid-area: region;">
       <h1>Region Info</h1>

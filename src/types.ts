@@ -3,7 +3,7 @@
 import { Tone } from "tone/build/esm/core/Tone";
 
 export type PlayerSectionIndex = number[];
-export type PlayerPlaybackState = (null | "started" | "playing" | "stopping" | "stopped")
+export type PlayerPlaybackState = (null | "playing" | "stopping" | "stopped")
 export interface PlayerTrack {
     name: string;
 	volumeDB: number;

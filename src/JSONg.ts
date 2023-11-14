@@ -61,6 +61,7 @@ export default class JSONg {
   onSectionPlayEnd?: PlayerSectionChangeHandler;
   onSectionWillStart?: PlayerSectionChangeHandler;
   onSectionWillEnd?: PlayerSectionChangeHandler;
+  onSectionCancelChange?: PlayerSectionChangeHandler;
   onSectionRepeat?: PlayerSectionRepeatHandler;
 
   onStateChange: (value: PlayerPlaybackState)=>void;
@@ -78,7 +79,7 @@ export default class JSONg {
   playingNow: {index: PlayerSectionIndex, name: string} | null;
 
   //transport and meter
-  onTransport?: (position: BarsBeatsSixteenths, loopPosition?:  number, loopBeatPosition?: [number, number] )=>void;
+  onTransport?: (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>void;
   #metronome: Tone.Synth; 
   #meterBeat: number = 0
   #sectionBeat: number = 0
@@ -91,7 +92,7 @@ export default class JSONg {
       const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0]
       if(nowSection){
         this.#sectionBeat = (this.#sectionBeat+1) % this.#sectionLen
-        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths, Tone.Transport.progress, [this.#sectionBeat,this.#sectionLen])
+        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths, [this.#sectionBeat,this.#sectionLen])
       }
       else 
         this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths)
@@ -102,16 +103,16 @@ export default class JSONg {
   }
 
 //==================Loader==============
-#load:  {
+private loadStatus:  {
   required: number, 
   loaded: number, 
   failed: number
 };
 
-parse(folderPath: string): Promise<string>;
-parse(manifestPath: string, dataPath: string): Promise<string>;
+public parse(folderPath: string): Promise<string>;
+public parse(manifestPath: string, dataPath: string): Promise<string>;
 
-parse(manifestPath: string, dataPath?: string): Promise<string> {
+public parse(manifestPath: string, dataPath?: string): Promise<string> {
   if(!dataPath){
     const sep = (manifestPath.endsWith('/')  ? ' ' : '/')
     const _loadpath = manifestPath + sep;
@@ -120,30 +121,30 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
   }
 
 
-  if(this.verbose) console.log("Parse begin", manifestPath, dataPath)
+  // if(this.verbose) console.log("Parse begin", manifestPath, dataPath)
 
   return new Promise((resolve: (reason: string, detail?: any)=>void, reject: (reason: string, detail?: any)=>void)=>{
   
   fetch(manifestPath).then(resp => {
-    if(this.verbose) console.log("JSON fetch prepare", resp)
+    // if(this.verbose) console.log("JSON fetch prepare", resp)
     
     resp.text().then(txt => {
       // console.log(txt)
-    if(this.verbose) console.log("Parse prepare", txt)
+    // if(this.verbose) console.log("Parse prepare", txt)
     
     let data: any;
     try {
     data = JSON.parse(txt)
     }
     catch(error){
-      if(this.verbose) console.log('JSONg Parse error')
+      if(this.verbose) console.error('JSONg Parse error')
       reject('JSON parse', error)
       return
     }
 
-    if(this.verbose) console.log('JSONg loaded',data)
+    // if(this.verbose) console.log('JSONg loaded',data)
     if(data?.type !== 'jsong') {
-      if(this.verbose) console.log('Invalid manifest file reject')
+      if(this.verbose) console.error('Invalid manifest file reject')
       reject('manifest','Invalid manifest file')
       return
     }
@@ -169,7 +170,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     if(this.verbose) console.log('Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
     
 
-    this.#load = {
+    this.loadStatus = {
       required: this.tracksList.length, 
       loaded: 0, 
       failed: 0
@@ -221,16 +222,16 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     }
 
     const checkLoad = ()=>{
-      if(this.#load.loaded+this.#load.failed === this.#load.required) {
+      if(this.loadStatus.loaded+this.loadStatus.failed === this.loadStatus.required) {
         this.state = 'stopped'
         //full load
-        if(this.verbose) console.log('Loading sequence done', this.#load); 
-        if(this.#load.loaded === this.#load.required){
+        if(this.verbose) console.log('Loading sequence done', this.loadStatus); 
+        if(this.loadStatus.loaded === this.loadStatus.required){
           resolve('loading', 'full')
           spawnTracks()
         }
         //partial load
-        else if(this.#load.loaded && this.#load.loaded < this.#load.required){
+        else if(this.loadStatus.loaded && this.loadStatus.loaded < this.loadStatus.required){
           resolve('loading','partial')
           spawnTracks()
         }
@@ -252,14 +253,14 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
       const _dataPath = dataPath ? dataPath : manifestPath
       const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
       buffer.load(url).then((tonebuffer)=>{
-        this.#load.loaded++;
+        this.loadStatus.loaded++;
         this.sourceBuffers[src_id] = tonebuffer
         checkLoad()
         if(this.verbose) console.log('Source loaded ', src_id, tonebuffer)
       }).catch((e)=>{
-        this.#load.failed++;
+        this.loadStatus.failed++;
         checkLoad()
-        console.log('Failed loading source ', src_id, data, ' ', e)
+        console.error('Failed loading source ', src_id, data, ' ', e)
       })
     }
 
@@ -285,38 +286,43 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
 
   
 //================Controls===========
-  play(from = null, skip = false, fadein = '1m'){
+  public play(
+    from: PlayerSectionIndex | null = null, 
+    skip: (boolean | string) = false,
+    fadein: Time = 0
+  ){
+    console.log('play', from, skip, fadein, this.state);
 
     if(this.state === 'stopping') return;
     
-    if(this.state === 'stopped'){    
-      Tone.start()
-      this.trackPlayers.forEach((t,i)=>{
-        const vol = this.tracksList[i]?.volumeDB || 0
-        if(fadein){
-          t.a.volume.value = -60;
-          t.b.volume.value = -60;
-        }
-        else{
-          t.a.volume.value = vol
-          t.b.volume.value = vol
-        }
-      })
-
-      Tone.Transport.cancel()
+    if(this.state === 'stopped'){ 
+      Tone.start();
+      
+      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) return null;
       this.sectionsFlowMap.index = from || [0]
-      if(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index) === undefined) return null;
-
-      Tone.Draw.schedule(() => {
-        this?.onSectionWillEnd?.(null)
-        this?.onSectionWillStart?.(this.sectionsFlowMap.index)
-      },Tone.now())
 
       this.schedule(this.sectionsFlowMap.index, '0:0:0', ()=>{
+        Tone.Draw.schedule(() => {
+          this.trackPlayers.forEach((t,i)=>{
+            const vol = this.tracksList[i]?.volumeDB || 0
+            if(fadein){
+              t.a.volume.value = -60;
+              t.b.volume.value = -60;
+            }
+            else{
+              t.a.volume.value = vol
+              t.b.volume.value = vol
+            }
+          })
+          this?.onSectionWillEnd?.(null)
+          this?.onSectionWillStart?.(this.sectionsFlowMap.index)
+        },Tone.now())
+      }, ()=>{
         Tone.Draw.schedule(() => {
           this?.onSectionPlayEnd?.(null)
           this?.onSectionPlayStart?.(this.sectionsFlowMap.index)
           this.#sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
+          this.state = 'playing'
         },Tone.now())
         if(!fadein) return
         this.trackPlayers.forEach((t,i)=>{
@@ -337,14 +343,13 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
       },'4n');
 
       Tone.Transport.start('+0.1s')
-      this.state = 'started'
     }
-    else if(this.state === 'started'){
-      this.advanceSection(skip)
+    else if(this.state === 'playing'){
+      this.advanceSection(from, skip)
     }
   }
 
-  stop(after: Time = '4n', fadeout: boolean = true){
+  public stop(after: Time = '4n', fadeout: boolean = true){
     if(this.state === 'stopped' || this.state === 'stopping') return
     this.state = !after ? 'stopped' : 'stopping';
     const afterSec = Tone.Time(after).toSeconds()
@@ -387,53 +392,62 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     if(this.verbose) console.log("JSONg player stopped")
   }
 
-  next(){
-    if(this.state === 'playing')
-    this.play(null, false)
-  }
-
-  skip(){
+  public skip(){
     if(this.state === 'playing')
     this.play(null, true)
   }
 
+  public skipOffGrid(){
+    if(this.state === 'playing')
+    this.play(null, 'offgrid')
+  }
+
+  public skipTo(index: PlayerSectionIndex, fade = '4n'){
+    this.play(index, true, fade);
+  }
+  
+  public skipToOffGrid(index: PlayerSectionIndex){
+    if(this.state === 'playing')
+    this.play(index, 'offgrid');
+  }
 
 //================Flow===========
   #pending: null | {id: null | number, when: BarsBeatsSixteenths};
 
-  advanceSection(breakout: PlayerSectionIndex | boolean = false, auto:boolean = false){
+  private advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false){
     if(this.#pending) this.cancel()
     
     const nowIndex = [...this.sectionsFlowMap.index] as number[]
     if(getNestedIndex(this.sectionsFlowMap, nowIndex) === undefined) return null;
     const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0] as PlayerPlaybackMapType
     
+    let _willNext = false;
     let nextIndex
-    if(breakout instanceof Array)
-      nextIndex = breakout
+    if(index)
+      nextIndex = index
     else{
-      nextSection(this.sectionsFlowMap, breakout)
+      nextSection(this.sectionsFlowMap, typeof breakout === 'boolean' ? breakout : false)
       nextIndex = [...this.sectionsFlowMap.index]
-      
-      Tone.Draw.schedule(() => {
-        const loopIndex = [...nowIndex] as PlayerSectionIndex
-        loopIndex[loopIndex.length-1] += 1
-        const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
-        if(loops) this.onSectionRepeat?.(nowIndex, loops)
-      }, Tone.now())
+      _willNext = true;
     }
     
     this.sectionsFlowMap.index = nowIndex
     const regionGrainLength =  (nowSection.region[1] - nowSection.region[0]) * (Tone.Transport.timeSignature as number);
     const grain = auto ? regionGrainLength : nowSection?.grain
-    const nextTime =  this.getNextTime(grain)
+    const nextTime =  this.getNextTime(grain, !(typeof breakout === 'string' && breakout === 'offgrid'))
 
-    Tone.Draw.schedule(() => {
-      this.onSectionWillEnd?.(nowIndex, nextTime)
-      this.onSectionWillStart?.(nextIndex, nextTime)
-    }, Tone.now());
-    
     this.schedule(nextIndex, nextTime, ()=>{
+      Tone.Draw.schedule(() => {
+        if(_willNext){
+          const loopIndex = [...nowIndex] as PlayerSectionIndex
+          loopIndex[loopIndex.length-1] += 1
+          const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
+          if(loops) this.onSectionRepeat?.(nowIndex, loops)
+        }
+        this.onSectionWillEnd?.(nowIndex, nextTime)
+        this.onSectionWillStart?.(nextIndex, nextTime)
+      }, Tone.now());  
+    }, ()=>{
       Tone.Draw.schedule(() => {
         this.onSectionPlayEnd?.(nowIndex)
         this.onSectionPlayStart?.(nextIndex)
@@ -442,10 +456,21 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     }) 
   }
 
-  schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onScheduleCallback?: ()=>void){
-    if(this.#pending) return
+  private schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
+    if(this.#pending) return;
     const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
     const [section, sectionFlags] = this.playbackMapOverrides(sectionID)
+    if(section === undefined){
+      if(this.verbose) console.log("Can't schedule non existent index");
+      Tone.Draw.schedule(() => {
+      //   this.onSectionWillEnd?.(null)
+      //   this.onSectionWillStart?.(null)
+        this.onSectionCancelChange?.(null)
+      }, Tone.now())
+      return;
+    }
+
+    onPreScheduleCallback?.();
 
     let sectionOverrides: PlayerSectionOverrides = {}
     sectionFlags.forEach((value: string) =>{
@@ -468,7 +493,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
         nextTrack.loop = true;
         try{
           const nonLegatoStart = ()=>{
-            console.log('non legato section', sectionIndex, track.name)
+            if(this.verbose) console.log('non legato section', sectionIndex, track.name)
             track.current.stop(t);
             nextTrack.volume.setValueAtTime(track.volumeLimit, t)
             nextTrack.start(t,section.region[0]+'m');
@@ -486,7 +511,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
           }
 
           if(sectionOverrides?.legato){
-            console.log('legato section', sectionIndex)
+            if(this.verbose) console.log('legato section', sectionIndex)
             let legatoDT: Time;
             let legatoTracks: string[] | undefined;
             if(typeof section?.legato === 'object'){
@@ -496,7 +521,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
             else
               legatoDT = Tone.Time((section?.legato || 4) + 'n').toSeconds()
             
-            console.log('legato', t, legatoDT)
+            if(this.verbose) console.log('legato', t, legatoDT)
             
             if(legatoTracks){
               let legatoTrackFound = false
@@ -528,7 +553,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
       this.#pending = null
 
       if(sectionOverrides?.autoNext){
-        this.advanceSection(false, true)
+        this.advanceSection(null, false, true)
       }
     },nextTime)
   }
@@ -540,7 +565,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
   //   const idx = getNestedIndex(this.#sectionsFlowMap, namedIdx)
   // }
 
-  cancel(){
+  public cancel(){
     if(!this.#pending) return
     if(this.#pending?.id) Tone.Transport.clear(this.#pending.id)
     this.#pending = null
@@ -548,11 +573,12 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     Tone.Draw.schedule(() => {
       this.onSectionWillEnd?.(null)
       this.onSectionWillStart?.(null)
+      this.onSectionCancelChange?.(null, Tone.Transport.position as BarsBeatsSixteenths)
     }, Tone.now())
   }
 
 //================Effects===========
-  rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
+  public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
     if(!this.state) return
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
@@ -570,7 +596,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.trackPlayers[idx].a.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
     this.trackPlayers[idx].b.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
   }
-  rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
+  public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
     if(!this.state) return
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
@@ -587,7 +613,7 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
 
     this.trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
   }
-  crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m', sync: boolean = true){
+  public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m', sync: boolean = true){
     inIndexes?.forEach(i=>{
       this.rampTrackVolume(i, 0,inTime,sync)
     })
@@ -598,18 +624,16 @@ parse(manifestPath: string, dataPath?: string): Promise<string> {
   }
 
 //================Various==========
-getNextTime(grain?: number){
-  const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];
-  const nt = quanTime(Tone.Transport.position as BarsBeatsSixteenths, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
-  if(this.#verbose) console.log('nexttime',nt,Tone.Transport.position, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
-  return nt
-}
+  private getNextTime(grain?: number, alignGrid: boolean = true){
+    const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];
+    const nt = quanTime(Tone.Transport.position as BarsBeatsSixteenths, _grain, this.playbackInfo?.meter, alignGrid ? this.#sectionLastLaunchTime : undefined)
+    // if(this.#verbose) console.log('nexttime',nt,Tone.Transport.position, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
+    return nt
+  }
 
   constructor(verbose:boolean = true){
     this.verbose = verbose
     if(this.verbose) console.log("New", this);
-    Tone.start().then(()=>{
-      this.state = null;
-    })
+    this.state = null;
   }
 }
