@@ -1,12 +1,9 @@
-import "./styles.css";
-import * as Tone from "tone";
-import {JSONg} from "jsong";
+import JSONg from "jsong";
 
 const loaderLabel = document.getElementById("loader");
 loaderLabel.innerText = 'Loading...'
 
-const player = new JSONg(Tone)
-
+const player = new JSONg(true)
 
 const songLoad = (song)=>{
 player.parse(song + '/audio.jsong', song).then((full)=>{
@@ -19,17 +16,18 @@ player.parse(song + '/audio.jsong', song).then((full)=>{
   }
 })
 }
-songLoad('test_song2')
+songLoad('test_song')
+
 
 const state = document.getElementById("state")
 player.onStateChange = (st)=>{
   console.log(st)
-  state.innerText = st
+  state.innerText = "State:" + st
 }
 
 const timeline = document.getElementById("timeline")
 player.onTransport = (song, section)=>{
-  timeline.innerText = `${song} [${section[0]}/${section[1]}]`;
+  timeline.innerText = `T: ${song} [${section[0]}/${section[1]}]`;
 }
 const ntimeline = document.getElementById("ntimeline")
   
@@ -40,18 +38,23 @@ playbutton.onclick = (ev) => {
   else
     player.cancel()
 };
-document.getElementById("intro").addEventListener("click", () => {
-  player.advanceSection([0])
-});
-document.getElementById("from").addEventListener("click", () => {
-  Tone.start();
-  player.play([1], true, 0)
-});
-document.getElementById("skip").addEventListener("click", () => {
-  player.play(null, true)
-});
+
 document.getElementById("stop").addEventListener("click", () => {
   player.stop()
+});
+
+document.getElementById("intro").addEventListener("click", () => {
+  player.skipTo([0])
+});
+document.getElementById("from").addEventListener("click", () => {
+  player.skipTo([1])
+});
+
+document.getElementById("offgrid").addEventListener("click", () => {
+  player.skipOffGrid();
+});
+document.getElementById("skip").addEventListener("click", () => {
+  player.skip();
 });
 
 document.getElementById("xa").addEventListener("click", () => {
@@ -68,28 +71,33 @@ player.onSectionRepeat = (index, reps)=>{
 
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
-player.onSectionPlayEnd = (index)=>{
-  squeue.innerText = 'ended ' + index
+
+player.onSectionPlayStart = (index, flags)=>{ 
+  queue.innerText = 'Now Playing: ' + index
+  playbutton.innerText = 'Play'
 }
-player.onSectionWillEnd = (index, when)=>{
+player.onSectionPlayEnd = (index, flags)=>{
+  squeue.innerText = 'Has Ended: ' + index
+}
+player.onSectionWillEnd = (index, flags, when)=>{
   if(!index) squeue.innerText = 'cancelled'
-  squeue.innerText = '|| ' + index
+  squeue.innerText = 'Will End: ' + index
 }
 
-player.onSectionWillPlay = (index, when)=>{
+player.onSectionWillStart = (index, flags, when)=>{
   if(!index) {
-    squeue.innerText = 'cancelled'
+    squeue.innerText = 'Cancelled'
     playbutton.innerText = 'Play'
   }
   else{
-    queue.innerText = '>> ' + index
-    ntimeline.innerText = when;
+    queue.innerText = 'Will Play: ' + index
+    ntimeline.innerText = 'NextT:' + when;
     playbutton.innerText = 'Cancel'
   }
 }
-player.onSectionPlayStart = (index)=>{ 
-  queue.innerText = 'playing ' + index
-  playbutton.innerText = 'Play'
+
+player.onSectionCancelChange = ()=>{
+  ntimeline.innerText = 'NextT:';
 }
 
 const onPlayerForceSection = (index)=>{

@@ -1,7 +1,13 @@
-const { setNestedIndex, getNestedIndex } = require("./nestedIndex");
+import { setNestedIndex, getNestedIndex } from './nestedIndex'
+import { SectionType } from './types';
 
-function nextSection(topLevel, breakloop = false) {
-  const traverse = (sec) => {
+export default function nextSection(
+  topLevel: SectionType, 
+  breakLoop: boolean = false
+) {
+  const traverse = (sec: SectionType) => {
+    if(topLevel?.index === undefined) topLevel.index = [0]
+
     const r = getNestedIndex(topLevel, topLevel.index);
     // console.log(">", r, topLevel.index);
     if (r === undefined) {
@@ -10,8 +16,9 @@ function nextSection(topLevel, breakloop = false) {
         const prevSection = getNestedIndex(topLevel, prevIndex);
         // console.log("-nested index loop", prevIndex, prevSection);
         // console.log("loop");
+        if(prevSection === undefined) return
 
-        if (prevSection.loop + 1 < prevSection.loopLimit && !breakloop) {
+        if (prevSection.loop + 1 < prevSection.loopLimit && !breakLoop) {
           topLevel.index[topLevel.index.length - 1] = 0;
           prevSection.loop += 1;
           // console.log("inlimt");
@@ -41,8 +48,8 @@ function nextSection(topLevel, breakloop = false) {
       return;
     }
   };
+
+  if(topLevel?.index === undefined) topLevel.index = [0]
   topLevel.index[topLevel.index.length - 1] += 1;
   traverse(topLevel);
 }
-
-module.exports = {nextSection};

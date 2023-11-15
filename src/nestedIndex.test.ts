@@ -1,4 +1,4 @@
-const { setNestedIndex, getNestedIndex } = require("./nestedIndex.js");
+import { setNestedIndex, getNestedIndex } from "./nestedIndex";
 
 describe("NestedIndex", () => {
   const nest = {

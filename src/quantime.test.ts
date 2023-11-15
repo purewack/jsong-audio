@@ -1,4 +1,4 @@
-const {quanTime} = require('./quantime');
+import quanTime from './quantime'
 
 describe('Quantize time 4/4',()=>{
 

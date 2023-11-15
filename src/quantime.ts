@@ -1,6 +1,12 @@
-function quanTime(nowPosition, atBeats = 4, meter = [4,4], lastStartAlignPosition = undefined){
-  const splitTime = (position)=>position.split(':').map(n => parseInt(n))
-  const quantize = (unit,q)=>Math.trunc((unit + q)/q)*q;
+export default function quanTime(
+  nowPosition: string, 
+  atBeats: number = 4, 
+  meter: number[] = [4,4], 
+  lastStartAlignPosition?: string | number
+): string 
+{
+  const splitTime = (position: string)=>position.split(':').map(n => parseInt(n))
+  const quantize = (unit: number,q: number)=>Math.trunc((unit + q)/q)*q;
 
   const barBeats = meter[0] / (meter[1]/4)
   const [nowBar, nowBeat] = splitTime(nowPosition)
@@ -35,11 +41,3 @@ function quanTime(nowPosition, atBeats = 4, meter = [4,4], lastStartAlignPositio
     return `${nowBar + adv}:0:0`
   }
 }
-
-module.exports = {quanTime}
-
-
-// 3:0:0
-// 16 = 4bar
-// now = 22:0:0
-// next = 23:0:0

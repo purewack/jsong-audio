@@ -1,8 +1,7 @@
-const { getLoopCount } = require("./getLoopCount");
-const { buildSection } = require("./buildSection");
-const { setNestedIndex } = require("./nestedIndex");
+import buildSection from "./buildSection";
+import { setNestedIndex } from "./nestedIndex";
 
-const flow = ["intro", [[2, {"section":"chorus", "autoNext":true}, "verse"], "bass"]];
+const flow = ["intro", [[2, 'A', "verse"], "bass"]];
 const sections = buildSection(flow);
 setNestedIndex(1,sections,['loop'])
 setNestedIndex(2,sections,[1,'loop'])
@@ -13,7 +12,7 @@ test("Build sections from flow with section options", () => {
     0: "intro",
     1: {
       0: {
-        0: {section:"chorus", autoNext:true},
+        0: "A",
         1: "verse",
         loop: 3,
         loopLimit: 2,
