@@ -1,7 +1,7 @@
 //JSONg Player types
 export interface PlayerMetadata {
     title: string;
-    author?: string
+    author: string
     createdOn : number;
     timestamp : number;
     projectVersion: string;
@@ -51,8 +51,6 @@ export interface PlayerPlaybackMap {
     [key: string] : PlayerPlaybackMapType,
 }
 
-export type PlayerSectionChangeHandler = (index: undefined | null | PlayerSectionIndex,sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
-export type PlayerSectionRepeatHandler = (index: PlayerSectionIndex, loops: number)=>void;
 
 export type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
 export interface PlayerSectionOverrides { 

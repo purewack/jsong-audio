@@ -56,7 +56,7 @@ To begin, create a new player by making a new object
 You may then provide the `*.jsong` file containing all the music within, or, provide a name of a folder containing all music data as well as a `audio.jsong` manifest file. 
 
 ## Playback
-By default, if you call the [`play`](API.md#jsongplayindex--undefined-skip--false-fadeintime--1m) and [`stop`](API.md#jsongstopafter--time-fadeout--true) functions, a small fade in and fade out is provided. This is optional and you can either specify your own length (in [Tone units](https://github.com/Tonejs/Tone.js/wiki/Time)) or provide a 0 for instant start and stop.
+By default, if you call the [`play`](API.md#jsongplay) and [`stop`](API.md#jsongstop) functions, a small fade in and fade out is provided. This is optional and you can either specify your own length (in [Tone units](https://github.com/Tonejs/Tone.js/wiki/Time)) or provide a 0 for instant start and stop.
 
 ## Flow
 The *flow* describes how the song should flow from section to section. This array of section names can contain other arrays within, similar to [repeats](https://en.wikipedia.org/wiki/Repeat_sign) in music. 
@@ -123,7 +123,7 @@ Example with specific cross fade:
 Here in 4 beats time the `guitar` and `lead` tracks will crossfade into the next section and other tracks not mentioned will transition instantly.
 
 ## Events 
-There are a number of events that the player emits to further help you with the dynamic and interactive aspect of the player. The most useful being the [onSectionPlayStart](API.md#jsongonsectionplaystart--index) or [onSectionWillStart](API.md#jsongonsectionwillstart--index)
+There are a number of events that the player emits to further help you with the dynamic and interactive aspect of the player. The most useful being the [onSectionPlayStart](API.md#jsongonsectionplaystart) or [onSectionWillStart](API.md#jsongonsectionwillstart)
 
 ## Example File layout
 <summary style="font-size:2rem"> <code>audio.jsong</code> - example file:</summary>
