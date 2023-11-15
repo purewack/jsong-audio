@@ -72,14 +72,14 @@ player.onSectionRepeat = (index, reps)=>{
 const squeue = document.getElementById("prequeue")
 const queue = document.getElementById("postqueue")
 
-player.onSectionPlayStart = (index)=>{ 
+player.onSectionPlayStart = (index, flags)=>{ 
   queue.innerText = 'Now Playing: ' + index
   playbutton.innerText = 'Play'
 }
-player.onSectionPlayEnd = (index)=>{
+player.onSectionPlayEnd = (index, flags)=>{
   squeue.innerText = 'Has Ended: ' + index
 }
-player.onSectionWillEnd = (index)=>{
+player.onSectionWillEnd = (index, flags, when)=>{
   if(!index) squeue.innerText = 'cancelled'
   squeue.innerText = 'Will End: ' + index
 }
@@ -96,8 +96,8 @@ player.onSectionWillStart = (index, flags, when)=>{
   }
 }
 
-player.onSectionCancelChange = (index, flags, when)=>{
-  ntimeline.innerText = 'NextT:' + when;
+player.onSectionCancelChange = ()=>{
+  ntimeline.innerText = 'NextT:';
 }
 
 const onPlayerForceSection = (index)=>{

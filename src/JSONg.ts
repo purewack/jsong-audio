@@ -13,11 +13,9 @@ import {
   PlayerPlaybackMapType, 
   PlayerPlaybackState, 
   PlayerPlayingNow, 
-  PlayerSectionChangeHandler, 
   PlayerSectionIndex, 
   PlayerSectionOverrideFlags, 
   PlayerSectionOverrides, 
-  PlayerSectionRepeatHandler, 
   PlayerSourceMap, 
   PlayerTrack, 
   SectionType 
@@ -85,15 +83,16 @@ export default class JSONg {
   };
 
   //Event handlers
-  onSectionRepeat?: PlayerSectionRepeatHandler;
-  onSectionPlayStart?: PlayerSectionChangeHandler;
-  onSectionPlayEnd?: PlayerSectionChangeHandler;
-  onSectionWillStart?: PlayerSectionChangeHandler;
-  onSectionWillEnd?: PlayerSectionChangeHandler;
-  onSectionCancelChange?: PlayerSectionChangeHandler;
-  onSectionOverrides?: (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
-  onStateChange?: (value: PlayerPlaybackState)=>void;
-
+  onStateChange?:         (state: PlayerPlaybackState)=>void;
+  onSectionRepeat?:       (index: PlayerSectionIndex, loops: number)=>void;
+  onSectionPlayStart?:    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>void;
+  onSectionPlayEnd?:      (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>void;
+  onSectionWillStart?:    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
+  onSectionWillEnd?:      (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
+  onSectionOverrides?:    (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
+  onSectionCancelChange?: ()=>void;
+  onTransport?: (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>void;
+  
   //State of the player and its property observer
   #state:PlayerPlaybackState = null;
   set state(value: PlayerPlaybackState){
@@ -116,7 +115,6 @@ export default class JSONg {
   } 
 
   //Transport and meter event handler
-  onTransport?: (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>void;
   #metronome: Tone.Synth; 
   #meterBeat: number = 0
   #sectionBeat: number = 0
@@ -332,7 +330,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     from: PlayerSectionIndex | null = null, 
     skip: (boolean | string) = false,
     fadein: Time = 0
-  ){
+  ) : void 
+  {
     console.log('play', from, skip, fadein, this.state);
 
     if(this.state === 'stopping') return;
@@ -340,7 +339,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     if(this.state === 'stopped'){ 
       Tone.start();
       
-      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) return null;
+      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) return;
       this.sectionsFlowMap.index = from || [0]
       const overrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
 
@@ -357,12 +356,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
               t.b.volume.value = vol
             }
           })
-          this?.onSectionWillEnd?.(null, [])
+          this?.onSectionWillEnd?.([], [])
           this?.onSectionWillStart?.([...this.sectionsFlowMap.index], [...overrides])
         },Tone.now())
       }, ()=>{
         Tone.Draw.schedule(() => {
-          this?.onSectionPlayEnd?.(null, [])
+          this?.onSectionPlayEnd?.([], [])
           this?.onSectionPlayStart?.([...this.sectionsFlowMap.index], [...overrides])
           this.#sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
           this.state = 'playing'
@@ -392,7 +391,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }
   }
 
-  public stop(after: Time = '4n', fadeout: boolean = true){
+  public stop(after: Time = '4n', fadeout: boolean = true)  : void 
+  {
     if(this.state === 'stopped' || this.state === 'stopping') return
     this.state = !after ? 'stopped' : 'stopping';
     const afterSec = Tone.Time(after).toSeconds()
@@ -404,7 +404,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.rampTrackVolume(i,-60, afterSec);
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionWillStart?.(null, []) 
+        this?.onSectionWillStart?.([], []) 
         this?.onSectionWillEnd?.([...this.sectionsFlowMap?.index], [])  
       }, Tone.now())
     }
@@ -421,7 +421,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         }
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionPlayStart?.(null, []) 
+        this?.onSectionPlayStart?.([], []) 
         this?.onSectionPlayEnd?.([...this.sectionsFlowMap.index], []) 
         this.#sectionLastLaunchTime = undefined
       },Tone.now()) 
@@ -435,21 +435,25 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     if(this.verbose) console.log("JSONg player stopped")
   }
 
-  public skip(){
+  public skip() : void
+  {
     if(this.state === 'playing')
     this.play(null, true)
   }
 
-  public skipOffGrid(){
+  public skipOffGrid()  : void
+  {
     if(this.state === 'playing')
     this.play(null, 'offgrid')
   }
 
-  public skipTo(index: PlayerSectionIndex, fade = '4n'){
+  public skipTo(index: PlayerSectionIndex, fade = '4n')  : void
+  {
     this.play(index, true, fade);
   }
   
-  public skipToOffGrid(index: PlayerSectionIndex){
+  public skipToOffGrid(index: PlayerSectionIndex) : void
+  {
     if(this.state === 'playing')
     this.play(index, 'offgrid');
   }
@@ -464,9 +468,9 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.#pending = null
     
     Tone.Draw.schedule(() => {
-      this.onSectionWillEnd?.(null,[])
-      this.onSectionWillStart?.(null,[])
-      this.onSectionCancelChange?.(null,[],Tone.Transport.position as BarsBeatsSixteenths)
+      this.onSectionWillEnd?.([],[])
+      this.onSectionWillStart?.([],[])
+      this.onSectionCancelChange?.()
     }, Tone.now())
   }
 
@@ -523,7 +527,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       Tone.Draw.schedule(() => {
       //   this.onSectionWillEnd?.(null)
       //   this.onSectionWillStart?.(null)
-        this.onSectionCancelChange?.(null, [] as PlayerSectionOverrideFlags[])
+        this.onSectionCancelChange?.()
       }, Tone.now())
       return;
     }
