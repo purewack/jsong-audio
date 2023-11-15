@@ -16,7 +16,7 @@ player.parse(song + '/audio.jsong', song).then((full)=>{
   }
 })
 }
-songLoad('test_song2')
+songLoad('test_song')
 
 
 const state = document.getElementById("state")
@@ -79,12 +79,12 @@ player.onSectionPlayStart = (index)=>{
 player.onSectionPlayEnd = (index)=>{
   squeue.innerText = 'Has Ended: ' + index
 }
-player.onSectionWillEnd = (index, when)=>{
+player.onSectionWillEnd = (index)=>{
   if(!index) squeue.innerText = 'cancelled'
   squeue.innerText = 'Will End: ' + index
 }
 
-player.onSectionWillStart = (index, when)=>{
+player.onSectionWillStart = (index, flags, when)=>{
   if(!index) {
     squeue.innerText = 'Cancelled'
     playbutton.innerText = 'Play'
@@ -96,7 +96,7 @@ player.onSectionWillStart = (index, when)=>{
   }
 }
 
-player.onSectionCancelChange = (index, when)=>{
+player.onSectionCancelChange = (index, flags, when)=>{
   ntimeline.innerText = 'NextT:' + when;
 }
 

@@ -1,6 +1,12 @@
 //JSONg Player types
-
-import { Tone } from "tone/build/esm/core/Tone";
+export interface PlayerMetadata {
+    title: string;
+    author?: string
+    createdOn : number;
+    timestamp : number;
+    projectVersion: string;
+    createdUsing?: string;
+}
 
 export type PlayerSectionIndex = number[];
 export type PlayerPlaybackState = (null | "playing" | "stopping" | "stopped")
@@ -45,7 +51,7 @@ export interface PlayerPlaybackMap {
     [key: string] : PlayerPlaybackMapType,
 }
 
-export type PlayerSectionChangeHandler = (index: undefined | null | PlayerSectionIndex, when?: string)=>void;
+export type PlayerSectionChangeHandler = (index: undefined | null | PlayerSectionIndex,sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
 export type PlayerSectionRepeatHandler = (index: PlayerSectionIndex, loops: number)=>void;
 
 export type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
@@ -53,6 +59,7 @@ export interface PlayerSectionOverrides {
     legato?: boolean;
     autoNext?: boolean;
 }
+export type PlayerPlayingNow = {index: PlayerSectionIndex, name: string} | null
 
 
 
