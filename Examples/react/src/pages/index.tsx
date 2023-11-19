@@ -1,10 +1,13 @@
 import styles from '@/styles/index.module.css'
-import { useEffect, useRef, useState } from 'react'
+import { useContext, useEffect, useRef, useState } from 'react'
 import JSONg from 'jsong'
 import Head from 'next/head';
 import Link from 'next/link';
+import { PlayerContext } from './_app';
 
 export default function Home() {
+
+  const player = useContext(PlayerContext);
 
   return (
     <>
@@ -16,7 +19,10 @@ export default function Home() {
           What is JSONg Audio?
         </h1>
         <Link href="content">
-        <button className={styles.button} 
+        <button className={styles.button}
+        onClick={()=>{
+          player?.current.play();
+        }} 
         >Show Me!</button>
         </Link>
         {/* <button onClick={()=>{
