@@ -1,8 +1,8 @@
 {
   "name": "jsong",
   "version": "1.0.0",
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/JSONg.js",
+  "types": "dist/JSONg.d.ts",
   "license": "MIT",
   "dependencies": {
     "tone": "^14.7.77"
@@ -15,6 +15,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
+    "build": "tsc",
     "test": "jest --verbose",
     "example_basic": "yarn --cwd ./Examples/basic start"
   }

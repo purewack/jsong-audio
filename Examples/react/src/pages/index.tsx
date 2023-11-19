@@ -1,6 +1,7 @@
 import styles from '@/styles/index.module.css'
 import { useEffect, useRef } from 'react'
 import JSONg from 'jsong'
+import Head from 'next/head';
 
 export default function Home() {
 
@@ -13,9 +14,12 @@ export default function Home() {
 
   return (
     <>
+      <Head>
+        <title>JSONg Audio</title>
+      </Head>
       <main>
         <h1>
-          What is JSONg audio?
+          What is JSONg Audio?
         </h1>
       </main>
     </>

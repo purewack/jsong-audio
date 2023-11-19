@@ -36,7 +36,7 @@ export default class JSONg {
     return this._verbose;
   }
 
-  private _meta: PlayerMetadata | null;
+  private _meta: PlayerMetadata | null = null;
   set meta(value: PlayerMetadata){
     this._meta = {...value};
   }
