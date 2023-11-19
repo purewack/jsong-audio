@@ -120,7 +120,7 @@ export default class JSONg {
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
   private _sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
-  set meterBeat(v: number){
+  private set meterBeat(v: number){
     this._meterBeat = v
     Tone.Draw.schedule(() => {
       const nowIndex = [...this.sectionsFlowMap.index]
@@ -158,7 +158,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     return this.parse(_loadpath + 'audio.jsong', _loadpath);
   }
 
-  return new Promise((resolve: (reason: string, detail?: any)=>void, reject: (reason: string, detail?: any)=>void)=>{
+  return new Promise((resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
   
   fetch(manifestPath).then(resp => {
     
@@ -203,17 +203,25 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     const src_keys = Object.keys(this.sourcesMap)
     if(this.verbose) console.log('Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
     
+    this._meterBeat = 0
+    Tone.Transport.position = '0:0:0'
+    this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
+    
+    Tone.Transport.bpm.value = this.playbackInfo.bpm
+    Tone.Transport.timeSignature = this.playbackInfo.meter
+
+    this.playingNow = null;
+
+    if(this.trackPlayers){
+      this.stop(0)
+      this.state = null; 
+    }
 
     this._loadStatus = {
       required: this.tracksList.length, 
       loaded: 0, 
       failed: 0
     };
-
-    if(this.trackPlayers){
-      this.stop(0)
-      this.state = null; 
-    }
 
     if(this.sourceBuffers){
       Tone.Transport.cancel()
@@ -261,17 +269,17 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         //full load
         if(this.verbose) console.log('Loading sequence done', this._loadStatus); 
         if(this._loadStatus.loaded === this._loadStatus.required){
-          resolve('loading', 'full')
+          resolve('loading_full')
           spawnTracks()
         }
         //partial load
         else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
-          resolve('loading','partial')
+          resolve('loading_partial')
           spawnTracks()
         }
         //failed load
         else{
-          reject('loading')
+          reject('loading_fail')
           this.state = null;
         }
       }
@@ -297,15 +305,6 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         console.error('Failed loading source ', src_id, data, ' ', e)
       })
     }
-
-    this._meterBeat = 0
-    Tone.Transport.position = '0:0:0'
-    this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
-    
-    Tone.Transport.bpm.value = this.playbackInfo.bpm
-    Tone.Transport.timeSignature = this.playbackInfo.meter
-
-    this.playingNow = null;
 
     if(this.verbose) {
       console.log("Parsed song ",this)
@@ -380,7 +379,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         const note = this.playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
         if(!note) return
         this.meterBeat = (this.meterBeat + 1) % (Tone.Transport.timeSignature as number)
-        if(this.playbackInfo.metronome || this.verbose)
+        if(this.playbackInfo.metronome && this.verbose)
           this._metronome.triggerAttackRelease(note,'64n',t);
       },'4n');
 

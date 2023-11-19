@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc",
     "test": "jest --verbose",
-    "example_basic": "yarn --cwd ./Examples/basic start"
+    "example_basic": "yarn --cwd ./Examples/basic start",
+    "example_react": "yarn --cwd ./Examples/react dev"
   }
 }

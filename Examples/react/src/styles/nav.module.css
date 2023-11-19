@@ -1,0 +1,36 @@
+
+.nav {
+    padding: 0.25rem;
+    display: flex;
+    font-family: 'Josefin Sans', sans-serif;
+}
+.nav button:first-child {
+    margin-left: auto;
+}
+
+.progress {
+    /* background: red; */
+    text-align: center;
+    flex-grow: 1;
+    position:relative;
+}
+
+.progress::before,
+.progress::after{
+    content: '';
+    top:0;
+    left:0;
+    position: absolute;
+    height:100%;
+    width: 100%;
+}
+.progress::before {
+    z-index: -2;
+    background-color: ivory;
+}
+.progress::after{
+    z-index: -1;
+    background:lightgreen;
+    width: calc(var(--progress) * 100%);
+    transition: width 0.2s;
+}
