@@ -662,6 +662,20 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }) 
   }
 
+  public isMute(){
+    return Tone.Destination.volume.value > -200;
+  }
+
+  public muteAll(){
+    Tone.Destination.volume.linearRampToValueAtTime(-Infinity,'+1s');
+  }
+
+  public unMuteAll(value:number = 0){
+    
+    Tone.Destination.volume.linearRampToValueAtTime(value,'+1s');
+  }
+
+
 //================Various==========
   private _getNextTime(grain?: number, alignGrid: boolean = true){
     const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];

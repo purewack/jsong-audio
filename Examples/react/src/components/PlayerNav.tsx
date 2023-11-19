@@ -1,5 +1,4 @@
 import {CSSProperties, useContext, useEffect, useRef, useState } from "react"
-import {CSSTransition} from 'react-transition-group'
 import JSONg from 'jsong';
 import style from '@/styles/nav.module.css'
 
@@ -11,8 +10,9 @@ export default function PlayerNav({show=true, pending=false}){
     const player = useContext<JSONg>(PlayerContext);
     const [playerState, setPlayerState] = useState(null)
     const [loopProgress, setLoopProgress] = useState([0,0]);
-    
-    const [ready, setReady] = useState(false)
+    const isPlaying = playerState === 'playing';
+    const [isMute, setIsMute] = useState(false);
+    const [ready, setReady] = useState(false);
     useEffect(()=>{
         if(!player) return;
         if(!player) return;
@@ -33,25 +33,25 @@ export default function PlayerNav({show=true, pending=false}){
       
     },[])
 
-    const nodeRef = useRef(null);
 
+    const nodeRef = useRef(null);
     return ready && 
     <nav ref={nodeRef} className={clsx(style.nav, show && style.show, pending && style.pending)}>
         <h2>JSONg</h2>
         <span className={style.progress} style={{
-            '--progress': playerState === 'playing' ? (1+loopProgress[0]) / loopProgress[1] : 0
+            '--progress': isPlaying ? (1+loopProgress[0]) / loopProgress[1] : 0
         } as CSSProperties}>
-            {playerState === 'playing' ? 
+            {isPlaying ? 
                 <>{loopProgress[0] + 1} / {loopProgress[1]}</>
             : playerState }
         </span>
-
-        {playerState !== 'playing' ? 
-        <button onClick={()=>{
-            player.play()
-        }}>Play</button>
-            : 
-        <button onClick={()=>{player.stop('2n')}}>Stop</button>
-        }
+ 
+        <span className={'material-symbols-outlined'} onClick={()=>{
+            setIsMute(m => {
+                if(!m) player.muteAll()
+                else player.unMuteAll()
+                return !m;
+            })
+        }}>{isPlaying && !isMute ? 'volume_up' : 'volume_off'}</span>
     </nav>
 }
