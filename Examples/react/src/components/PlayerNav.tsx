@@ -13,6 +13,7 @@ export default function PlayerNav(){
 
     useEffect(()=>{
         if(!player) return;
+        if(!player?.current) return;
         const p = player.current;
         p.parse('test_song2').then((reason)=>{
             if(reason === 'loading_full'){

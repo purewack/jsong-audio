@@ -4,11 +4,11 @@ import type { AppProps } from 'next/app'
 import { Dispatch, MutableRefObject, SetStateAction, createContext, useEffect, useRef, useState } from 'react'
 import JSONg from 'jsong';
 
-export const PlayerContext = createContext<MutableRefObject<JSONg> | null>(null)
+export const PlayerContext = createContext<MutableRefObject<JSONg | null> | null>(null)
 
 export default function App({ Component, pageProps }: AppProps) {
   
-  const player = useRef<JSONg>(new JSONg())
+  const player = useRef<JSONg | null>(null)
 
   useEffect(()=>{
     if(!player.current) {

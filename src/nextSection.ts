@@ -1,5 +1,4 @@
 import { setNestedIndex, getNestedIndex } from './nestedIndex'
-import { SectionType } from './types';
 
 export default function nextSection(
   topLevel: SectionType, 

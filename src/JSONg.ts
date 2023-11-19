@@ -5,21 +5,6 @@ import buildSection from './buildSection'
 import getLoopCount from './getLoopCount'
 import {getNestedIndex} from './nestedIndex'
 import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
-import { 
-  FlowValue, 
-  PlayerMetadata, 
-  PlayerPlaybackInfo, 
-  PlayerPlaybackMap, 
-  PlayerPlaybackMapType, 
-  PlayerPlaybackState, 
-  PlayerPlayingNow, 
-  PlayerSectionIndex, 
-  PlayerSectionOverrideFlags, 
-  PlayerSectionOverrides, 
-  PlayerSourceMap, 
-  PlayerTrack, 
-  SectionType 
-} from "./types"
 
 /* 
 parser version 0.0.3
@@ -45,22 +30,22 @@ export default class JSONg {
   }
 
   //Mapping of available audio buffers to tracks with use them
-  private sourcesMap : PlayerSourceMap;
+  private sourcesMap : PlayerSourceMap = {};
   
   //List of track involved with the song
-  private tracksList: PlayerTrack[];
+  private tracksList: PlayerTrack[] = [];
   
   //Available sections and their natural flow with extra loop counter for internal use
-  private sectionsFlowMap: SectionType;
+  private sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
   
   //Natural flow of named sections including loop counts
-  private playbackFlow: FlowValue[];
+  private playbackFlow: FlowValue[] = [];
 
   //Song playback details like BPM
-  private playbackInfo: PlayerPlaybackInfo;
+  private playbackInfo: PlayerPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
   
   //Looping details of each section, including specific directives
-  private playbackMap: PlayerPlaybackMap;
+  private playbackMap: PlayerPlaybackMap = {};
   
   //Extraction of flow directives
   private playbackMapOverrides(key: string): [PlayerPlaybackMapType, string[]] { 
@@ -76,11 +61,11 @@ export default class JSONg {
     a: Tone.Player;
     b: Tone.Player;
     current: Tone.Player;
-  }[]
+  }[] = []
   //Available real audio buffers
   private sourceBuffers: {
     [key: string]: Tone.ToneAudioBuffer
-  };
+  } = {};
 
   //Event handlers
   onStateChange?:         (state: PlayerPlaybackState)=>void;
@@ -106,7 +91,7 @@ export default class JSONg {
   }
 
   //Currently playing now 
-  private _playingNow: PlayerPlayingNow;
+  private _playingNow: PlayerPlayingNow = {index: [], name: ''};
   get playingNow(): PlayerPlayingNow {
     return this._playingNow ? {...this._playingNow} : null;
   }
@@ -115,7 +100,7 @@ export default class JSONg {
   } 
 
   //Transport and meter event handler
-  private _metronome: Tone.Synth; 
+  private _metronome: Tone.Synth = new Tone.Synth().toDestination(); 
   private _meterBeat: number = 0
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
@@ -142,6 +127,10 @@ private _loadStatus:  {
   required: number, 
   loaded: number, 
   failed: number
+} = {
+  required: 0,
+  loaded: 0,
+  failed: 0,
 };
 
 //Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong
@@ -181,7 +170,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       return
     }
 
-    this._metronome = new Tone.Synth().toDestination()
+    // this._metronome = new Tone.Synth().toDestination()
     this._metronome.envelope.attack = 0;
     this._metronome.envelope.release = 0.05;
 
@@ -458,7 +447,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
   }
 
 //================Flow===========
-  private _pending: null | {id: null | number, when: BarsBeatsSixteenths};
+  private _pending: null | {id: null | number, when: BarsBeatsSixteenths} = null;
 
   //This function will cancel any pending changes that are queued up
   public cancel(){

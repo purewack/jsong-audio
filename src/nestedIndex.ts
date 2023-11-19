@@ -1,4 +1,3 @@
-import { NestedIndex, NestedType } from "./types";
 
 export function setNestedIndex(
   toSet: NestedType, 

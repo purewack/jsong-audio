@@ -21,7 +21,7 @@ export default function Home() {
         <Link href="content">
         <button className={styles.button}
         onClick={()=>{
-          player?.current.play();
+          player?.current?.play();
         }} 
         >Show Me!</button>
         </Link>
