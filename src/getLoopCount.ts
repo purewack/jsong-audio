@@ -1,5 +1,4 @@
 import { getNestedIndex } from "./nestedIndex"
-import { NestedIndex, NestedType, SectionType } from "./types"
 
 export default function getLoopCount(flows: SectionType, index: NestedIndex) 
 : (number | undefined) {

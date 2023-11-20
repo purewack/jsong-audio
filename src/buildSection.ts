@@ -1,7 +1,5 @@
-import {FlowValue, SectionData, SectionType} from "./types";
-
 export default function buildSection(flowMap: FlowValue[]) : SectionType {
-  const buildFlowSection = (count: number = 0, loopLimit: number = Infinity) => {
+  const buildFlowSection = (count: number = 0, loopLimit: number = Infinity): SectionData => {
     return {
       count,
       loop: 0,

@@ -5,62 +5,47 @@ import buildSection from './buildSection'
 import getLoopCount from './getLoopCount'
 import {getNestedIndex} from './nestedIndex'
 import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
-import { 
-  FlowValue, 
-  PlayerMetadata, 
-  PlayerPlaybackInfo, 
-  PlayerPlaybackMap, 
-  PlayerPlaybackMapType, 
-  PlayerPlaybackState, 
-  PlayerPlayingNow, 
-  PlayerSectionIndex, 
-  PlayerSectionOverrideFlags, 
-  PlayerSectionOverrides, 
-  PlayerSourceMap, 
-  PlayerTrack, 
-  SectionType 
-} from "./types"
 
 /* 
 parser version 0.0.3
 */
-export default class JSONg {
+export default class JSONg{
 
   //Debug related - logging extra messages
-  #verbose = false;
+  private _verbose = false;
   set verbose(state){
-    this.#verbose = state;
+    this._verbose = state;
     if(state) console.log("JSONg player verbose mode");
   }
   get verbose(){
-    return this.#verbose;
+    return this._verbose;
   }
 
-  #meta: PlayerMetadata;
+  private _meta: PlayerMetadata | null = null;
   set meta(value: PlayerMetadata){
-    this.#meta = {...value};
+    this._meta = {...value};
   }
-  get meta(): PlayerMetadata{
-    return {...this.#meta};
+  get meta(): PlayerMetadata | null {
+    return this._meta ? {...this._meta} : null;
   }
 
   //Mapping of available audio buffers to tracks with use them
-  private sourcesMap : PlayerSourceMap;
+  private sourcesMap : PlayerSourceMap = {};
   
   //List of track involved with the song
-  private tracksList: PlayerTrack[];
+  private tracksList: PlayerTrack[] = [];
   
   //Available sections and their natural flow with extra loop counter for internal use
-  private sectionsFlowMap: SectionType;
+  private sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
   
   //Natural flow of named sections including loop counts
-  private playbackFlow: FlowValue[];
+  private playbackFlow: FlowValue[] = [];
 
   //Song playback details like BPM
-  private playbackInfo: PlayerPlaybackInfo;
+  private playbackInfo: PlayerPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
   
   //Looping details of each section, including specific directives
-  private playbackMap: PlayerPlaybackMap;
+  private playbackMap: PlayerPlaybackMap = {};
   
   //Extraction of flow directives
   private playbackMapOverrides(key: string): [PlayerPlaybackMapType, string[]] { 
@@ -76,37 +61,66 @@ export default class JSONg {
     a: Tone.Player;
     b: Tone.Player;
     current: Tone.Player;
-  }[]
+  }[] = []
   //Available real audio buffers
   private sourceBuffers: {
     [key: string]: Tone.ToneAudioBuffer
-  };
+  } = {};
+
+  private _events = new EventTarget()
+
+  public addEventListener = (type: string, listener: (...args:any)=>void)=>{
+    this._events.addEventListener(type,listener);
+  }
+  public removeEventListener = (type: string, listener: (...args:any)=>void)=>{
+    this._events.removeEventListener(type,listener);
+  }
 
   //Event handlers
-  onStateChange?:         (state: PlayerPlaybackState)=>void;
-  onSectionRepeat?:       (index: PlayerSectionIndex, loops: number)=>void;
-  onSectionPlayStart?:    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>void;
-  onSectionPlayEnd?:      (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>void;
-  onSectionWillStart?:    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
-  onSectionWillEnd?:      (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when?: string)=>void;
-  onSectionOverrides?:    (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
-  onSectionCancelChange?: ()=>void;
-  onTransport?: (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>void;
+  private onSectionPlayStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionPlayStart', {detail: {index, sectionOverrides}}))
+  };
+  private onSectionPlayEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionPlayEnd', {detail: {index, sectionOverrides}}))
+  };
+  private onSectionWillStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths)=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionWillStart', {detail: {index, sectionOverrides, when}}))
+  };
+  private onSectionWillEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths)=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionWillEnd', {detail: {index, sectionOverrides, when}}))
+  }; 
+  private onSectionChange = (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex)=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionChange', {detail: {fromIndex, toIndex}}))
+  };
+  private onSectionCancelChange = ()=>{
+    this._events.dispatchEvent(new Event('onSectionCancelChange'))
+  };
+  private onTransport = (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>{
+    this._events.dispatchEvent(new CustomEvent('onTransport', {detail: {position, loopBeatPosition}}))
+  };
+  private onStateChange = (state: PlayerPlaybackState)=>{
+    this._events.dispatchEvent(new CustomEvent('onStateChange', {detail: state}))
+  }
+  private onSectionLoop = (loops: number, index: PlayerSectionIndex) => {
+    this._events.dispatchEvent(new CustomEvent('onSectionLoop', {detail: {loops, index: [...index]}}))
+  }
+  // private onSectionOverrides?:    (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
   
+
   //State of the player and its property observer
-  #state:PlayerPlaybackState = null;
+  private _state:PlayerPlaybackState = null;
   set state(value: PlayerPlaybackState){
-    this.#state = value
+    this._state = value
     Tone.Draw.schedule(() => {
-      this.onStateChange?.(value)
+      this.onStateChange(value)
     }, Tone.now());
   }
   get state(): PlayerPlaybackState{
-    return this.#state
+    return this._state
   }
 
   //Currently playing now 
-  _playingNow: PlayerPlayingNow;
+  private _playingNow: PlayerPlayingNow = {index: [], name: ''};
   get playingNow(): PlayerPlayingNow {
     return this._playingNow ? {...this._playingNow} : null;
   }
@@ -115,33 +129,37 @@ export default class JSONg {
   } 
 
   //Transport and meter event handler
-  #metronome: Tone.Synth; 
-  #meterBeat: number = 0
-  #sectionBeat: number = 0
-  #sectionLen: number = 0
-  #sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
-  set meterBeat(v: number){
-    this.#meterBeat = v
+  private _metronome: Tone.Synth = new Tone.Synth().toDestination(); 
+  private _meterBeat: number = 0
+  private _sectionBeat: number = 0
+  private _sectionLen: number = 0
+  private _sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
+  private set meterBeat(v: number){
+    this._meterBeat = v
     Tone.Draw.schedule(() => {
       const nowIndex = [...this.sectionsFlowMap.index]
       const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0]
       if(nowSection){
-        this.#sectionBeat = (this.#sectionBeat+1) % this.#sectionLen
-        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths, [this.#sectionBeat,this.#sectionLen])
+        this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
+        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths, [this._sectionBeat,this._sectionLen])
       }
       else 
         this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths)
     }, Tone.now());
   }
   get meterBeat(): number{
-    return this.#meterBeat
+    return this._meterBeat
   }
 
 //==================Loader==============
-private loadStatus:  {
+private _loadStatus:  {
   required: number, 
   loaded: number, 
   failed: number
+} = {
+  required: 0,
+  loaded: 0,
+  failed: 0,
 };
 
 //Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong
@@ -158,7 +176,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     return this.parse(_loadpath + 'audio.jsong', _loadpath);
   }
 
-  return new Promise((resolve: (reason: string, detail?: any)=>void, reject: (reason: string, detail?: any)=>void)=>{
+  return new Promise((resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
   
   fetch(manifestPath).then(resp => {
     
@@ -181,9 +199,9 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       return
     }
 
-    this.#metronome = new Tone.Synth().toDestination()
-    this.#metronome.envelope.attack = 0;
-    this.#metronome.envelope.release = 0.05;
+    // this._metronome = new Tone.Synth().toDestination()
+    this._metronome.envelope.attack = 0;
+    this._metronome.envelope.release = 0.05;
 
     this.meta = {...data.meta} as PlayerMetadata;
 
@@ -203,17 +221,25 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     const src_keys = Object.keys(this.sourcesMap)
     if(this.verbose) console.log('Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
     
+    this._meterBeat = 0
+    Tone.Transport.position = '0:0:0'
+    this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
+    
+    Tone.Transport.bpm.value = this.playbackInfo.bpm
+    Tone.Transport.timeSignature = this.playbackInfo.meter
 
-    this.loadStatus = {
-      required: this.tracksList.length, 
-      loaded: 0, 
-      failed: 0
-    };
+    this.playingNow = null;
 
     if(this.trackPlayers){
       this.stop(0)
       this.state = null; 
     }
+
+    this._loadStatus = {
+      required: this.tracksList.length, 
+      loaded: 0, 
+      failed: 0
+    };
 
     if(this.sourceBuffers){
       Tone.Transport.cancel()
@@ -256,22 +282,22 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }
 
     const checkLoad = ()=>{
-      if(this.loadStatus.loaded+this.loadStatus.failed === this.loadStatus.required) {
+      if(this._loadStatus.loaded+this._loadStatus.failed === this._loadStatus.required) {
         this.state = 'stopped'
         //full load
-        if(this.verbose) console.log('Loading sequence done', this.loadStatus); 
-        if(this.loadStatus.loaded === this.loadStatus.required){
-          resolve('loading', 'full')
+        if(this.verbose) console.log('Loading sequence done', this._loadStatus); 
+        if(this._loadStatus.loaded === this._loadStatus.required){
+          resolve('loading_full')
           spawnTracks()
         }
         //partial load
-        else if(this.loadStatus.loaded && this.loadStatus.loaded < this.loadStatus.required){
-          resolve('loading','partial')
+        else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
+          resolve('loading_partial')
           spawnTracks()
         }
         //failed load
         else{
-          reject('loading')
+          reject('loading_fail')
           this.state = null;
         }
       }
@@ -287,25 +313,16 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       const _dataPath = dataPath ? dataPath : manifestPath
       const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
       buffer.load(url).then((tonebuffer)=>{
-        this.loadStatus.loaded++;
+        this._loadStatus.loaded++;
         this.sourceBuffers[src_id] = tonebuffer
         checkLoad()
         if(this.verbose) console.log('Source loaded ', src_id, tonebuffer)
       }).catch((e)=>{
-        this.loadStatus.failed++;
+        this._loadStatus.failed++;
         checkLoad()
         console.error('Failed loading source ', src_id, data, ' ', e)
       })
     }
-
-    this.#meterBeat = 0
-    Tone.Transport.position = '0:0:0'
-    this.#metronome.volume.value = this.playbackInfo.metronomeDB || 0;
-    
-    Tone.Transport.bpm.value = this.playbackInfo.bpm
-    Tone.Transport.timeSignature = this.playbackInfo.meter
-
-    this.playingNow = null;
 
     if(this.verbose) {
       console.log("Parsed song ",this)
@@ -343,7 +360,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       this.sectionsFlowMap.index = from || [0]
       const overrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
 
-      this.schedule(this.sectionsFlowMap.index, '0:0:0', ()=>{
+      this._schedule(this.sectionsFlowMap.index, '0:0:0', ()=>{
         Tone.Draw.schedule(() => {
           this.trackPlayers.forEach((t,i)=>{
             const vol = this.tracksList[i]?.volumeDB || 0
@@ -356,14 +373,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
               t.b.volume.value = vol
             }
           })
-          this?.onSectionWillEnd?.([], [])
-          this?.onSectionWillStart?.([...this.sectionsFlowMap.index], [...overrides])
+          // this?.onSectionWillEnd?.([], [], '0:0:0')
+          this?.onSectionWillStart?.([...this.sectionsFlowMap.index], [...overrides], '0:0:0')
         },Tone.now())
       }, ()=>{
         Tone.Draw.schedule(() => {
-          this?.onSectionPlayEnd?.([], [])
+          // this?.onSectionPlayEnd?.([], [])
           this?.onSectionPlayStart?.([...this.sectionsFlowMap.index], [...overrides])
-          this.#sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
+          this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
           this.state = 'playing'
         },Tone.now())
         if(!fadein) return
@@ -374,20 +391,20 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       })
 
       this.meterBeat = 0
-      this.#sectionBeat = -1
+      this._sectionBeat = -1
       Tone.Transport.position = '0:0:0'
       Tone.Transport.scheduleRepeat((t)=>{
         const note = this.playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
         if(!note) return
         this.meterBeat = (this.meterBeat + 1) % (Tone.Transport.timeSignature as number)
-        if(this.playbackInfo.metronome || this.verbose)
-          this.#metronome.triggerAttackRelease(note,'64n',t);
+        if(this.playbackInfo.metronome && this.verbose)
+          this._metronome.triggerAttackRelease(note,'64n',t);
       },'4n');
 
       Tone.Transport.start('+0.1s')
     }
     else if(this.state === 'playing'){
-      this.advanceSection(from, skip)
+      this._advanceSection(from, skip)
     }
   }
 
@@ -404,11 +421,11 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.rampTrackVolume(i,-60, afterSec);
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionWillStart?.([], []) 
-        this?.onSectionWillEnd?.([...this.sectionsFlowMap?.index], [])  
+        this?.onSectionWillStart?.([], [], Tone.Time(when).toBarsBeatsSixteenths()) 
+        this?.onSectionWillEnd?.([...this.sectionsFlowMap?.index], [], Tone.Time(when).toBarsBeatsSixteenths())  
       }, Tone.now())
     }
-    const stopping = (t)=>{
+    const stopping = (t: Time)=>{
       Tone.Transport.stop(t)
       Tone.Transport.cancel()
       this.trackPlayers.forEach((p,i)=>{
@@ -423,7 +440,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       Tone.Draw.schedule(() => {
         this?.onSectionPlayStart?.([], []) 
         this?.onSectionPlayEnd?.([...this.sectionsFlowMap.index], []) 
-        this.#sectionLastLaunchTime = undefined
+        this._sectionLastLaunchTime = undefined
       },Tone.now()) 
       this.state = 'stopped'
     }
@@ -459,28 +476,28 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
   }
 
 //================Flow===========
-  #pending: null | {id: null | number, when: BarsBeatsSixteenths};
+  private _pending: null | {id: null | number, when: BarsBeatsSixteenths} = null;
 
   //This function will cancel any pending changes that are queued up
   public cancel(){
-    if(!this.#pending) return
-    if(this.#pending?.id) Tone.Transport.clear(this.#pending.id)
-    this.#pending = null
-    
+    if(!this._pending) return
+    if(this._pending?.id) Tone.Transport.clear(this._pending.id)
+    this._pending = null
+    const when = Tone.Time(Tone.now()).toBarsBeatsSixteenths()
     Tone.Draw.schedule(() => {
-      this.onSectionWillEnd?.([],[])
-      this.onSectionWillStart?.([],[])
+      this.onSectionWillEnd?.([],[], when)
+      this.onSectionWillStart?.([],[],when)
       this.onSectionCancelChange?.()
     }, Tone.now())
   }
 
-  private advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false){
-    if(this.#pending) this.cancel()
+  private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false){
+    if(this._pending) this.cancel()
     
     const nowIndex = [...this.sectionsFlowMap.index] as number[]
     if(getNestedIndex(this.sectionsFlowMap, nowIndex) === undefined) return null;
     const [nowSection, nowOverrides] = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))
-   
+  
     let _willNext = false;
     let nextOverrides: PlayerSectionOverrideFlags[]; 
     let nextIndex: PlayerSectionIndex;
@@ -496,30 +513,31 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.sectionsFlowMap.index = nowIndex
     const regionGrainLength =  (nowSection.region[1] - nowSection.region[0]) * (Tone.Transport.timeSignature as number);
     const grain = auto ? regionGrainLength : nowSection?.grain
-    const nextTime =  this.getNextTime(grain, !(typeof breakout === 'string' && breakout === 'offgrid'))
+    const nextTime =  this._getNextTime(grain, !(typeof breakout === 'string' && breakout === 'offgrid'))
 
-    this.schedule(nextIndex, nextTime, ()=>{
+    this._schedule(nextIndex, nextTime, ()=>{
       Tone.Draw.schedule(() => {
         if(_willNext){
           const loopIndex = [...nowIndex] as PlayerSectionIndex
           loopIndex[loopIndex.length-1] += 1
           const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
-          if(loops) this.onSectionRepeat?.([...nowIndex], loops)
+          if(loops) this.onSectionLoop(loops, nowIndex)
         }
         this.onSectionWillEnd?.([...nowIndex],[...nowOverrides] as PlayerSectionOverrideFlags[], nextTime)
         this.onSectionWillStart?.([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
       }, Tone.now());  
     }, ()=>{
       Tone.Draw.schedule(() => {
+        this.onSectionChange?.([...nowIndex], [...nextIndex]);
         this.onSectionPlayEnd?.([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
         this.onSectionPlayStart?.([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
-        this.#sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
+        this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
       }, Tone.now());
     }) 
   }
 
-  private schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
-    if(this.#pending) return;
+  private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
+    if(this._pending) return;
     const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
     const [section, sectionFlags] = this.playbackMapOverrides(sectionID)
     if(section === undefined){
@@ -541,12 +559,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(f === 'X' || f === 'x') sectionOverrides = {...sectionOverrides, legato: true}
     })
     if(this.verbose) console.log('Section overrides', sectionOverrides)
-    this.onSectionOverrides?.([...sectionIndex],[...sectionFlags as PlayerSectionOverrideFlags[]])
+    //this.onSectionOverrides?.([...sectionIndex],[...sectionFlags as PlayerSectionOverrideFlags[]])
 
     if(this.verbose) console.log('Next schedule to happen at: ', nextTime);
     
-    this.#pending = {id: null, when: nextTime}
-    this.#pending.id = Tone.Transport.scheduleOnce((t)=>{
+    this._pending = {id: null, when: nextTime}
+    this._pending.id = Tone.Transport.scheduleOnce((t: number)=>{
       if(this.verbose) console.log('Schedule done for time: ', nextTime, t)
       this.trackPlayers.forEach((track,i)=>{
         const nextTrack = track.current === track.a ? track.b : track.a
@@ -561,7 +579,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
             nextTrack.volume.setValueAtTime(track.volumeLimit, t)
             nextTrack.start(t,section.region[0]+'m');
           }
-          const doLegatoStart = (legatoTrack, legatoDT) => {
+          const doLegatoStart = (legatoDT: number) => {
               track.current.volume.setValueAtTime(track.volumeLimit, t + legatoDT);
               track.current.volume.linearRampToValueAtTime(-60, t + legatoDT)
               track.current.stop(t + legatoDT);
@@ -570,12 +588,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
               nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + legatoDT)
               nextTrack.start(t,section.region[0]+'m');
               
-              if(this.verbose) console.log('legato track xfade', track.name, legatoTrack)
+              if(this.verbose) console.log('legato track xfade', track.name)
           }
 
           if(sectionOverrides?.legato){
             if(this.verbose) console.log('legato section', sectionIndex)
-            let legatoDT: Time;
+            let legatoDT: number;
             let legatoTracks: string[] | undefined;
             if(typeof section?.legato === 'object'){
               legatoDT = Tone.Time((section?.legato?.duration || 4) + 'n').toSeconds()
@@ -591,13 +609,13 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
               legatoTracks.forEach((legatoTrack)=>{
                 if(track.name === legatoTrack){
                   legatoTrackFound = true
-                  doLegatoStart(legatoTrack,legatoDT)
+                  doLegatoStart(legatoDT)
                 }
               })
               if(!legatoTrackFound) nonLegatoStart()
             }
             else
-              doLegatoStart(track.name, legatoDT)
+              doLegatoStart(legatoDT)
           }
           else{
             nonLegatoStart()
@@ -611,12 +629,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(this.verbose) console.log('Playing now',this.playingNow)
       onScheduleCallback?.()
       this.sectionsFlowMap.index = [...sectionIndex]
-      this.#sectionBeat = -1
-      this.#sectionLen = (section.region[1] - section.region[0]) * (Tone.Transport.timeSignature as number)
-      this.#pending = null
+      this._sectionBeat = -1
+      this._sectionLen = (section.region[1] - section.region[0]) * (Tone.Transport.timeSignature as number)
+      this._pending = null
 
       if(sectionOverrides?.autoNext){
-        this.advanceSection(null, false, true)
+        this._advanceSection(null, false, true)
       }
     },nextTime)
   }
@@ -674,10 +692,24 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }) 
   }
 
+  public isMute(){
+    return Tone.Destination.volume.value > -200;
+  }
+
+  public muteAll(){
+    Tone.Destination.volume.linearRampToValueAtTime(-Infinity,'+1s');
+  }
+
+  public unMuteAll(value:number = 0){
+    
+    Tone.Destination.volume.linearRampToValueAtTime(value,'+1s');
+  }
+
+
 //================Various==========
-  private getNextTime(grain?: number, alignGrid: boolean = true){
+  private _getNextTime(grain?: number, alignGrid: boolean = true){
     const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];
-    const nt = quanTime(Tone.Transport.position as BarsBeatsSixteenths, _grain, this.playbackInfo?.meter, alignGrid ? this.#sectionLastLaunchTime : undefined)
+    const nt = quanTime(Tone.Transport.position as BarsBeatsSixteenths, _grain, this.playbackInfo?.meter, alignGrid ? this._sectionLastLaunchTime : undefined)
     // if(this.#verbose) console.log('nexttime',nt,Tone.Transport.position, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
     return nt
   }

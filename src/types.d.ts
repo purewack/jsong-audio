@@ -1,5 +1,5 @@
 //JSONg Player types
-export interface PlayerMetadata {
+declare interface PlayerMetadata {
     title: string;
     author: string
     createdOn : number;
@@ -8,9 +8,9 @@ export interface PlayerMetadata {
     createdUsing?: string;
 }
 
-export type PlayerSectionIndex = number[];
-export type PlayerPlaybackState = (null | "playing" | "stopping" | "stopped")
-export interface PlayerTrack {
+declare type PlayerSectionIndex = number[];
+declare type PlayerPlaybackState = (null | "playing" | "stopping" | "stopped")
+declare interface PlayerTrack {
     name: string;
 	volumeDB: number;
     source : string;
@@ -20,10 +20,10 @@ export interface PlayerTrack {
     };
 }
 
-export interface PlayerDataSource {
+declare interface PlayerDataSource {
     [key: string] : string
 }
-export interface PlayerPlaybackInfo {
+declare interface PlayerPlaybackInfo {
     bpm: number;
     meter: [number, number];
     totalMeasures: number;
@@ -32,11 +32,11 @@ export interface PlayerPlaybackInfo {
     metronomeDB?: number;
 }
 
-export interface PlayerSourceMap {
+declare interface PlayerSourceMap {
     [key: string] : string
 }
 
-export interface PlayerPlaybackMapType { 
+declare interface PlayerPlaybackMapType { 
     region: [number, number];
     grain?: number;
     legato?: number | {
@@ -47,35 +47,35 @@ export interface PlayerPlaybackMapType {
         xfades: string[];
     }
 }
-export interface PlayerPlaybackMap {
+declare interface PlayerPlaybackMap {
     [key: string] : PlayerPlaybackMapType,
 }
 
 
-export type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
-export interface PlayerSectionOverrides { 
+declare type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
+declare interface PlayerSectionOverrides { 
     legato?: boolean;
     autoNext?: boolean;
 }
-export type PlayerPlayingNow = {index: PlayerSectionIndex, name: string} | null
+declare type PlayerPlayingNow = {index: PlayerSectionIndex, name: string} | null
 
 
 
 // Helper types
-export type FlowValue = (number | string | FlowValue[]);
+declare type FlowValue = (number | string | FlowValue[]);
 
-export type NestedIndex = (number | string)[]
+declare type NestedIndex = (number | string)[]
 
-export type NestedType = number | string | {
-    [key: number] : NestedType | any;
+declare type NestedType = number | string | {
+    [key: (number | string)] : NestedType | any;
 }
 
-export interface SectionData {
+declare interface SectionData {
     [key: number] : SectionData | NestedType | any | undefined;
     loop: number;
     loopLimit: number;
     count: number;
 }
-export type SectionType = SectionData & {
+declare type SectionType = SectionData & {
     index: number[];
 }

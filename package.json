@@ -1,8 +1,12 @@
 {
-  "name": "jsong",
+  "name": "jsong-audio",
   "version": "1.0.0",
-  "main": "dist/index",
-  "types": "dist/index",
+  "main": "dist/JSONg.js",
+  "types": "dist/*.d.ts",
+  "files": [
+    "build",
+    "src/**/*.d.ts"
+  ],
   "license": "MIT",
   "dependencies": {
     "tone": "^14.7.77"
@@ -15,7 +19,7 @@
     "typescript": "^5.2.2"
   },
   "scripts": {
-    "test": "jest --verbose",
-    "example_basic": "yarn --cwd ./Examples/basic start"
+    "build": "tsc",
+    "test": "jest --verbose"
   }
 }
