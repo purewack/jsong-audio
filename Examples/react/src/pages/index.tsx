@@ -23,7 +23,7 @@ export default function Home() {
         onClick={()=>{
           player.play();
         }} 
-        >Let me hear about it!</button>
+        >Let&apos;s hear it!</button>
         </Link>
         {/* <button onClick={()=>{
           player.current?.stop()

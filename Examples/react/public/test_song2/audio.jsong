@@ -16,11 +16,11 @@
     "metronomeDB": -3,
     "totalMeasures": 12,
     "map": {
-      "intro" : { "region": [0, 1], "grain": 6},
+      "intro" : { "region": [0, 1]},
       "intro2" : { "region": [1, 3]},
-      "verse" : { "region": [3, 5], "grain": 3},
-      "bridge" : { "region": [5, 7], "grain": 6},
-      "chorus" : { "region": [7, 11], "grain": 12}
+      "verse" : { "region": [3, 5]},
+      "bridge" : { "region": [5, 7]},
+      "chorus" : { "region": [7, 11]}
     },
     "flow": [
       "intro", 

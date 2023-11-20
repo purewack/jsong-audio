@@ -3,14 +3,21 @@ import { useContext, useEffect, useState } from "react"
 import { PlayerContext } from "./_app"
 import style from '@/styles/content.module.css'
 import clsx from "clsx";
+import SectionSlide from "@/components/SectionSlide";
 
 export default function Content(){
-  const player = useContext(PlayerContext);
+ 
+  const [section, setSection] = useState('');
+  useEffect(()=>{
+    console.log('=========section',section);
+  },[section])
 
+  const player = useContext(PlayerContext);
   const [nowPlaying, setNowPlaying] = useState('');
   useEffect(()=>{
-    const sectStart = (index, overrides)=>{
+    const sectStart = (index: PlayerSectionIndex, overrides): void=>{
         setNowPlaying(player.playingNow?.name)
+        setSection(player.playingNow?.name)
     }
     if(player.onSectionPlayStart){
         const old = player.onSectionPlayStart;
@@ -23,14 +30,20 @@ export default function Content(){
     player.onSectionPlayStart = sectStart
 },[])
 
+  const onNext = (tag:string)=>{
+    player.play()
+    console.log('++++++++play',tag)
+  }
+
 
   return (
     <>
       <Head>
         <title>JSONg Audio: {nowPlaying}</title>
       </Head>
-      <article className={clsx(style.gallery, style.vert)}>
-        <section className={clsx('fullpage central',style.A,style.snap)}>
+
+      <SectionSlide type='down'>
+        <SectionSlide tag='A' className={style.A}>
           <h1 className={'title'}>
             An Interactive Music format...
           </h1>
@@ -38,28 +51,28 @@ export default function Content(){
             player.play();
           }}>Next</button>
           {/* <p>{nowPlaying}</p> */}
-        </section>
+        </SectionSlide>
 
-        <section className={clsx('fullpage central',style.B,style.snap)}>
-        <h1 className={'title'}>
-          ...responding to your actions!
-        </h1>
-        </section>
+        <SectionSlide tag='B' onInView={onNext} className={style.B}>
+          <h1 className={'title'}>
+            ...responding to your actions!
+          </h1>
+        </SectionSlide>
 
-        <article className={clsx(style.gallery,style.hor, style.snap, 'fullpage')}>
-          <section className={clsx('fullpage central ',style.C,style.snap)}>
+        {<SectionSlide type="side">
+          <SectionSlide tag='C' onInView={onNext} className={style.C}>
             <h1 className={'title'}>
               JSONg audio format allows for multiple tracks.
             </h1>
-          </section>
+          </SectionSlide>
 
-          <section className={clsx('fullpage central ',style.D,style.snap)}>
+          {<SectionSlide tag='D' onInView={onNext} className={style.D}> 
             <h1 className={'title'}>
               Music playback can be changed dynamically.
             </h1>
-          </section>
-        </article>
-      </article>
+          </SectionSlide>}
+        </SectionSlide>}
+      </SectionSlide>
     </>
   )
 }

@@ -12,20 +12,12 @@ export default function PlayerNav({show=true, pending=false}){
     const [loopProgress, setLoopProgress] = useState([0,0]);
     const isPlaying = playerState === 'playing';
     const [isMute, setIsMute] = useState(false);
-    const [ready, setReady] = useState(false);
     const [nowPlaying, setNowPlaying] = useState('')
     
     useEffect(()=>{
         if(!player) return;
         if(!player) return;
         const p = player;
-        p.parse('test_song2').then((reason)=>{
-            if(reason === 'loading_full'){
-            console.log('Full Load play')
-            // p.play();
-            setReady(true);
-            }
-        })
         p.onStateChange=(s)=>{setPlayerState(s)}
         p.onTransport = (pos: string, loopPos?: [number,number])=>{
             if(loopPos){
@@ -49,8 +41,7 @@ export default function PlayerNav({show=true, pending=false}){
 
 
     const nodeRef = useRef(null);
-    return ready && 
-    <nav ref={nodeRef} className={clsx(style.nav, show && style.show, pending && style.pending)}>
+    return <nav ref={nodeRef} className={clsx(style.nav, show && style.show, pending && style.pending)}>
         <h2>JSONg</h2>
         <span className={style.progress} style={{
             '--progress': isPlaying ? (1+loopProgress[0]) / loopProgress[1] : 0
