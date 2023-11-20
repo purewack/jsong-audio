@@ -1,5 +1,5 @@
 {
-  "name": "jsong",
+  "name": "jsong-audio",
   "version": "1.0.0",
   "main": "dist/JSONg.js",
   "types": "dist/*.d.ts",
