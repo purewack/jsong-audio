@@ -14,7 +14,7 @@ export default function Home() {
       <Head>
         <title>JSONg Audio</title>
       </Head>
-      <main className={'page central'}>
+      <main className={'fullpage central'}>
         <h1 className={'title'}>
           What is JSONg Audio?
         </h1>
