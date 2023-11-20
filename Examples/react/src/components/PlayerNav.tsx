@@ -13,6 +13,8 @@ export default function PlayerNav({show=true, pending=false}){
     const isPlaying = playerState === 'playing';
     const [isMute, setIsMute] = useState(false);
     const [ready, setReady] = useState(false);
+    const [nowPlaying, setNowPlaying] = useState('')
+    
     useEffect(()=>{
         if(!player) return;
         if(!player) return;
@@ -30,7 +32,19 @@ export default function PlayerNav({show=true, pending=false}){
                 setLoopProgress(loopPos);
             }
         }
-      
+
+        const sectStart = (index, overrides)=>{
+            setNowPlaying(p?.playingNow?.name)
+        }
+        if(p.onSectionPlayStart){
+            const old = p.onSectionPlayStart;
+            p.onSectionPlayStart = (index,overrides)=>{
+                old(index,overrides)
+                sectStart(index,overrides)
+            }
+        }
+        else 
+        p.onSectionPlayStart = sectStart
     },[])
 
 
@@ -41,9 +55,9 @@ export default function PlayerNav({show=true, pending=false}){
         <span className={style.progress} style={{
             '--progress': isPlaying ? (1+loopProgress[0]) / loopProgress[1] : 0
         } as CSSProperties}>
-            {isPlaying ? 
-                <>{loopProgress[0] + 1} / {loopProgress[1]}</>
-            : playerState }
+            {/* {isPlaying ? 
+                <>{nowPlaying} : {loopProgress[0] + 1} / {loopProgress[1]}</>
+            : playerState } */}
         </span>
  
         <span className={'material-symbols-outlined'} onClick={()=>{

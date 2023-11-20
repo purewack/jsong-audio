@@ -1,0 +1,33 @@
+.gallery{
+    display: flex;
+}
+.vert{
+    flex-direction: column;
+    height: 100vh;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+}
+.hor{
+    flex-direction: row;
+    width: 100vw;
+    overflow-x: scroll;
+    scroll-snap-type: x mandatory;
+}
+
+.snap {
+    scroll-snap-align: center;
+    height: 100vh;
+}
+
+.A {
+    background-color: lightgoldenrodyellow;
+}
+.B {
+    background-color: lightgreen;
+}
+.C {
+    background-color: lightcyan;
+}
+.D {
+    background-color: lightpink;
+}
