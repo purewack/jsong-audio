@@ -9,13 +9,21 @@ import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
 /* 
 parser version 0.0.3
 */
+
+export enum VerboseLevel{
+  none,
+  basic,
+  parse,
+  timed,
+  all,
+}
 export default class JSONg{
 
   //Debug related - logging extra messages
-  private _verbose = false;
-  set verbose(state){
-    this._verbose = state;
-    if(state) console.log("JSONg player verbose mode");
+  private _verbose: VerboseLevel = VerboseLevel.none;
+  set verbose(level: VerboseLevel){
+    this._verbose = level;
+    if(level) console.log("[JSONg] player verbose mode, ", level);
   }
   get verbose(){
     return this._verbose;
@@ -174,7 +182,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
   if(!dataPath){
     const sep = (manifestPath.endsWith('/')  ? ' ' : '/')
     const _loadpath = manifestPath + sep;
-    if(this.verbose) console.log('Loading from path',_loadpath)
+    if(this.verbose >= VerboseLevel.basic) console.log('[parse] Loading from path',_loadpath)
     return this.parse(_loadpath + 'audio.jsong', _loadpath);
   }
 
@@ -189,14 +197,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     data = JSON.parse(txt)
     }
     catch(error){
-      if(this.verbose) console.error('JSONg Parse error')
+      console.error('[parse][json] Early parse error')
       reject('JSON parse', error)
       return
     }
 
     // if(this.verbose) console.log('JSONg loaded',data)
     if(data?.type !== 'jsong') {
-      if(this.verbose) console.error('Invalid manifest file reject')
+      console.error('[parse][json] Invalid manifest file reject')
       reject('manifest','Invalid manifest file')
       return
     }
@@ -221,7 +229,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.sectionsFlowMap = buildSection(this.playbackFlow)
     this.sourcesMap = {...data.sources}
     const src_keys = Object.keys(this.sourcesMap)
-    if(this.verbose) console.log('Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
+    // if(this.verbose >= VerboseLevel.parse) console.log('[parse][data] Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
     
     this._meterBeat = 0
     Tone.Transport.position = '0:0:0'
@@ -252,14 +260,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       Object.keys(this.sourceBuffers).forEach((k)=>{
         this.sourceBuffers[k].dispose()
       })
-      if(this.verbose) console.log('Audio reset')
+      // if(this.verbose) console.log('[parse][data] Audio reset')
     }
 
-    if(this.verbose) console.log('loading', this._loadStatus.required)
+    // if(this.verbose) console.log('loading', this._loadStatus.required)
 
     const spawnTracks = ()=>{
       this.trackPlayers = []
-      console.log('[+track]',this.tracksList)
+      if(this.verbose >= VerboseLevel.parse) console.log('[parse][tracks]',this.tracksList)
       for(const track of this.tracksList){
         const name = track.source ? track.source : track.name;
         const v = track?.volumeDB || 0
@@ -283,7 +291,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.trackPlayers.push({
           name, a,b, current: a, filter, volumeLimit: v
         })
-        if(this.verbose) console.log(buf ? 'new track' : 'new track with invalid buffer', name)
+        if(this.verbose >= VerboseLevel.parse) console.log(`[parse][track: ${name}]${buf ? '[buffer]' : ''}`)
       }
     }
 
@@ -291,22 +299,22 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(this._loadStatus.loaded+this._loadStatus.failed === this._loadStatus.required) {
         this.state = 'stopped'
         //full load
-        if(this.verbose) console.log('Loading sequence done', this._loadStatus); 
+        if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] Loading sequence done', this._loadStatus); 
         if(this._loadStatus.loaded === this._loadStatus.required){
           resolve('loading_full')
-          if(this.verbose) console.log('loading_full')
+          if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_full')
           spawnTracks()
         }
         //partial load
         else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
           resolve('loading_partial')
-          if(this.verbose) console.log('loading_partial')
+          if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_partial')
           spawnTracks()
         }
         //failed load
         else{
           reject('loading_fail')
-          if(this.verbose) console.error('loading_fail')
+          console.error('[parse][check] loading_fail')
           this.state = null;
         }
       }
@@ -314,6 +322,10 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
     this.sourceBuffers = {} 
 
+    if(!src_keys.length){
+      console.error('[parse][sources] nothing to load')
+      checkLoad()
+    }
     for(const src_id of src_keys){
       const data = this.sourcesMap[src_id]
       const buffer = new Tone.ToneAudioBuffer();
@@ -327,16 +339,16 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this._loadStatus.loaded++;
         this.sourceBuffers[src_id] = tonebuffer
         checkLoad()
-        if(this.verbose) console.log('Source loaded ', src_id, tonebuffer)
+        if(this.verbose >= VerboseLevel.parse) console.log('[parse][sources] loaded ', src_id, tonebuffer)
       }).catch((e)=>{
         this._loadStatus.failed++;
         checkLoad()
-        console.error('Failed loading source ', src_id, data, ' ', e)
+        console.error('[parse][sources] Failed loading source ', src_id, data, ' ', e)
       })
     }
 
-    if(this.verbose) {
-      console.log("Parse end ",this)
+    if(this.verbose >= VerboseLevel.parse) {
+      console.log("[parse] end ",this)
     }
     })
   })
@@ -416,9 +428,10 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       Tone.Transport.position = '0:0:0'
 
       Tone.Transport.start()
-      if(this.verbose) console.log("Player Starting")  
+      if(this.verbose >= VerboseLevel.basic) console.log("[play] player starting")  
     }
     else if(this.state === 'playing'){
+      if(this.verbose >= VerboseLevel.basic) console.log("[play] player next")  
       this._advanceSection(from, skip)
     }
   }
@@ -449,7 +462,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
             p.b.stop(t);
             p.current = p.a
         }catch(error){
-          if(this.verbose) console.log('Empty track stopping ',this.tracksList[i]);
+          if(this.verbose >= VerboseLevel.basic) console.log('[stop] Empty track stopping ',this.tracksList[i]);
         }
       })
       Tone.Draw.schedule(() => {
@@ -458,7 +471,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this._sectionLastLaunchTime = undefined
       },Tone.now()) 
       this.state = 'stopped'
-      if(this.verbose) console.log("JSONg player stopped")
+      if(this.verbose >= VerboseLevel.basic) console.log("[stop] player stopped")
     }
     if(after)
       Tone.Transport.scheduleOnce(stopping,when)
@@ -556,7 +569,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
     const [section, sectionFlags] = this.playbackMapOverrides(sectionID)
     if(section === undefined){
-      if(this.verbose) console.log("Can't schedule non existent index");
+      if(this.verbose >= VerboseLevel.timed) console.warn("[schedule] non existent index");
       Tone.Draw.schedule(() => {
       //   this.onSectionWillEnd?.(null)
       //   this.onSectionWillStart?.(null)
@@ -573,14 +586,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(f === '>') sectionOverrides = {...sectionOverrides, autoNext: true}
       if(f === 'X' || f === 'x') sectionOverrides = {...sectionOverrides, legato: true}
     })
-    if(this.verbose) console.log('Section overrides', sectionOverrides)
+    if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Section overrides', sectionOverrides)
     //this.onSectionOverrides?.([...sectionIndex],[...sectionFlags as PlayerSectionOverrideFlags[]])
 
-    if(this.verbose) console.log('Next schedule to happen at: ', nextTime);
+    if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Next schedule to happen at: ', nextTime);
     
     this._pending = {id: null, when: nextTime}
     this._pending.id = Tone.Transport.scheduleOnce((t: number)=>{
-      if(this.verbose) console.log('Schedule done for time: ', nextTime, t)
+      if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Schedule done for time: ', nextTime)
       this.trackPlayers.forEach((track,i)=>{
         const nextTrack = track.current === track.a ? track.b : track.a
 
@@ -589,7 +602,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         nextTrack.loop = true;
         try{
           const nonLegatoStart = ()=>{
-            if(this.verbose) console.log('non legato section', sectionIndex, track.name)
+            if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] non-legato`)
             track.current.stop(t);
             nextTrack.volume.setValueAtTime(track.volumeLimit, t)
             nextTrack.start(t,section.region[0]+'m');
@@ -603,11 +616,10 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
               nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + legatoDT)
               nextTrack.start(t,section.region[0]+'m');
               
-              if(this.verbose) console.log('legato track xfade', track.name)
+              if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
           }
 
           if(sectionOverrides?.legato){
-            if(this.verbose) console.log('legato section', sectionIndex)
             let legatoDT: number;
             let legatoTracks: string[] | undefined;
             if(typeof section?.legato === 'object'){
@@ -616,8 +628,6 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
             }
             else
               legatoDT = Tone.Time((section?.legato || 4) + 'n').toSeconds()
-            
-            if(this.verbose) console.log('legato', t, legatoDT)
             
             if(legatoTracks){
               let legatoTrackFound = false
@@ -637,11 +647,11 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
           }
           track.current = nextTrack;
         }catch(error){
-          if(this.verbose) console.log('Empty track playing ',this.tracksList[i], error);
+          if(this.verbose >= VerboseLevel.timed) console.warn(`[schedule][-(${sectionIndex})] Empty playing`);
         }
       })
       this.playingNow = {index:sectionIndex, name: sectionID};
-      if(this.verbose) console.log('Playing now',this.playingNow)
+      if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Playing now ',this.playingNow)
       onScheduleCallback?.()
       this.sectionsFlowMap.index = [...sectionIndex]
       this._sectionBeat = -1
@@ -729,9 +739,9 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     return nt
   }
 
-  constructor(verbose:boolean = false){
+  constructor(verbose: VerboseLevel = VerboseLevel.none){
     this.verbose = verbose
-    if(this.verbose) console.log("New", this);
+    if(this.verbose >= VerboseLevel.all) console.log("[JSONg] New ", this);
     this.state = null;
   }
 }
