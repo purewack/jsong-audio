@@ -77,11 +77,11 @@ export default class JSONg{
   }
 
   //Event handlers
-  private onSectionPlayStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
-    this._events.dispatchEvent(new CustomEvent('onSectionPlayStart', {detail: {index, sectionOverrides}}))
+  private onSectionDidStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionDidStart', {detail: {index, sectionOverrides}}))
   };
-  private onSectionPlayEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
-    this._events.dispatchEvent(new CustomEvent('onSectionPlayEnd', {detail: {index, sectionOverrides}}))
+  private onSectionDidEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+    this._events.dispatchEvent(new CustomEvent('onSectionDidEnd', {detail: {index, sectionOverrides}}))
   };
   private onSectionWillStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths)=>{
     this._events.dispatchEvent(new CustomEvent('onSectionWillStart', {detail: {index, sectionOverrides, when}}))
@@ -136,15 +136,17 @@ export default class JSONg{
   private _sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
   private set meterBeat(v: number){
     this._meterBeat = v
+    const nowIndex = [...this.sectionsFlowMap.index]
+    const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0]
+    const sectionLen = this._sectionLen
+    const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
+    const pos = Tone.Transport.position as BarsBeatsSixteenths
     Tone.Draw.schedule(() => {
-      const nowIndex = [...this.sectionsFlowMap.index]
-      const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0]
       if(nowSection){
-        this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
-        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths, [this._sectionBeat,this._sectionLen])
+        this.onTransport?.(pos, [sectionBeat,sectionLen])
       }
       else 
-        this.onTransport?.(Tone.Transport.position as BarsBeatsSixteenths)
+        this.onTransport?.(pos)
     }, Tone.now());
   }
   get meterBeat(): number{
@@ -253,12 +255,15 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(this.verbose) console.log('Audio reset')
     }
 
+    if(this.verbose) console.log('loading', this._loadStatus.required)
+
     const spawnTracks = ()=>{
       this.trackPlayers = []
+      console.log('[+track]',this.tracksList)
       for(const track of this.tracksList){
         const name = track.source ? track.source : track.name;
         const v = track?.volumeDB || 0
-        const buf = this.sourceBuffers[name]
+        const buf = this.sourceBuffers?.[name]
 
         const a = new Tone.Player()
         a.volume.value = v
@@ -278,6 +283,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.trackPlayers.push({
           name, a,b, current: a, filter, volumeLimit: v
         })
+        if(this.verbose) console.log(buf ? 'new track' : 'new track with invalid buffer', name)
       }
     }
 
@@ -288,16 +294,19 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         if(this.verbose) console.log('Loading sequence done', this._loadStatus); 
         if(this._loadStatus.loaded === this._loadStatus.required){
           resolve('loading_full')
+          if(this.verbose) console.log('loading_full')
           spawnTracks()
         }
         //partial load
         else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
           resolve('loading_partial')
+          if(this.verbose) console.log('loading_partial')
           spawnTracks()
         }
         //failed load
         else{
           reject('loading_fail')
+          if(this.verbose) console.error('loading_fail')
           this.state = null;
         }
       }
@@ -305,13 +314,15 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
     this.sourceBuffers = {} 
 
-    Tone.ToneAudioBuffer.baseUrl = window.location.origin
     for(const src_id of src_keys){
       const data = this.sourcesMap[src_id]
       const buffer = new Tone.ToneAudioBuffer();
       // if(this.verbose) console.log('Current source id', src_id)
       const _dataPath = dataPath ? dataPath : manifestPath
       const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
+      
+      if(data.startsWith('data'))  Tone.ToneAudioBuffer.baseUrl = ''
+      else Tone.ToneAudioBuffer.baseUrl = window.location.origin
       buffer.load(url).then((tonebuffer)=>{
         this._loadStatus.loaded++;
         this.sourceBuffers[src_id] = tonebuffer
@@ -325,8 +336,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }
 
     if(this.verbose) {
-      console.log("Parsed song ",this)
-      console.log("meter ",Tone.Transport.timeSignature, this.playbackInfo)
+      console.log("Parse end ",this)
     }
     })
   })
@@ -349,14 +359,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     fadein: Time = 0
   ) : void 
   {
-    console.log('play', from, skip, fadein, this.state);
-
     if(this.state === 'stopping') return;
     
     if(this.state === 'stopped'){ 
       Tone.start();
       
       if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) return;
+
+      this.state = 'playing'
       this.sectionsFlowMap.index = from || [0]
       const overrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
 
@@ -378,10 +388,10 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         },Tone.now())
       }, ()=>{
         Tone.Draw.schedule(() => {
-          // this?.onSectionPlayEnd?.([], [])
-          this?.onSectionPlayStart?.([...this.sectionsFlowMap.index], [...overrides])
+          // this?.onSectionDidEnd?.([], [])
+          this?.onSectionDidStart?.([...this.sectionsFlowMap.index], [...overrides])
           this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
-          this.state = 'playing'
+        
         },Tone.now())
         if(!fadein) return
         this.trackPlayers.forEach((t,i)=>{
@@ -392,16 +402,21 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
       this.meterBeat = 0
       this._sectionBeat = -1
-      Tone.Transport.position = '0:0:0'
       Tone.Transport.scheduleRepeat((t)=>{
         const note = this.playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
         if(!note) return
         this.meterBeat = (this.meterBeat + 1) % (Tone.Transport.timeSignature as number)
-        if(this.playbackInfo.metronome && this.verbose)
-          this._metronome.triggerAttackRelease(note,'64n',t);
+        if(this.playbackInfo.metronome && this.verbose){
+          try{
+            this._metronome.triggerAttackRelease(note,'64n',t);
+          }
+          catch(e){}
+        }
       },'4n');
+      Tone.Transport.position = '0:0:0'
 
-      Tone.Transport.start('+0.1s')
+      Tone.Transport.start()
+      if(this.verbose) console.log("Player Starting")  
     }
     else if(this.state === 'playing'){
       this._advanceSection(from, skip)
@@ -438,18 +453,18 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         }
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionPlayStart?.([], []) 
-        this?.onSectionPlayEnd?.([...this.sectionsFlowMap.index], []) 
+        this?.onSectionDidStart?.([], []) 
+        this?.onSectionDidEnd?.([...this.sectionsFlowMap.index], []) 
         this._sectionLastLaunchTime = undefined
       },Tone.now()) 
       this.state = 'stopped'
+      if(this.verbose) console.log("JSONg player stopped")
     }
     if(after)
       Tone.Transport.scheduleOnce(stopping,when)
     else 
       stopping(when)
 
-    if(this.verbose) console.log("JSONg player stopped")
   }
 
   public skip() : void
@@ -529,8 +544,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }, ()=>{
       Tone.Draw.schedule(() => {
         this.onSectionChange?.([...nowIndex], [...nextIndex]);
-        this.onSectionPlayEnd?.([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
-        this.onSectionPlayStart?.([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
+        this.onSectionDidEnd?.([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
+        this.onSectionDidStart?.([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
         this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
       }, Tone.now());
     }) 
