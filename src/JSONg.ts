@@ -151,10 +151,10 @@ export default class JSONg{
     const pos = Tone.Transport.position as BarsBeatsSixteenths
     Tone.Draw.schedule(() => {
       if(nowSection){
-        this.onTransport?.(pos, [sectionBeat,sectionLen])
+        this.onTransport(pos, [sectionBeat,sectionLen])
       }
       else 
-        this.onTransport?.(pos)
+        this.onTransport(pos)
     }, Tone.now());
   }
   get meterBeat(): number{
@@ -396,12 +396,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
             }
           })
           // this?.onSectionWillEnd?.([], [], '0:0:0')
-          this?.onSectionWillStart?.([...this.sectionsFlowMap.index], [...overrides], '0:0:0')
+          this.onSectionWillStart(this.sectionsFlowMap.index, overrides, '0:0:0')
         },Tone.now())
       }, ()=>{
         Tone.Draw.schedule(() => {
           // this?.onSectionDidEnd?.([], [])
-          this?.onSectionDidStart?.([...this.sectionsFlowMap.index], [...overrides])
+          this.onSectionDidStart(this.sectionsFlowMap.index, overrides)
           this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
         
         },Tone.now())
@@ -431,7 +431,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       if(this.verbose >= VerboseLevel.basic) console.log("[play] player starting")  
     }
     else if(this.state === 'playing'){
-      if(this.verbose >= VerboseLevel.basic) console.log("[play] player next")  
+      if(this.verbose >= VerboseLevel.basic) console.log("[play] player next", from)  
       this._advanceSection(from, skip)
     }
   }
@@ -449,8 +449,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.rampTrackVolume(i,-60, afterSec);
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionWillStart?.([], [], Tone.Time(when).toBarsBeatsSixteenths()) 
-        this?.onSectionWillEnd?.([...this.sectionsFlowMap?.index], [], Tone.Time(when).toBarsBeatsSixteenths())  
+        this.onSectionWillStart([], [], Tone.Time(when).toBarsBeatsSixteenths()) 
+        this.onSectionWillEnd([...this.sectionsFlowMap?.index], [], Tone.Time(when).toBarsBeatsSixteenths())  
       }, Tone.now())
     }
     const stopping = (t: Time)=>{
@@ -466,8 +466,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         }
       })
       Tone.Draw.schedule(() => {
-        this?.onSectionDidStart?.([], []) 
-        this?.onSectionDidEnd?.([...this.sectionsFlowMap.index], []) 
+        this.onSectionDidStart([], []) 
+        this.onSectionDidEnd([...this.sectionsFlowMap.index], []) 
         this._sectionLastLaunchTime = undefined
       },Tone.now()) 
       this.state = 'stopped'
@@ -513,9 +513,9 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this._pending = null
     const when = Tone.Time(Tone.now()).toBarsBeatsSixteenths()
     Tone.Draw.schedule(() => {
-      this.onSectionWillEnd?.([],[], when)
-      this.onSectionWillStart?.([],[],when)
-      this.onSectionCancelChange?.()
+      this.onSectionWillEnd([],[], when)
+      this.onSectionWillStart([],[],when)
+      this.onSectionCancelChange()
     }, Tone.now())
   }
 
@@ -529,12 +529,13 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     let _willNext = false;
     let nextOverrides: PlayerSectionOverrideFlags[]; 
     let nextIndex: PlayerSectionIndex;
-    if(index)
+    if(index !== null){
       nextIndex = index
-    else{
+      nextOverrides = []
+    }else{
       nextSection(this.sectionsFlowMap, typeof breakout === 'boolean' ? breakout : false)
       nextIndex = [...this.sectionsFlowMap.index]
-      nextOverrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[1] as PlayerSectionOverrideFlags[];
+      nextOverrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nextIndex))[1] as PlayerSectionOverrideFlags[];
       _willNext = true;
     }
     
@@ -544,21 +545,21 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     const nextTime =  this._getNextTime(grain, !(typeof breakout === 'string' && breakout === 'offgrid'))
 
     this._schedule(nextIndex, nextTime, ()=>{
+      if(_willNext){
+        const loopIndex = [...nowIndex] as PlayerSectionIndex
+        loopIndex[loopIndex.length-1] += 1
+      }
       Tone.Draw.schedule(() => {
-        if(_willNext){
-          const loopIndex = [...nowIndex] as PlayerSectionIndex
-          loopIndex[loopIndex.length-1] += 1
-          const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
-          if(loops) this.onSectionLoop(loops, nowIndex)
-        }
-        this.onSectionWillEnd?.([...nowIndex],[...nowOverrides] as PlayerSectionOverrideFlags[], nextTime)
-        this.onSectionWillStart?.([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
+        const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
+        if(loops) this.onSectionLoop(loops, nowIndex)
+        this.onSectionWillEnd([...nowIndex],[...nowOverrides] as PlayerSectionOverrideFlags[], nextTime)
+        this.onSectionWillStart([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
       }, Tone.now());  
     }, ()=>{
       Tone.Draw.schedule(() => {
-        this.onSectionChange?.([...nowIndex], [...nextIndex]);
-        this.onSectionDidEnd?.([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
-        this.onSectionDidStart?.([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
+        this.onSectionChange([...nowIndex], [...nextIndex]);
+        this.onSectionDidEnd([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
+        this.onSectionDidStart([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
         this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
       }, Tone.now());
     }) 
@@ -573,7 +574,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       Tone.Draw.schedule(() => {
       //   this.onSectionWillEnd?.(null)
       //   this.onSectionWillStart?.(null)
-        this.onSectionCancelChange?.()
+        this.onSectionCancelChange()
       }, Tone.now())
       return;
     }
