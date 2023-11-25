@@ -186,6 +186,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     return this.parse(_loadpath + 'audio.jsong', _loadpath);
   }
 
+  this.stop(0);
+
   return new Promise((resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
   
   fetch(manifestPath).then(resp => {
@@ -241,7 +243,6 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.playingNow = null;
 
     if(this.trackPlayers){
-      this.stop(0)
       this.state = null; 
     }
 
