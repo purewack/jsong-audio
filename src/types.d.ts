@@ -30,6 +30,10 @@ declare interface PlayerPlaybackInfo {
     grain?: number;
     metronome?: [string,string];
     metronomeDB?: number;
+    filter?: {
+        resonance?: number,
+        rolloff?: number
+    };
 }
 
 declare interface PlayerSourceMap {

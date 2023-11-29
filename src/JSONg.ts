@@ -283,9 +283,20 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         b.buffer = buf
 
         const filter = new Tone.Filter(20000, "lowpass").toDestination()
-        if(track?.filter?.resonance) filter.set({'Q':track.filter.resonance}) 
-        if(track?.filter?.rolloff) filter.set({'rolloff': track.filter.rolloff as Tone.FilterRollOff})
-        else filter.rolloff = -24;
+        filter.set({'Q': track?.filter?.resonance 
+            ? track.filter.resonance 
+            : (this.playbackInfo?.filter?.resonance 
+              ? this.playbackInfo?.filter?.resonance 
+              : 1
+          )}) 
+        filter.set({'rolloff': (
+          track?.filter?.rolloff 
+            ? track.filter.rolloff 
+            : (this.playbackInfo?.filter?.rolloff 
+              ? this.playbackInfo?.filter?.rolloff 
+              : -12
+            )  
+        ) as Tone.FilterRollOff})
         a.connect(filter)
         b.connect(filter)
 
@@ -370,14 +381,15 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     from: PlayerSectionIndex | null = null, 
     skip: (boolean | string) = false,
     fadein: Time = 0
-  ) : void 
+  ) : Promise<PlayerSectionIndex> 
   {
-    if(this.state === 'stopping') return;
+    return new Promise((resolve, reject) => {
+    if(this.state === 'stopping') {reject(); return;}
     
     if(this.state === 'stopped'){ 
       Tone.start();
       
-      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) return;
+      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) {reject(); return;}
 
       this.state = 'playing'
       this.sectionsFlowMap.index = from || [0]
@@ -404,7 +416,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
           // this?.onSectionDidEnd?.([], [])
           this.onSectionDidStart(this.sectionsFlowMap.index, overrides)
           this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
-        
+          resolve(this.sectionsFlowMap.index);
         },Tone.now())
         if(!fadein) return
         this.trackPlayers.forEach((t,i)=>{
@@ -433,8 +445,11 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }
     else if(this.state === 'playing'){
       if(this.verbose >= VerboseLevel.basic) console.log("[play] player next", from)  
-      this._advanceSection(from, skip)
+      this._advanceSection(from, skip, undefined, ()=>{
+        resolve(from as PlayerSectionIndex)
+      })
     }
+    })
   }
 
   public stop(after: Time = '4n', fadeout: boolean = true)  : void 
@@ -520,7 +535,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }, Tone.now())
   }
 
-  private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false){
+  private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false, onDone?: ()=>void){
     if(this._pending) this.cancel()
     
     const nowIndex = [...this.sectionsFlowMap.index] as number[]
@@ -562,6 +577,7 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.onSectionDidEnd([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
         this.onSectionDidStart([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
         this._sectionLastLaunchTime = Tone.Transport.position as BarsBeatsSixteenths
+        onDone?.()
       }, Tone.now());
     }) 
   }
@@ -674,48 +690,61 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
   // }
 
 //================Effects===========
-  public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
-    if(!this.state) return
+  public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0){
+    return new Promise((resolve, reject)=>{
+    if(!this.state) {
+      reject(); return;
+    }
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
       this.tracksList?.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
-      if(idx === null) return
+      if(idx === null) {reject(); return; }
     }
     else if(typeof trackIndex === 'number'){
       idx = trackIndex
     }
     else return
-    if(idx === null) return;
+    if(idx === null)  {reject(); return; }
     
-    this.trackPlayers[idx].a.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
-    this.trackPlayers[idx].b.volume.linearRampTo(db,inTime, sync ? '@4n' : undefined)
+    this.trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
+    this.trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
+    
+    Tone.Draw.schedule(() => {
+      resolve(trackIndex)
+    }, Tone.now() + Tone.Time(inTime).toSeconds());
+    })
   }
-  public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0, sync: boolean = true){
-    if(!this.state) return
+  public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0){
+    return new Promise((resolve, reject)=>{
+    if(!this.state) {reject(); return; }
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
       this.tracksList?.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
-      if(idx === null) return
+      if(idx === null) {reject(); return; }
     }
     else if(typeof trackIndex === 'number'){
       idx = trackIndex
     }
-    else return
-    if(idx === null) return;
+    else {reject(); return; }
+    if(idx === null) {reject(); return; };
 
-    this.trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, sync ? '@4n' : undefined)
+    this.trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
+    Tone.Draw.schedule(() => {
+      resolve(trackIndex)
+    }, Tone.now() + Tone.Time(inTime).toSeconds());
+    })
   }
-  public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m', sync: boolean = true){
+  public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m'){
     inIndexes?.forEach(i=>{
-      this.rampTrackVolume(i, 0,inTime,sync)
+      this.rampTrackVolume(i, 0,inTime)
     })
     if(!this.state) return
     outIndexes?.forEach(i=>{
-      this.rampTrackVolume(i,-50,inTime,sync)
+      this.rampTrackVolume(i,-50,inTime)
     }) 
   }
 
