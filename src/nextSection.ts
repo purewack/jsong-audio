@@ -7,12 +7,12 @@ export default function nextSection(
   const traverse = (sec: SectionType) => {
     if(topLevel?.index === undefined) topLevel.index = [0]
 
-    const r = getNestedIndex(topLevel, topLevel.index);
+    const r = getNestedIndex(topLevel, topLevel.index as NestedIndex);
     // console.log(">", r, topLevel.index);
     if (r === undefined) {
       if (topLevel.index.length > 1) {
         const prevIndex = topLevel.index.slice(0, -1);
-        const prevSection = getNestedIndex(topLevel, prevIndex);
+        const prevSection = getNestedIndex(topLevel, prevIndex) as SectionType;
         // console.log("-nested index loop", prevIndex, prevSection);
         // console.log("loop");
         if(prevSection === undefined) return

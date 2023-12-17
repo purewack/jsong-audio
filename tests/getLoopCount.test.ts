@@ -1,6 +1,6 @@
-import getLoopCount from "./getLoopCount";
-import buildSection from "./buildSection";
-import { setNestedIndex } from "./nestedIndex";
+import getLoopCount from "../src/getLoopCount";
+import buildSection from "../src/buildSection";
+import { setNestedIndex } from "../src/nestedIndex";
 
 const flow = ["intro", [[2, "chorus", "verse"], "bass"]];
 const sections = buildSection(flow);

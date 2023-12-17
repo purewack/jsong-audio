@@ -1,5 +1,5 @@
-import buildSection from "./buildSection";
-import { setNestedIndex } from "./nestedIndex";
+import buildSection from "../src/buildSection";
+import { setNestedIndex } from "../src/nestedIndex";
 
 const flow = ["intro", [[2, 'A', "verse"], "bass"]];
 const sections = buildSection(flow);

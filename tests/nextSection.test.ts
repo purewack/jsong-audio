@@ -1,5 +1,5 @@
-import nextSection from "./nextSection";
-import buildSection from "./buildSection";
+import nextSection from "../src/nextSection";
+import buildSection from "../src/buildSection";
 
 const flow = ["intro", [[2, "chorus", "verse"], "bass"]];
 const sections = buildSection(flow);

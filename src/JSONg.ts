@@ -153,8 +153,8 @@ export default class JSONg{
   private _sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
   private set meterBeat(v: number){
     this._meterBeat = v
-    const nowIndex = [...this.sectionsFlowMap.index]
-    const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))[0]
+    const nowIndex = [...this.sectionsFlowMap.index] as NestedIndex
+    const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex) as string)[0]
     const sectionLen = this._sectionLen
     const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
     const pos = Transport.position as BarsBeatsSixteenths
@@ -181,11 +181,24 @@ private _loadStatus:  {
   failed: 0,
 };
 
-//Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong
+
+
+
+
+
+
+
+
+
+
+/**
+ * Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong*/
 public parse(folderPath: string): Promise<string>;
 
-//Load a .jsong file with all appropriate audio data related, ready for playback, with an optional directory pointing to where the sound data is
+/** 
+ * Load a .jsong file with all appropriate audio data related, ready for playback, with an optional directory pointing to where the sound data is */
 public parse(manifestPath: string, dataPath: string): Promise<string>;
+
 
 public parse(manifestPath: string, dataPath?: string): Promise<string> {
   if(!dataPath){
@@ -378,6 +391,34 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
 }
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //================Controls===========
 
 //Main method used to play a song and continue interaction after initial playback,
@@ -461,6 +502,18 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     })
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
   public stop(after: TimeUnit = '4n', fadeout: boolean = true)  : void 
   {
     if(this.state === 'stopped' || this.state === 'stopping') return
@@ -505,6 +558,16 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
   }
 
+
+
+
+
+
+
+
+
+
+
   public skip() : void
   {
     if(this.state === 'playing')
@@ -528,6 +591,23 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     this.play(index, 'offgrid');
   }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //================Flow===========
   private _pending: null | {id: null | number, when: BarsBeatsSixteenths} = null;
 
@@ -543,6 +623,19 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       this.onSectionCancelChange()
     }, toneNow())
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false, onDone?: ()=>void){
     if(this._pending) this.cancel()
@@ -590,6 +683,17 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       }, toneNow());
     }) 
   }
+
+
+
+
+
+
+
+
+
+
+
 
   private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
     if(this._pending) return;
@@ -691,6 +795,15 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     },nextTime)
   }
 
+
+
+
+
+
+
+
+
+
   // //TODO: add this function
   // injectNamedSection(name){
   //   if(!this.#sectionsFlowMap[name]) return null
@@ -725,6 +838,13 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }, toneNow() + Time(inTime).toSeconds());
     })
   }
+
+
+
+
+
+
+
   public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | TimeUnit = 0){
     return new Promise((resolve, reject)=>{
     if(!this.state) {reject(); return; }
@@ -757,6 +877,16 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     }) 
   }
 
+
+
+
+
+
+
+
+
+
+
   public isMute(){
     return Destination.volume.value > -200;
   }
@@ -771,6 +901,16 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
   }
 
 
+
+
+
+
+
+
+
+
+
+
 //================Various==========
   private _getNextTime(grain?: number, alignGrid: boolean = true){
     const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];
@@ -778,6 +918,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     // if(this.#verbose) console.log('nexttime',nt,Transport.position, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
     return nt
   }
+
+
 
   constructor(verbose: VerboseLevel = VerboseLevel.none){
     this.verbose = verbose

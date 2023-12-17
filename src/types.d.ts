@@ -9,7 +9,20 @@ declare interface PlayerMetadata {
 }
 
 declare type PlayerSectionIndex = number[];
-declare type PlayerPlaybackState = (null | "playing" | "stopping" | "stopped")
+
+/**
+ * Represents the possible states for a JSONg player.
+ * 
+ * - null: No media is loaded or the player is uninitialized.
+ * - "parsing": The player is currently parsing media information.
+ * - "stopped": Playback has been stopped but contains media.
+ * - "playing": The player is actively playing media.
+ * - "queue": The next section is queued for playback.
+ * - "next": The player is transitioning from 'current' to 'next' sections, if not transition time this is immediate.
+ * - "stopping": The player is in the process of stopping playback.
+ */
+declare type PlayerPlaybackState = (null | "parsing" | "playing" | "queue" | "next" | "stopping" | "stopped")
+
 declare interface PlayerTrack {
     name: string;
 	volumeDB: number;
@@ -70,16 +83,21 @@ declare type FlowValue = (number | string | FlowValue[]);
 
 declare type NestedIndex = (number | string)[]
 
-declare type NestedType = number | string | {
-    [key: (number | string)] : NestedType | any;
+declare type NestedValue = number | string | any;
+declare interface NestedType {
+    [key: number | string]: NestedType | NestedValue;
 }
 
-declare interface SectionData {
+declare type SectionData = {
     [key: number] : SectionData | NestedType | any | undefined;
     loop: number;
     loopLimit: number;
     count: number;
 }
-declare type SectionType = SectionData & {
+declare type SectionType = {
+    [key: number] : SectionType | SectionData | NestedType | any | undefined;
+    loop: number;
+    loopLimit: number;
+    count: number;
     index: number[];
 }

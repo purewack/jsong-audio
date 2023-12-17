@@ -1,4 +1,4 @@
-import { setNestedIndex, getNestedIndex } from "./nestedIndex";
+import { setNestedIndex, getNestedIndex } from "../src/nestedIndex";
 
 describe("NestedIndex", () => {
   const nest = {
