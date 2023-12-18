@@ -277,6 +277,8 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     if(this.sourceBuffers){
       Transport.cancel()
       this.trackPlayers.forEach((t)=>{
+        t.a.stop();
+        t.b.stop();
         t.a.dispose()
         t.b.dispose()
       })
@@ -335,25 +337,27 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         //full load
         if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] Loading sequence done', this._loadStatus); 
         if(this._loadStatus.loaded === this._loadStatus.required){
-          resolve('loading_full')
           if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_full')
           spawnTracks()
+          resolve('loading_full')
         }
         //partial load
         else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
-          resolve('loading_partial')
           if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_partial')
           spawnTracks()
+          resolve('loading_partial')
         }
         //failed load
         else{
-          reject('loading_fail')
           console.error('[parse][check] loading_fail')
           this.state = null;
+          reject('loading_fail')
         }
       }
     }
 
+
+    //Load media
     this.sourceBuffers = {} 
 
     if(!src_keys.length){
@@ -462,11 +466,11 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
           this.onSectionWillStart(this.sectionsFlowMap.index, overrides, '0:0:0')
         },toneNow())
       }, ()=>{
+        resolve(this.sectionsFlowMap.index);
         Draw.schedule(() => {
           // this?.onSectionDidEnd?.([], [])
           this.onSectionDidStart(this.sectionsFlowMap.index, overrides)
           this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
-          resolve(this.sectionsFlowMap.index);
         },toneNow())
         if(!fadein) return
         this.trackPlayers.forEach((t,i)=>{
@@ -674,12 +678,12 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         this.onSectionWillStart([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
       }, toneNow());  
     }, ()=>{
+      onDone?.()
       Draw.schedule(() => {
         this.onSectionChange([...nowIndex], [...nextIndex]);
         this.onSectionDidEnd([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
         this.onSectionDidStart([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
         this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
-        onDone?.()
       }, toneNow());
     }) 
   }
