@@ -14,6 +14,7 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
+import { loadBuffers } from './JSONg_buffers'
 
 /* 
 parser version 0.0.3
@@ -38,16 +39,31 @@ export default class JSONg{
     return this._verbose;
   }
 
-  private _meta: PlayerMetadata | null = null;
-  set meta(value: PlayerMetadata){
+  private _meta: PlayerManifestMetadata | null = null;
+  set meta(value: PlayerManifestMetadata){
     this._meta = {...value};
   }
-  get meta(): PlayerMetadata | null {
+  get meta(): PlayerManifestMetadata | null {
     return this._meta ? {...this._meta} : null;
   }
 
+
   //List of track involved with the song
-  private tracksList: PlayerTrack[] = [];
+  private tracksList: PlayerManifestTrack[] = [];
+
+  //Audio players and sources
+  private trackPlayers:  {
+    name: string;
+    source: string;
+    filter: Filter;
+    volumeLimit: number;
+    current: Player;
+    a: Player;
+    b: Player;
+  }[] = []
+  //Available real audio buffers
+  private sourceBuffers: PlayerBuffers = {};
+
   
   //Available sections and their natural flow with extra loop counter for internal use
   private sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
@@ -56,7 +72,7 @@ export default class JSONg{
   private playbackFlow: FlowValue[] = [];
 
   //Song playback details like BPM
-  private playbackInfo: PlayerPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
+  private playbackInfo: PlayerManifestPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
   
   //Looping details of each section, including specific directives
   private playbackMap: PlayerPlaybackMap = {};
@@ -67,17 +83,6 @@ export default class JSONg{
     return [this.playbackMap[k[0]] , k]
   }
 
-  //Audio players and sources
-  private trackPlayers:  {
-    name: string;
-    filter: Filter;
-    volumeLimit: number;
-    a: Player;
-    b: Player;
-    current: Player;
-  }[] = []
-  //Available real audio buffers
-  private sourceBuffers: PlayerDataSource = {};
 
   private _events = new EventTarget()
 
@@ -187,16 +192,16 @@ export default class JSONg{
 
 
 
-/**
- * Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong*/
-public parse(folderPath: string): Promise<string>;
+// /**
+//  * Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong*/
+// public parse(folderPath: string): Promise<string>;
 
-/** 
- * Load a .jsong file with all appropriate audio data related, ready for playback, with an optional directory pointing to where the sound data is */
-public parse(manifestPath: string, dataPath: string): Promise<string>;
+// /** 
+//  * Load a .jsong file with all appropriate audio data related, ready for playback, with an optional directory pointing to where the sound data is */
+// public parse(manifestPath: string, dataPath?: string): Promise<string>;
 
 
-public parse(manifestPath: string, dataPath?: string): Promise<string> {
+public parse(manifestPath: string, dataPath: string): Promise<string> {
   // if(!dataPath){
     
   //   if(this.verbose >= VerboseLevel.basic) console.log('[parse] Loading from path',_loadpath)
@@ -210,17 +215,18 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     const manifestString = await manifestResponse.text();
 
     //check if manifest file is ok
-    let manifestData: any;
+    let manifest: any;
     try {
-      manifestData = JSON.parse(manifestString)
+      manifest = JSON.parse(manifestString)
     }
     catch(error){
       console.error('[parse][json] Early parse error', error)
       reject('JSON parse', error)
       return
     }
+    
     //quit if the provided json is not associated with JSONg audio
-    if(manifestData?.type !== 'jsong') {
+    if(manifest?.type !== 'jsong') {
       console.error('[parse][json] Invalid manifest file reject')
       reject('manifest','Invalid manifest file')
       return
@@ -233,18 +239,18 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
 
     //data acquisition
     this.playingNow = null;
-    this.meta = {...manifestData.meta as PlayerMetadata};
+    this.meta = {...manifest.meta as PlayerManifestMetadata};
     this.playbackInfo = {
-      bpm: manifestData.playback.bpm,
-      meter: manifestData.playback.meter,
-      totalMeasures: manifestData.playback.totalMeasures,
-      grain: manifestData.playback?.grain || (manifestData.playback.meter[0] / (manifestData.playback.meter[1]/4)) || null,
-      metronome: manifestData.playback?.metronome || ["B5","G4"],
-      metronomeDB: manifestData.playback?.metronomeDB || -6,
+      bpm: manifest.playback.bpm,
+      meter: manifest.playback.meter,
+      totalMeasures: manifest.playback.totalMeasures,
+      grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
+      metronome: manifest.playback?.metronome || ["B5","G4"],
+      metronomeDB: manifest.playback?.metronomeDB || -6,
     }
-    this.tracksList = [...manifestData.tracks]
-    this.playbackFlow = [...manifestData.playback.flow]
-    this.playbackMap = {...manifestData.playback.map}
+    this.tracksList = [...manifest.tracks]
+    this.playbackFlow = [...manifest.playback.flow]
+    this.playbackMap = {...manifest.playback.map}
     this.sectionsFlowMap = buildSection(this.playbackFlow)
  
 
@@ -255,23 +261,14 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     Transport.bpm.value = this.playbackInfo.bpm
     Transport.timeSignature = this.playbackInfo.meter
 
-    //audio reset if parsing on parsed player
-    if(this.sourceBuffers){
-      Transport.cancel()
-      this.trackPlayers.forEach((t)=>{
-        t.a.stop();
-        t.b.stop();
-        t.a.dispose()
-        t.b.dispose()
-      })
-      if(this.verbose) console.log('[parse][sources] Audio reset')
-    }
 
+
+  
     //spawn tracks
     this.trackPlayers = []
     if(this.verbose >= VerboseLevel.parse) console.log('[parse][tracks]',this.tracksList)
     for(const track of this.tracksList){
-      const name = track.source ? track.source : track.name;
+      const source = track.source ? track.source : track.name;
       const v = track?.volumeDB || 0
 
       const a = new Player()
@@ -299,35 +296,40 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
       b.connect(filter)
 
       this.trackPlayers.push({
-        name, a,b, current: a, filter, volumeLimit: v
+        name: track.name, source, a,b, current: a, filter, volumeLimit: v
       })
     }
-  
+
 
     //Load media
-    const src_keys = Object.keys(manifestData.sources)
-    let loadPromises: Promise<ToneAudioBuffer>[] = [];
-    if(!src_keys.length){
-      console.error('[parse][sources] nothing to load')
+    try{
+      this.sourceBuffers = await loadBuffers(manifest.sources, dataPath, manifestPath, this.verbose);
+    }
+    catch{
       this.state = null;
-      resolve('loading_nothing')
+      resolve('no_sources')
       return;
     }
-    for(const src_id of src_keys){
-      const data = manifestData.data[src_id]
-      const buffer = new ToneAudioBuffer();
 
-      const _dataPath = dataPath ? dataPath : manifestPath
-      const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
-      
-      if(data.startsWith('data'))  ToneAudioBuffer.baseUrl = ''
-      else ToneAudioBuffer.baseUrl = window.location.origin
-      loadPromises.push(buffer.load(url));
-    }
-    
-    const loadedBuffers = await Promise.all(loadPromises);
-    this.tracksList.forEach((t,i) => {
-      this.trackPlayers[i].a.buffer = loadedBuffers[i];
+
+    this.stop(0);
+
+    //audio reset if parsing on parsed player
+    // if(this.state){
+      // Transport.cancel()
+      // this.trackPlayers.forEach((t)=>{
+      //   t.a.stop();
+      //   t.b.stop();
+      //   t.a.dispose()
+      //   t.b.dispose()
+      // })
+      // if(this.verbose) console.log('[parse][sources] Audio reset')
+    // }
+
+    //assign buffers to players
+    this.trackPlayers.forEach((track,i)=>{
+      track.a.buffer = this.sourceBuffers[track.source] as ToneAudioBuffer
+      track.b.buffer = track.a.buffer
     })
 
     this.state = 'stopped';

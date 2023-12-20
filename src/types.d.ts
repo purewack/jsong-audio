@@ -1,5 +1,5 @@
 //JSONg Player types
-declare interface PlayerMetadata {
+declare interface PlayerManifestMetadata {
     title: string;
     author: string
     createdOn : number;
@@ -23,20 +23,17 @@ declare type PlayerSectionIndex = number[];
  */
 declare type PlayerPlaybackState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
-declare interface PlayerTrack {
+declare interface PlayerManifestTrack {
     name: string;
-	volumeDB: number;
     source : string;
+	volumeDB?: number;
     filter?: {
         resonance: number;
         rolloff: number;
     };
 }
 
-declare interface PlayerDataSource {
-    [key: string] : string
-}
-declare interface PlayerPlaybackInfo {
+declare interface PlayerManifestPlaybackInfo {
     bpm: number;
     meter: [number, number];
     totalMeasures: number;
@@ -49,8 +46,12 @@ declare interface PlayerPlaybackInfo {
     };
 }
 
-declare interface PlayerSourceMap {
-    [key: string] : string
+declare interface PlayerDataSources {
+    [key: string]: string
+}
+
+declare interface PlayerBuffers {
+    [key: string] : object
 }
 
 declare interface PlayerPlaybackMapType { 
@@ -74,7 +75,10 @@ declare interface PlayerSectionOverrides {
     legato?: boolean;
     autoNext?: boolean;
 }
-declare type PlayerPlayingNow = {index: PlayerSectionIndex, name: string} | null
+declare type PlayerPlayingNow = {
+    index: PlayerSectionIndex, 
+    name: string
+} | null
 
 
 
