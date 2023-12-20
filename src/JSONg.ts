@@ -12,7 +12,7 @@ import {
   ToneAudioBuffer, 
   Filter,
   Draw, 
-  Synth, Transport, FilterRollOff, Destination, Time,
+  Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
 
 /* 
@@ -46,9 +46,6 @@ export default class JSONg{
     return this._meta ? {...this._meta} : null;
   }
 
-  //Mapping of available audio buffers to tracks with use them
-  private sourcesMap : PlayerSourceMap = {};
-  
   //List of track involved with the song
   private tracksList: PlayerTrack[] = [];
   
@@ -80,9 +77,7 @@ export default class JSONg{
     current: Player;
   }[] = []
   //Available real audio buffers
-  private sourceBuffers: {
-    [key: string]: ToneAudioBuffer
-  } = {};
+  private sourceBuffers: PlayerDataSource = {};
 
   private _events = new EventTarget()
 
@@ -170,19 +165,20 @@ export default class JSONg{
     return this._meterBeat
   }
 
-//==================Loader==============
-private _loadStatus:  {
-  required: number, 
-  loaded: number, 
-  failed: number
-} = {
-  required: 0,
-  loaded: 0,
-  failed: 0,
-};
 
 
 
+  constructor(verbose: VerboseLevel = VerboseLevel.none){
+
+    this._metronome.envelope.attack = 0;
+    this._metronome.envelope.release = 0.05;
+
+    this.verbose = verbose
+    if(this.verbose >= VerboseLevel.all) console.log("[JSONg] New ", this);
+    this.state = null;
+  }
+
+//==================Loader============
 
 
 
@@ -201,79 +197,65 @@ public parse(manifestPath: string, dataPath: string): Promise<string>;
 
 
 public parse(manifestPath: string, dataPath?: string): Promise<string> {
-  if(!dataPath){
-    const sep = (manifestPath.endsWith('/')  ? ' ' : '/')
-    const _loadpath = manifestPath + sep;
-    if(this.verbose >= VerboseLevel.basic) console.log('[parse] Loading from path',_loadpath)
-    return this.parse(_loadpath + 'audio.jsong', _loadpath);
-  }
-
-  this.stop(0);
-
-  return new Promise((resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
-  
-  fetch(manifestPath).then(resp => {
+  // if(!dataPath){
     
-    resp.text().then(txt => {
-   
-    let data: any;
+  //   if(this.verbose >= VerboseLevel.basic) console.log('[parse] Loading from path',_loadpath)
+  //   return this.parse(_loadpath + 'audio.jsong', _loadpath);
+  // }
+
+
+  return new Promise(async (resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
+  
+    const manifestResponse = await fetch(manifestPath);  
+    const manifestString = await manifestResponse.text();
+
+    //check if manifest file is ok
+    let manifestData: any;
     try {
-    data = JSON.parse(txt)
+      manifestData = JSON.parse(manifestString)
     }
     catch(error){
-      console.error('[parse][json] Early parse error')
+      console.error('[parse][json] Early parse error', error)
       reject('JSON parse', error)
       return
     }
-
-    // if(this.verbose) console.log('JSONg loaded',data)
-    if(data?.type !== 'jsong') {
+    //quit if the provided json is not associated with JSONg audio
+    if(manifestData?.type !== 'jsong') {
       console.error('[parse][json] Invalid manifest file reject')
       reject('manifest','Invalid manifest file')
       return
     }
+    
+    
+    // begin parse after confirming that manifest is ok
+    this.state = 'parsing';
 
-    // this._metronome = new Synth().toDestination()
-    this._metronome.envelope.attack = 0;
-    this._metronome.envelope.release = 0.05;
 
-    this.meta = {...data.meta} as PlayerMetadata;
-
+    //data acquisition
+    this.playingNow = null;
+    this.meta = {...manifestData.meta as PlayerMetadata};
     this.playbackInfo = {
-      bpm: data.playback.bpm,
-      meter: data.playback.meter,
-      totalMeasures: data.playback.totalMeasures,
-      grain: data.playback?.grain || (data.playback.meter[0] / (data.playback.meter[1]/4)) || null,
-      metronome: data.playback?.metronome || ["B5","G4"],
-      metronomeDB: data.playback?.metronomeDB || -6,
+      bpm: manifestData.playback.bpm,
+      meter: manifestData.playback.meter,
+      totalMeasures: manifestData.playback.totalMeasures,
+      grain: manifestData.playback?.grain || (manifestData.playback.meter[0] / (manifestData.playback.meter[1]/4)) || null,
+      metronome: manifestData.playback?.metronome || ["B5","G4"],
+      metronomeDB: manifestData.playback?.metronomeDB || -6,
     }
-    this.tracksList = [...data.tracks]
-    this.playbackFlow = [...data.playback.flow]
-    this.playbackMap = {...data.playback.map}
+    this.tracksList = [...manifestData.tracks]
+    this.playbackFlow = [...manifestData.playback.flow]
+    this.playbackMap = {...manifestData.playback.map}
     this.sectionsFlowMap = buildSection(this.playbackFlow)
-    this.sourcesMap = {...data.sources}
-    const src_keys = Object.keys(this.sourcesMap)
-    // if(this.verbose >= VerboseLevel.parse) console.log('[parse][data] Song flow map', JSON.stringify(this.playbackFlow), this.sectionsFlowMap)
-    
+ 
+
+    //meter, bpm and transport setup
     this._meterBeat = 0
-    Transport.position = '0:0:0'
     this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
-    
+    Transport.position = '0:0:0'
     Transport.bpm.value = this.playbackInfo.bpm
     Transport.timeSignature = this.playbackInfo.meter
 
-    this.playingNow = null;
-
-    if(this.trackPlayers){
-      this.state = null; 
-    }
-
-    this._loadStatus = {
-      required: this.tracksList.length, 
-      loaded: 0, 
-      failed: 0
-    };
-
+    //audio reset if parsing on parsed player
     if(this.sourceBuffers){
       Transport.cancel()
       this.trackPlayers.forEach((t)=>{
@@ -282,117 +264,77 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
         t.a.dispose()
         t.b.dispose()
       })
-      Object.keys(this.sourceBuffers).forEach((k)=>{
-        this.sourceBuffers[k].dispose()
+      if(this.verbose) console.log('[parse][sources] Audio reset')
+    }
+
+    //spawn tracks
+    this.trackPlayers = []
+    if(this.verbose >= VerboseLevel.parse) console.log('[parse][tracks]',this.tracksList)
+    for(const track of this.tracksList){
+      const name = track.source ? track.source : track.name;
+      const v = track?.volumeDB || 0
+
+      const a = new Player()
+      const b = new Player()
+      a.volume.value = v
+      b.volume.value = v
+
+      const filter = new Filter(20000, "lowpass").toDestination()
+      filter.set({'Q': track?.filter?.resonance 
+          ? track.filter.resonance 
+          : (this.playbackInfo?.filter?.resonance 
+            ? this.playbackInfo?.filter?.resonance 
+            : 1
+        )}) 
+      filter.set({'rolloff': (
+        track?.filter?.rolloff 
+          ? track.filter.rolloff 
+          : (this.playbackInfo?.filter?.rolloff 
+            ? this.playbackInfo?.filter?.rolloff 
+            : -12
+          )  
+      ) as FilterRollOff})
+
+      a.connect(filter)
+      b.connect(filter)
+
+      this.trackPlayers.push({
+        name, a,b, current: a, filter, volumeLimit: v
       })
-      // if(this.verbose) console.log('[parse][data] Audio reset')
     }
-
-    // if(this.verbose) console.log('loading', this._loadStatus.required)
-
-    const spawnTracks = ()=>{
-      this.trackPlayers = []
-      if(this.verbose >= VerboseLevel.parse) console.log('[parse][tracks]',this.tracksList)
-      for(const track of this.tracksList){
-        const name = track.source ? track.source : track.name;
-        const v = track?.volumeDB || 0
-        const buf = this.sourceBuffers?.[name]
-
-        const a = new Player()
-        a.volume.value = v
-        a.buffer = buf
-
-        const b = new Player()
-        b.volume.value = v
-        b.buffer = buf
-
-        const filter = new Filter(20000, "lowpass").toDestination()
-        filter.set({'Q': track?.filter?.resonance 
-            ? track.filter.resonance 
-            : (this.playbackInfo?.filter?.resonance 
-              ? this.playbackInfo?.filter?.resonance 
-              : 1
-          )}) 
-        filter.set({'rolloff': (
-          track?.filter?.rolloff 
-            ? track.filter.rolloff 
-            : (this.playbackInfo?.filter?.rolloff 
-              ? this.playbackInfo?.filter?.rolloff 
-              : -12
-            )  
-        ) as FilterRollOff})
-        a.connect(filter)
-        b.connect(filter)
-
-        this.trackPlayers.push({
-          name, a,b, current: a, filter, volumeLimit: v
-        })
-        if(this.verbose >= VerboseLevel.parse) console.log(`[parse][track: ${name}]${buf ? '[buffer]' : ''}`)
-      }
-    }
-
-    const checkLoad = ()=>{
-      if(this._loadStatus.loaded+this._loadStatus.failed === this._loadStatus.required) {
-        this.state = 'stopped'
-        //full load
-        if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] Loading sequence done', this._loadStatus); 
-        if(this._loadStatus.loaded === this._loadStatus.required){
-          if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_full')
-          spawnTracks()
-          resolve('loading_full')
-        }
-        //partial load
-        else if(this._loadStatus.loaded && this._loadStatus.loaded < this._loadStatus.required){
-          if(this.verbose >= VerboseLevel.parse) console.log('[parse][check] loading_partial')
-          spawnTracks()
-          resolve('loading_partial')
-        }
-        //failed load
-        else{
-          console.error('[parse][check] loading_fail')
-          this.state = null;
-          reject('loading_fail')
-        }
-      }
-    }
-
+  
 
     //Load media
-    this.sourceBuffers = {} 
-
+    const src_keys = Object.keys(manifestData.sources)
+    let loadPromises: Promise<ToneAudioBuffer>[] = [];
     if(!src_keys.length){
       console.error('[parse][sources] nothing to load')
-      checkLoad()
+      this.state = null;
+      resolve('loading_nothing')
+      return;
     }
     for(const src_id of src_keys){
-      const data = this.sourcesMap[src_id]
+      const data = manifestData.data[src_id]
       const buffer = new ToneAudioBuffer();
-      // if(this.verbose) console.log('Current source id', src_id)
+
       const _dataPath = dataPath ? dataPath : manifestPath
       const url = data.startsWith('data') ? data : _dataPath + (data.startsWith('./') ? data.substring(1) : ('/' + data))
       
       if(data.startsWith('data'))  ToneAudioBuffer.baseUrl = ''
       else ToneAudioBuffer.baseUrl = window.location.origin
-      buffer.load(url).then((tonebuffer)=>{
-        this._loadStatus.loaded++;
-        this.sourceBuffers[src_id] = tonebuffer
-        checkLoad()
-        if(this.verbose >= VerboseLevel.parse) console.log('[parse][sources] loaded ', src_id, tonebuffer)
-      }).catch((e)=>{
-        this._loadStatus.failed++;
-        checkLoad()
-        console.error('[parse][sources] Failed loading source ', src_id, data, ' ', e)
-      })
+      loadPromises.push(buffer.load(url));
     }
+    
+    const loadedBuffers = await Promise.all(loadPromises);
+    this.tracksList.forEach((t,i) => {
+      this.trackPlayers[i].a.buffer = loadedBuffers[i];
+    })
 
+    this.state = 'stopped';
     if(this.verbose >= VerboseLevel.parse) {
       console.log("[parse] end ",this)
     }
-    })
   })
-
-  })
-
 }
   
 
@@ -923,11 +865,4 @@ public parse(manifestPath: string, dataPath?: string): Promise<string> {
     return nt
   }
 
-
-
-  constructor(verbose: VerboseLevel = VerboseLevel.none){
-    this.verbose = verbose
-    if(this.verbose >= VerboseLevel.all) console.log("[JSONg] New ", this);
-    this.state = null;
-  }
 }

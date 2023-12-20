@@ -21,7 +21,7 @@ declare type PlayerSectionIndex = number[];
  * - "next": The player is transitioning from 'current' to 'next' sections, if not transition time this is immediate.
  * - "stopping": The player is in the process of stopping playback.
  */
-declare type PlayerPlaybackState = (null | "parsing" | "playing" | "queue" | "next" | "stopping" | "stopped")
+declare type PlayerPlaybackState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
 declare interface PlayerTrack {
     name: string;

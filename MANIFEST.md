@@ -9,7 +9,7 @@
         "flow": {},
         "tracks": []
     },
-    "data" : []
+    "sources" : {}
 }
 ```
 
@@ -159,12 +159,12 @@ This property can also be an object with specific definition of which tracks sho
 
 > `"source"` : String - optional name of the source file, if not specified, the track name is used instead to refer to a buffer
 
-## Data 
+## Sources 
 
 *Location in file*
 ```
 {
-    "data": {
+    "sources": {
         bufferID : data
     }
 }
