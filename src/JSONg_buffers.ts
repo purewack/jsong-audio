@@ -13,7 +13,7 @@
 import { ToneAudioBuffer } from "tone";
 import { VerboseLevel } from "./JSONg";
 
-export function getDataURL(uri:string, dataPath: string, manifestPath: string){
+export function formatURL(uri:URLString | DataURIString, dataPath: string, manifestPath: string) : URLString{
     const _dataPath = dataPath ? dataPath : manifestPath
     const url = uri.startsWith('data') ? uri : _dataPath + (uri.startsWith('./') ? uri.substring(1) : ('/' + uri))
     return url;
@@ -32,7 +32,7 @@ export async function loadBuffers(sources: PlayerDataSources, dataPath: string, 
     for(const src_id of src_keys){
       const buffer = new ToneAudioBuffer();
 
-      const url = getDataURL(sources[src_id], dataPath, manifestPath);
+      const url = formatURL(sources[src_id], dataPath, manifestPath);
 
       if(url.startsWith('data'))  ToneAudioBuffer.baseUrl = ''
       else ToneAudioBuffer.baseUrl = window.location.origin

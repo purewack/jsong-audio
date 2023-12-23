@@ -1,5 +1,5 @@
-import {getDataURL} from '../src/JSONg_buffers'
+import {formatURL} from '../src/JSONg_buffers'
 
 test('decode URI', ()=>{ 
-    expect(getDataURL('test', './', './')).toBe('./test');  
+    expect(formatURL('test', './', './')).toBe('./test');  
 })

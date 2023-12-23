@@ -1,5 +1,5 @@
-//JSONg Player types
-declare interface PlayerManifestMetadata {
+//JSONg Manifest types
+declare interface JSONgMetadata {
     title: string;
     author: string
     createdOn : number;
@@ -7,6 +7,63 @@ declare interface PlayerManifestMetadata {
     projectVersion: string;
     createdUsing?: string;
 }
+
+
+declare interface JSONgPlaybackInfo {
+    bpm: number;
+    meter: [number, number];
+    totalMeasures: number;
+    grain?: number | null;
+    metronome?: [string,string];
+    metronomeDB?: number;
+    filter?: {
+        resonance?: number,
+        rolloff?: number
+    };
+}
+
+
+declare interface JSONgPlaybackMapType { 
+    region: [number, number];
+    grain?: number;
+    legato?: number | {
+        duration: number;
+        xfades: undefined | string[];
+    } | {
+        duration: undefined | number;
+        xfades: string[];
+    }
+}
+declare interface JSONgPlaybackMap {
+    [key: string] : JSONgPlaybackMapType,
+}
+
+declare interface JSONgTrack {
+    name: string;
+    source : string;
+	volumeDB?: number;
+    filter?: {
+        resonance: number;
+        rolloff: number;
+    };
+}
+
+
+declare type JSONgManifestFile = {
+    type: 'jsong' | undefined;
+    jsongVersion: string;
+    meta: JSONgMetadata;
+    playback: JSONgPlaybackInfo & {
+        flow: FlowValue[];
+        map: JSONgPlaybackMap;
+    };
+    tracks: JSONgTrack[];
+    sources: {
+        [key: string]: URLString | DataURIString
+    }
+}
+
+
 
 declare type PlayerSectionIndex = number[];
 
@@ -23,29 +80,6 @@ declare type PlayerSectionIndex = number[];
  */
 declare type PlayerPlaybackState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
-declare interface PlayerManifestTrack {
-    name: string;
-    source : string;
-	volumeDB?: number;
-    filter?: {
-        resonance: number;
-        rolloff: number;
-    };
-}
-
-declare interface PlayerManifestPlaybackInfo {
-    bpm: number;
-    meter: [number, number];
-    totalMeasures: number;
-    grain?: number;
-    metronome?: [string,string];
-    metronomeDB?: number;
-    filter?: {
-        resonance?: number,
-        rolloff?: number
-    };
-}
-
 declare interface PlayerDataSources {
     [key: string]: string
 }
@@ -54,20 +88,7 @@ declare interface PlayerBuffers {
     [key: string] : object
 }
 
-declare interface PlayerPlaybackMapType { 
-    region: [number, number];
-    grain?: number;
-    legato?: number | {
-        duration: number;
-        xfades: undefined | string[];
-    } | {
-        duration: undefined | number;
-        xfades: string[];
-    }
-}
-declare interface PlayerPlaybackMap {
-    [key: string] : PlayerPlaybackMapType,
-}
+
 
 
 declare type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
@@ -105,3 +126,7 @@ declare type SectionType = {
     count: number;
     index: number[];
 }
+
+
+declare type URLString = string
+declare type DataURIString = `data${string}`

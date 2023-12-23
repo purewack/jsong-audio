@@ -39,17 +39,17 @@ export default class JSONg{
     return this._verbose;
   }
 
-  private _meta: PlayerManifestMetadata | null = null;
-  set meta(value: PlayerManifestMetadata){
+  private _meta: JSONgMetadata | null = null;
+  set meta(value: JSONgMetadata){
     this._meta = {...value};
   }
-  get meta(): PlayerManifestMetadata | null {
+  get meta(): JSONgMetadata | null {
     return this._meta ? {...this._meta} : null;
   }
 
 
   //List of track involved with the song
-  private tracksList: PlayerManifestTrack[] = [];
+  private tracksList: JSONgTrack[] = [];
 
   //Audio players and sources
   private trackPlayers:  {
@@ -72,13 +72,13 @@ export default class JSONg{
   private playbackFlow: FlowValue[] = [];
 
   //Song playback details like BPM
-  private playbackInfo: PlayerManifestPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
+  private playbackInfo: JSONgPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
   
   //Looping details of each section, including specific directives
-  private playbackMap: PlayerPlaybackMap = {};
+  private playbackMap: JSONgPlaybackMap = {};
   
   //Extraction of flow directives
-  private playbackMapOverrides(key: string): [PlayerPlaybackMapType, string[]] { 
+  private getPlaybackMapOverrides(key: string): [JSONgPlaybackMapType, string[]] { 
     const k = key.split('-')
     return [this.playbackMap[k[0]] , k]
   }
@@ -154,7 +154,7 @@ export default class JSONg{
   private set meterBeat(v: number){
     this._meterBeat = v
     const nowIndex = [...this.sectionsFlowMap.index] as NestedIndex
-    const nowSection = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex) as string)[0]
+    const nowSection = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex) as string)[0]
     const sectionLen = this._sectionLen
     const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
     const pos = Transport.position as BarsBeatsSixteenths
@@ -215,7 +215,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
     const manifestString = await manifestResponse.text();
 
     //check if manifest file is ok
-    let manifest: any;
+    let manifest: JSONgManifestFile;
     try {
       manifest = JSON.parse(manifestString)
     }
@@ -239,7 +239,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
 
     //data acquisition
     this.playingNow = null;
-    this.meta = {...manifest.meta as PlayerManifestMetadata};
+    this.meta = {...manifest.meta as JSONgMetadata};
     this.playbackInfo = {
       bpm: manifest.playback.bpm,
       meter: manifest.playback.meter,
@@ -391,7 +391,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
 
       this.state = 'playing'
       this.sectionsFlowMap.index = from || [0]
-      const overrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
+      const overrides = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
 
       this._schedule(this.sectionsFlowMap.index, '0:0:0', ()=>{
         Draw.schedule(() => {
@@ -590,7 +590,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
     
     const nowIndex = [...this.sectionsFlowMap.index] as number[]
     if(getNestedIndex(this.sectionsFlowMap, nowIndex) === undefined) return null;
-    const [nowSection, nowOverrides] = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))
+    const [nowSection, nowOverrides] = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))
   
     let _willNext = false;
     let nextOverrides: PlayerSectionOverrideFlags[]; 
@@ -601,7 +601,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
     }else{
       nextSection(this.sectionsFlowMap, typeof breakout === 'boolean' ? breakout : false)
       nextIndex = [...this.sectionsFlowMap.index]
-      nextOverrides = this.playbackMapOverrides(getNestedIndex(this.sectionsFlowMap, nextIndex))[1] as PlayerSectionOverrideFlags[];
+      nextOverrides = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nextIndex))[1] as PlayerSectionOverrideFlags[];
       _willNext = true;
     }
     
@@ -646,7 +646,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
   private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
     if(this._pending) return;
     const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
-    const [section, sectionFlags] = this.playbackMapOverrides(sectionID)
+    const [section, sectionFlags] = this.getPlaybackMapOverrides(sectionID)
     if(section === undefined){
       if(this.verbose >= VerboseLevel.timed) console.warn("[schedule] non existent index");
       Draw.schedule(() => {
