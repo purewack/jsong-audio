@@ -17,7 +17,8 @@ export function loadBuffers(manifest: JSONgManifestFile, verboseLevel: VerboseLe
     const src_keys = Object.keys(manifest.sources)
     if(!src_keys.length){
       console.error('[parse][sources] nothing to load')
-      throw new Error('nothing to load');
+      reject('nothing to load');
+      return;
     }
 
     let loadPromises: Promise<ToneAudioBuffer>[] = [];
@@ -31,6 +32,11 @@ export function loadBuffers(manifest: JSONgManifestFile, verboseLevel: VerboseLe
       loadPromises.push(buffer.load(url));
 
       if(verboseLevel === 'all') console.info('[parse][sources] adding',src_id);
+    }
+
+    if(!loadPromises || !loadPromises.length){
+      reject('no buffers');
+      return;
     }
     
     try{
