@@ -14,23 +14,17 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
-import { loadBuffers } from './JSONg_buffers'
+import { loadBuffers } from './JSONgBuffers'
 
 /* 
 parser version 0.0.3
 */
 
-export enum VerboseLevel{
-  none,
-  basic,
-  parse,
-  timed,
-  all,
-}
+
 export default class JSONg{
 
   //Debug related - logging extra messages
-  private _verbose: VerboseLevel = VerboseLevel.none;
+  private _verbose: VerboseLevel = undefined;
   set verbose(level: VerboseLevel){
     this._verbose = level;
     if(level) console.log("[JSONg] player verbose mode, ", level);
@@ -72,7 +66,7 @@ export default class JSONg{
   private playbackFlow: FlowValue[] = [];
 
   //Song playback details like BPM
-  private playbackInfo: JSONgPlaybackInfo = {totalMeasures:0, bpm: 120, meter: [4,4]};
+  private playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4]};
   
   //Looping details of each section, including specific directives
   private playbackMap: JSONgPlaybackMap = {};
@@ -173,13 +167,13 @@ export default class JSONg{
 
 
 
-  constructor(verbose: VerboseLevel = VerboseLevel.none){
+  constructor(verbose: VerboseLevel = undefined){
 
     this._metronome.envelope.attack = 0;
     this._metronome.envelope.release = 0.05;
 
     this.verbose = verbose
-    if(this.verbose >= VerboseLevel.all) console.log("[JSONg] New ", this);
+    if(this.verbose === 'all') console.log("[JSONg] New ", this);
     this.state = null;
   }
 
@@ -189,29 +183,10 @@ export default class JSONg{
 
 
 
-
-
-
-// /**
-//  * Load a .jsong file with all appropriate audio data related, ready for playback, assumed sound data is in the same dir as .jsong*/
-// public parse(folderPath: string): Promise<string>;
-
-// /** 
-//  * Load a .jsong file with all appropriate audio data related, ready for playback, with an optional directory pointing to where the sound data is */
-// public parse(manifestPath: string, dataPath?: string): Promise<string>;
-
-
-public parse(manifestPath: string, dataPath: string): Promise<string> {
-  // if(!dataPath){
-    
-  //   if(this.verbose >= VerboseLevel.basic) console.log('[parse] Loading from path',_loadpath)
-  //   return this.parse(_loadpath + 'audio.jsong', _loadpath);
-  // }
-
-
-  return new Promise(async (resolve: (reason: string) =>void, reject: (reason: string, detail?: any)=>void)=>{
+public parse(path: string): Promise<void> {
+  return new Promise(async (resolve: () =>void, reject: (reason: string, detail?: any)=>void)=>{
   
-    const manifestResponse = await fetch(manifestPath);  
+    const manifestResponse = await fetch(path);  
     const manifestString = await manifestResponse.text();
 
     //check if manifest file is ok
@@ -231,19 +206,25 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
       reject('manifest','Invalid manifest file')
       return
     }
+
+    //quit if there are no audio files to load
+    if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
+      console.error('[parse][json] No sources specified')
+      reject('manifest','No sources specified')
+      return
+    }
     
     
     // begin parse after confirming that manifest is ok
     this.state = 'parsing';
 
 
-    //data acquisition
+    //transfer key information from manifest to player
     this.playingNow = null;
     this.meta = {...manifest.meta as JSONgMetadata};
     this.playbackInfo = {
       bpm: manifest.playback.bpm,
       meter: manifest.playback.meter,
-      totalMeasures: manifest.playback.totalMeasures,
       grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
       metronome: manifest.playback?.metronome || ["B5","G4"],
       metronomeDB: manifest.playback?.metronomeDB || -6,
@@ -266,7 +247,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
   
     //spawn tracks
     this.trackPlayers = []
-    if(this.verbose >= VerboseLevel.parse) console.log('[parse][tracks]',this.tracksList)
+    if(this.verbose === 'all') console.log('[parse][tracks]',this.tracksList)
     for(const track of this.tracksList){
       const source = track.source ? track.source : track.name;
       const v = track?.volumeDB || 0
@@ -303,11 +284,12 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
 
     //Load media
     try{
-      this.sourceBuffers = await loadBuffers(manifest.sources, dataPath, manifestPath, this.verbose);
+      this.sourceBuffers = await loadBuffers(manifest, this.verbose);
     }
-    catch{
+    catch(error){
       this.state = null;
-      resolve('no_sources')
+      if(this.verbose) console.error('[parse][sources] error fetching data', error)
+      reject('sources', error)
       return;
     }
 
@@ -333,8 +315,9 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
     })
 
     this.state = 'stopped';
-    if(this.verbose >= VerboseLevel.parse) {
+    if(this.verbose === 'all') {
       console.log("[parse] end ",this)
+      resolve();
     }
   })
 }
@@ -439,10 +422,10 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
       Transport.position = '0:0:0'
 
       Transport.start()
-      if(this.verbose >= VerboseLevel.basic) console.log("[play] player starting")  
+      if(this.verbose === 'basic') console.log("[play] player starting")  
     }
     else if(this.state === 'playing'){
-      if(this.verbose >= VerboseLevel.basic) console.log("[play] player next", from)  
+      if(this.verbose === 'basic') console.log("[play] player next", from)  
       this._advanceSection(from, skip, undefined, ()=>{
         resolve(from as PlayerSectionIndex)
       })
@@ -488,7 +471,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
             p.b.stop(t);
             p.current = p.a
         }catch(error){
-          if(this.verbose >= VerboseLevel.basic) console.log('[stop] Empty track stopping ',this.tracksList[i]);
+          if(this.verbose === 'basic') console.log('[stop] Empty track stopping ',this.tracksList[i]);
         }
       })
       Draw.schedule(() => {
@@ -497,7 +480,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
         this._sectionLastLaunchTime = undefined
       },toneNow()) 
       this.state = 'stopped'
-      if(this.verbose >= VerboseLevel.basic) console.log("[stop] player stopped")
+      if(this.verbose === 'basic') console.log("[stop] player stopped")
     }
     if(after)
       Transport.scheduleOnce(stopping,when)
@@ -648,7 +631,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
     const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
     const [section, sectionFlags] = this.getPlaybackMapOverrides(sectionID)
     if(section === undefined){
-      if(this.verbose >= VerboseLevel.timed) console.warn("[schedule] non existent index");
+      // if(this.verbose >= VerboseLevel.timed) console.warn("[schedule] non existent index");
       Draw.schedule(() => {
       //   this.onSectionWillEnd?.(null)
       //   this.onSectionWillStart?.(null)
@@ -665,14 +648,14 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
       if(f === '>') sectionOverrides = {...sectionOverrides, autoNext: true}
       if(f === 'X' || f === 'x') sectionOverrides = {...sectionOverrides, legato: true}
     })
-    if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Section overrides', sectionOverrides)
+    // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Section overrides', sectionOverrides)
     //this.onSectionOverrides?.([...sectionIndex],[...sectionFlags as PlayerSectionOverrideFlags[]])
 
-    if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Next schedule to happen at: ', nextTime);
+    // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Next schedule to happen at: ', nextTime);
     
     this._pending = {id: null, when: nextTime}
     this._pending.id = Transport.scheduleOnce((t: number)=>{
-      if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Schedule done for time: ', nextTime)
+      // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Schedule done for time: ', nextTime)
       this.trackPlayers.forEach((track,i)=>{
         const nextTrack = track.current === track.a ? track.b : track.a
 
@@ -681,7 +664,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
         nextTrack.loop = true;
         try{
           const nonLegatoStart = ()=>{
-            if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] non-legato`)
+            // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] non-legato`)
             track.current.stop(t);
             nextTrack.volume.setValueAtTime(track.volumeLimit, t)
             nextTrack.start(t,section.region[0]+'m');
@@ -695,7 +678,7 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
               nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + legatoDT)
               nextTrack.start(t,section.region[0]+'m');
               
-              if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
+              // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
           }
 
           if(sectionOverrides?.legato){
@@ -726,11 +709,11 @@ public parse(manifestPath: string, dataPath: string): Promise<string> {
           }
           track.current = nextTrack;
         }catch(error){
-          if(this.verbose >= VerboseLevel.timed) console.warn(`[schedule][-(${sectionIndex})] Empty playing`);
+          // if(this.verbose >= VerboseLevel.timed) console.warn(`[schedule][-(${sectionIndex})] Empty playing`);
         }
       })
       this.playingNow = {index:sectionIndex, name: sectionID};
-      if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Playing now ',this.playingNow)
+      // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Playing now ',this.playingNow)
       onScheduleCallback?.()
       this.sectionsFlowMap.index = [...sectionIndex]
       this._sectionBeat = -1

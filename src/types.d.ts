@@ -12,14 +12,12 @@ declare interface JSONgMetadata {
 declare interface JSONgPlaybackInfo {
     bpm: number;
     meter: [number, number];
-    totalMeasures: number;
     grain?: number | null;
     metronome?: [string,string];
     metronomeDB?: number;
-    filter?: {
-        resonance?: number,
-        rolloff?: number
-    };
+    filter?: {resonance: number,rolloff: number}
+    | {resonance?: number, rolloff:  number}
+    | {resonance:  number, rolloff?: number};
 }
 
 
@@ -48,6 +46,10 @@ declare interface JSONgTrack {
     };
 }
 
+declare interface JSONgDataSources {
+    [key: string]: URLString | DataURIString
+}
+
 
 declare type JSONgManifestFile = {
     type: 'jsong' | undefined;
@@ -58,9 +60,8 @@ declare type JSONgManifestFile = {
         map: JSONgPlaybackMap;
     };
     tracks: JSONgTrack[];
-    sources: {
-        [key: string]: URLString | DataURIString
-    }
+    sources: JSONgDataSources;
+    baseURL?: string;
 }
 
 
@@ -80,15 +81,10 @@ declare type PlayerSectionIndex = number[];
  */
 declare type PlayerPlaybackState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
-declare interface PlayerDataSources {
-    [key: string]: string
-}
 
 declare interface PlayerBuffers {
     [key: string] : object
 }
-
-
 
 
 declare type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
@@ -102,6 +98,10 @@ declare type PlayerPlayingNow = {
 } | null
 
 
+declare type VerboseLevel =
+    null | undefined |
+    'basic' |
+    'all'
 
 // Helper types
 declare type FlowValue = (number | string | FlowValue[]);
