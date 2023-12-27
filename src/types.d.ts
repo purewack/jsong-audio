@@ -100,7 +100,8 @@ declare type PlayerPlayingNow = {
 
 declare type VerboseLevel =
     null | undefined |
-    'basic' |
+    'warning' |
+    'info' |
     'all'
 
 // Helper types

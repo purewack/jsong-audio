@@ -4,6 +4,7 @@ import nextSection from './nextSection'
 import buildSection from './buildSection'
 import getLoopCount from './getLoopCount'
 import {getNestedIndex} from './nestedIndex'
+import Logger from './logger'
 import { BarsBeatsSixteenths, Time as TimeUnit } from "tone/build/esm/core/type/Units"
 import {
   now as toneNow,
@@ -24,14 +25,7 @@ parser version 0.0.3
 export default class JSONg{
 
   //Debug related - logging extra messages
-  private _verbose: VerboseLevel = undefined;
-  set verbose(level: VerboseLevel){
-    this._verbose = level;
-    if(level) console.log("[JSONg] player verbose mode, ", level);
-  }
-  get verbose(){
-    return this._verbose;
-  }
+  private log = new Logger('warning');
 
   private _meta: JSONgMetadata | null = null;
   set meta(value: JSONgMetadata){
@@ -171,9 +165,9 @@ export default class JSONg{
 
     this._metronome.envelope.attack = 0;
     this._metronome.envelope.release = 0.05;
-
-    this.verbose = verbose
-    if(this.verbose === 'all') console.log("[JSONg] New ", this);
+    
+    this.log.level = verbose;
+    this.log.info("[JSONg] New ", this);
     this.state = null;
   }
 
@@ -195,21 +189,21 @@ public parse(path: string): Promise<void> {
       manifest = JSON.parse(manifestString)
     }
     catch(error){
-      console.error('[parse][json] Early parse error', error)
+      this.log.error(new Error('[parse][json] Early parse error'))
       reject('JSON parse', error)
       return
     }
     
     //quit if the provided json is not associated with JSONg audio
     if(manifest?.type !== 'jsong') {
-      console.error('[parse][json] Invalid manifest file reject')
+      this.log.error(new Error('[parse][json] Invalid manifest file reject'))
       reject('manifest','Invalid manifest file')
       return
     }
 
     //quit if there are no audio files to load
     if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
-      console.error('[parse][json] No sources specified')
+      this.log.error(new Error('[parse][json] No sources specified'))
       reject('manifest','No sources specified')
       return
     }
@@ -247,7 +241,7 @@ public parse(path: string): Promise<void> {
   
     //spawn tracks
     this.trackPlayers = []
-    if(this.verbose === 'all') console.log('[parse][tracks]',this.tracksList)
+    this.log.info('[parse][tracks]',this.tracksList)
     for(const track of this.tracksList){
       const source = track.source ? track.source : track.name;
       const v = track?.volumeDB || 0
@@ -284,11 +278,11 @@ public parse(path: string): Promise<void> {
 
     //Load media
     try{
-      this.sourceBuffers = await loadBuffers(manifest, this.verbose);
+      this.sourceBuffers = await loadBuffers(manifest);
     }
     catch(error){
       this.state = null;
-      if(this.verbose) console.error('[parse][sources] error fetching data', error)
+      this.log.error(new Error('[parse][sources] error fetching data'))
       reject('sources', error)
       return;
     }
@@ -315,10 +309,8 @@ public parse(path: string): Promise<void> {
     })
 
     this.state = 'stopped';
-    if(this.verbose === 'all') {
-      console.log("[parse] end ",this)
-      resolve();
-    }
+    this.log.info("[parse] end ",this)
+    resolve();
   })
 }
   
@@ -412,7 +404,7 @@ public parse(path: string): Promise<void> {
         const note = this.playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
         if(!note) return
         this.meterBeat = (this.meterBeat + 1) % (Transport.timeSignature as number)
-        if(this.playbackInfo.metronome && this.verbose){
+        if(this.playbackInfo.metronome && this.log.level){
           try{
             this._metronome.triggerAttackRelease(note,'64n',t);
           }
@@ -422,10 +414,10 @@ public parse(path: string): Promise<void> {
       Transport.position = '0:0:0'
 
       Transport.start()
-      if(this.verbose === 'basic') console.log("[play] player starting")  
+      this.log.info("[play] player starting")  
     }
     else if(this.state === 'playing'){
-      if(this.verbose === 'basic') console.log("[play] player next", from)  
+      this.log.info("[play] player next", from)  
       this._advanceSection(from, skip, undefined, ()=>{
         resolve(from as PlayerSectionIndex)
       })
@@ -471,7 +463,7 @@ public parse(path: string): Promise<void> {
             p.b.stop(t);
             p.current = p.a
         }catch(error){
-          if(this.verbose === 'basic') console.log('[stop] Empty track stopping ',this.tracksList[i]);
+          this.log.info('[stop] Empty track stopping ',this.tracksList[i]);
         }
       })
       Draw.schedule(() => {
@@ -480,7 +472,7 @@ public parse(path: string): Promise<void> {
         this._sectionLastLaunchTime = undefined
       },toneNow()) 
       this.state = 'stopped'
-      if(this.verbose === 'basic') console.log("[stop] player stopped")
+      this.log.info("[stop] player stopped")
     }
     if(after)
       Transport.scheduleOnce(stopping,when)
