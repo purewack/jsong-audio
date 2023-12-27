@@ -15,14 +15,14 @@ export default class Logger {
   }
 
   warning(...message: any) {
-    if(!this.level) return false;
-    if (this.VERBOSE_LEVELS[this.level] < this.VERBOSE_LEVELS['warning']) return false;
-    console.warn(message);
+    if(!this.level) return;
+    if (this.VERBOSE_LEVELS[this.level] < this.VERBOSE_LEVELS['warning']) return ;
+    console.warn(...message);
   }
   
   info(...message: any) {
-    if(!this.level) return false;
-    if (this.VERBOSE_LEVELS[this.level] < this.VERBOSE_LEVELS['info']) return false;
-    console.info(message);
+    if(!this.level) return ;
+    if (this.VERBOSE_LEVELS[this.level] < this.VERBOSE_LEVELS['info']) return ;
+    console.info(...message);
   }
 }
