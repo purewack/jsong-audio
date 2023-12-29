@@ -174,8 +174,12 @@ Example entry:
 ```
 {
     "lnkwgpyh" : "./bass.mp3",
+    "lnkwgpyo" : "drum.mp3",
     "lnkwgpyw" : "data:audio/wav;base64,UklGRi..."
 }
 ```
-> `"bufferID" : URL` - key is the unique buffer ID and value is either a URL or an encoded URI of an audio file
-
+> `"bufferID" : URL` - key is the unique buffer ID and value is either a URL or an encoded URI of an audio file.
+* Paths prepended with `./` are relative paths to the manifest file, for the internal `fetch()` function, a baseURL is prepended in the form of the relative path to the manifest.
+* Paths with no prefix but not a `data` URI are treated as paths to the `public/` dir. 
+* You can also specify an absolute URL to a completely external source.
+ 

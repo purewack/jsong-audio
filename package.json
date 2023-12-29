@@ -20,6 +20,6 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest tests --verbose --onlyChanged"
+    "test": "jest tests --watch --verbose"
   }
 }

@@ -15,7 +15,9 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
-import { loadBuffers } from './JSONgBuffers'
+import { loadBuffers } from './JSONg.buffers'
+import { isManifestValid, fetchManifest, findManifestURLInFolder } from './JSONg.parse'
+import { getPathFilenameFromURL } from './JSONg.path'
 
 /* 
 parser version 0.0.3
@@ -174,144 +176,115 @@ export default class JSONg{
 //==================Loader============
 
 
-
-
-
-public parse(path: string): Promise<void> {
-  return new Promise(async (resolve: () =>void, reject: (reason: string, detail?: any)=>void)=>{
+public async parse(file: string | JSONgManifestFile): Promise<void> {
   
-    const manifestResponse = await fetch(path);  
-    const manifestString = await manifestResponse.text();
+  const [manifest,baseURL,filename] = await fetchManifest(file);
 
-    //check if manifest file is ok
-    let manifest: JSONgManifestFile;
-    try {
-      manifest = JSON.parse(manifestString)
-    }
-    catch(error){
-      this.log.error(new Error('[parse][json] Early parse error'))
-      reject('JSON parse', error)
-      return
-    }
+  if(!isManifestValid(manifest)) {
+    return Promise.reject(new Error('[parse][manifest] invalid manifest'));
+  }
+
+  const manifestSourcePaths = getManifestSourceURLs(manifest, baseURL);
+
+  // begin parse after confirming that manifest is ok
+  this.state = 'parsing';
+
+  //transfer key information from manifest to player
+  this.playingNow = null;
+  this.meta = {...manifest.meta as JSONgMetadata};
+  this.playbackInfo = {
+    bpm: manifest.playback.bpm,
+    meter: manifest.playback.meter,
+    grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
+    metronome: manifest.playback?.metronome || ["B5","G4"],
+    metronomeDB: manifest.playback?.metronomeDB || -6,
+  }
+  this.tracksList = [...manifest.tracks]
+  this.playbackFlow = [...manifest.playback.flow]
+  this.playbackMap = {...manifest.playback.map}
+  this.sectionsFlowMap = buildSection(this.playbackFlow)
+
+
+  //meter, bpm and transport setup
+  this._meterBeat = 0
+  this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
+  Transport.position = '0:0:0'
+  Transport.bpm.value = this.playbackInfo.bpm
+  Transport.timeSignature = this.playbackInfo.meter
+
+
+
+
+  //spawn tracks
+  this.trackPlayers = []
+  this.log.info('[parse][tracks]',this.tracksList)
+  for(const track of this.tracksList){
+    const source = track.source ? track.source : track.name;
+    const v = track?.volumeDB || 0
+
+    const a = new Player()
+    const b = new Player()
+    a.volume.value = v
+    b.volume.value = v
+
+    const filter = new Filter(20000, "lowpass").toDestination()
+    filter.set({'Q': track?.filter?.resonance 
+        ? track.filter.resonance 
+        : (this.playbackInfo?.filter?.resonance 
+          ? this.playbackInfo?.filter?.resonance 
+          : 1
+      )}) 
+    filter.set({'rolloff': (
+      track?.filter?.rolloff 
+        ? track.filter.rolloff 
+        : (this.playbackInfo?.filter?.rolloff 
+          ? this.playbackInfo?.filter?.rolloff 
+          : -12
+        )  
+    ) as FilterRollOff})
+
+    a.connect(filter)
+    b.connect(filter)
+
+    this.trackPlayers.push({
+      name: track.name, source, a,b, current: a, filter, volumeLimit: v
+    })
+  }
+
+
+  //Load media
+  try{
+    this.sourceBuffers = await loadBuffers(manifestSourcePaths);
     
-    //quit if the provided json is not associated with JSONg audio
-    if(manifest?.type !== 'jsong') {
-      this.log.error(new Error('[parse][json] Invalid manifest file reject'))
-      reject('manifest','Invalid manifest file')
-      return
-    }
-
-    //quit if there are no audio files to load
-    if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
-      this.log.error(new Error('[parse][json] No sources specified'))
-      reject('manifest','No sources specified')
-      return
-    }
-    
-    
-    // begin parse after confirming that manifest is ok
-    this.state = 'parsing';
-
-
-    //transfer key information from manifest to player
-    this.playingNow = null;
-    this.meta = {...manifest.meta as JSONgMetadata};
-    this.playbackInfo = {
-      bpm: manifest.playback.bpm,
-      meter: manifest.playback.meter,
-      grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
-      metronome: manifest.playback?.metronome || ["B5","G4"],
-      metronomeDB: manifest.playback?.metronomeDB || -6,
-    }
-    this.tracksList = [...manifest.tracks]
-    this.playbackFlow = [...manifest.playback.flow]
-    this.playbackMap = {...manifest.playback.map}
-    this.sectionsFlowMap = buildSection(this.playbackFlow)
- 
-
-    //meter, bpm and transport setup
-    this._meterBeat = 0
-    this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
-    Transport.position = '0:0:0'
-    Transport.bpm.value = this.playbackInfo.bpm
-    Transport.timeSignature = this.playbackInfo.meter
-
-
-
-  
-    //spawn tracks
-    this.trackPlayers = []
-    this.log.info('[parse][tracks]',this.tracksList)
-    for(const track of this.tracksList){
-      const source = track.source ? track.source : track.name;
-      const v = track?.volumeDB || 0
-
-      const a = new Player()
-      const b = new Player()
-      a.volume.value = v
-      b.volume.value = v
-
-      const filter = new Filter(20000, "lowpass").toDestination()
-      filter.set({'Q': track?.filter?.resonance 
-          ? track.filter.resonance 
-          : (this.playbackInfo?.filter?.resonance 
-            ? this.playbackInfo?.filter?.resonance 
-            : 1
-        )}) 
-      filter.set({'rolloff': (
-        track?.filter?.rolloff 
-          ? track.filter.rolloff 
-          : (this.playbackInfo?.filter?.rolloff 
-            ? this.playbackInfo?.filter?.rolloff 
-            : -12
-          )  
-      ) as FilterRollOff})
-
-      a.connect(filter)
-      b.connect(filter)
-
-      this.trackPlayers.push({
-        name: track.name, source, a,b, current: a, filter, volumeLimit: v
-      })
-    }
-
-
-    //Load media
-    try{
-      this.sourceBuffers = await loadBuffers(manifest);
-    }
-    catch(error){
-      this.state = null;
-      this.log.error(new Error('[parse][sources] error fetching data'))
-      reject('sources', error)
-      return;
-    }
-
-
     this.stop(0);
-
-    //audio reset if parsing on parsed player
-    // if(this.state){
-      // Transport.cancel()
-      // this.trackPlayers.forEach((t)=>{
-      //   t.a.stop();
-      //   t.b.stop();
-      //   t.a.dispose()
-      //   t.b.dispose()
-      // })
-      // if(this.verbose) console.log('[parse][sources] Audio reset')
-    // }
 
     //assign buffers to players
     this.trackPlayers.forEach((track,i)=>{
       track.a.buffer = this.sourceBuffers[track.source] as ToneAudioBuffer
       track.b.buffer = track.a.buffer
     })
+  }
+  catch(error){
+    this.state = null;
+    this.log.error(new Error('[parse][sources] error fetching data'))
+    return Promise.reject('sources')
+  }
 
-    this.state = 'stopped';
-    this.log.info("[parse] end ",this)
-    resolve();
-  })
+  //audio reset if parsing on parsed player
+  // if(this.state){
+    // Transport.cancel()
+    // this.trackPlayers.forEach((t)=>{
+    //   t.a.stop();
+    //   t.b.stop();
+    //   t.a.dispose()
+    //   t.b.dispose()
+    // })
+    // if(this.verbose) console.log('[parse][sources] Audio reset')
+  // }
+
+  this.state = 'stopped';
+  this.log.info("[parse] end ",this)
+  return Promise.resolve();
 }
   
 
@@ -344,12 +317,14 @@ public parse(path: string): Promise<void> {
 
 //================Controls===========
 
-//Main method used to play a song and continue interaction after initial playback,
-//You may play [from] any section or from the beginning,
-//if [skip] if is provided then the flow section rules do not apply,
-//an optional [fadein] time may be provided which takes effect only during a start from a stopped state.
-//After the first call from stopped state, the player is put into a playing state.
-
+/**
+ * Main method used to play a song and continue interaction after initial playback.
+ * After the first call from stopped state, the player is put into a playing state.
+ * @param from - You may play [from] any section or from the beginning
+ * @param skip - if [skip] if is provided then the flow section rules do not apply,
+ * @param fadein -an optional [fadein] time may be provided which takes effect only during a start from a stopped state.
+ * @returns 
+ */
   public play(
     from: PlayerSectionIndex | null = null, 
     skip: (boolean | string) = false,

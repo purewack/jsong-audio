@@ -1,6 +1,6 @@
 import { ToneAudioBuffer } from 'tone';
-import {formatURL, loadBuffers, makeBaseURL} from '../src/JSONgBuffers'
-import '../src/types.d.ts'
+import {loadBuffers} from '../src/JSONg.buffers.ts'
+import '../src/types'
 
 jest.mock('tone', () => ({
     ToneAudioBuffer: jest.fn(),
@@ -13,19 +13,6 @@ const mockWindow = {
 };
 (global as any).window = mockWindow;
   
-test('format URI', ()=>{ 
-    expect(formatURL('./test')).toBe('test');  
-    expect(formatURL('/test')).toBe('test');  
-    expect(formatURL('other/test')).toBe('other/test');
-    expect(formatURL('/other/test')).toBe('other/test');   
-    expect(formatURL('./other/test')).toBe('other/test');   
-})
-
-test('base URL resolution', ()=>{
-    expect(makeBaseURL()).toBe('http://test.com')
-    expect(makeBaseURL('songs/test')).toBe('http://test.com/songs/test')
-})
-
 describe('ToneAudioBuffer mock', () => {
 
     test('should load audio files successfully', async () => {
