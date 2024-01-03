@@ -1,3 +1,8 @@
+/**
+ * Automatically construct a base url for other links in this context
+ * @param url path to a folder or a file
+ * @return full URL
+ */
 export function prependURL(url: string): URL{
   try{ //check for url validity
     const u = new URL(url);
@@ -8,6 +13,11 @@ export function prependURL(url: string): URL{
   }
 }
 
+/**
+ * Determine if the URL is pointing to a folder or a specific file
+ * @param url to a folder or a file
+ * @returns [URL, 'folder' | 'file]
+ */
 export function rebuildURL(url: string){
   //file
   if(url.endsWith('.jsong') || url.endsWith('json')){
@@ -18,6 +28,13 @@ export function rebuildURL(url: string){
   return [prependURL(url), 'folder'];
 }
 
+
+/**
+ * Split the provided URL into a path to the containing folder
+ * and the filename of the manifest file
+ * @param url path to file
+ * @returns [URL of folder, filename] 
+ */
 export function splitPathFilenameFromURL(url: string) {
   
   let _url = prependURL(url);
@@ -31,6 +48,11 @@ export function splitPathFilenameFromURL(url: string) {
   return [path, filename] as const;
 }
 
+/**
+ * check if the provided URL points to a real file that exists
+ * @param path to file to be checked
+ * @returns boolean promise
+ */
 export async function fileExistsURL(path: string){
   try{
     const resp = await fetch(path, {method: 'HEAD'});
@@ -40,13 +62,3 @@ export async function fileExistsURL(path: string){
     return {exists:false, path};
   }
 }
-
-// export function preConditionURL(uri:URLString | DataURIString) : URLString {
-//   if(uri.startsWith('./')) return uri.substring(2);
-//   else if(uri.startsWith('/')) return uri.substring(1);
-//   return uri 
-// }
-
-// export function originURL(url?: string){
-//   return url ? window.location.origin + '/' + (url) :  window.location.origin
-// }

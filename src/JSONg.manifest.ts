@@ -1,6 +1,11 @@
 import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.paths";
 import Logger from "./logger";
 
+/**
+ * Brief check for the data type of the parsed JSON
+ * @param manifest JSONg formatted object
+ * @returns boolean
+ */
 export function isManifestValid(manifest: JSONgManifestFile){
   //quit if the provided json is not associated with JSONg audio
   if(manifest?.type !== 'jsong') {
@@ -15,6 +20,11 @@ export function isManifestValid(manifest: JSONgManifestFile){
   return true
 }
 
+/**
+ * Automatically try to find a manifest file in a provided folder link
+ * @param path a URL to a folder
+ * @returns filename found inside the provided folder
+ */
 export async function findManifestURLInFolder(path: string): Promise<string>{
   return new Promise(async (resolve, reject)=>{
     const _path = !path.endsWith('/') ? path + '/' : path;
@@ -41,7 +51,13 @@ export async function findManifestURLInFolder(path: string): Promise<string>{
   })
 }
 
-export default async function fetchManifest(file: string | JSONgManifestFile, logger?: Logger): Promise<[JSONgManifestFile, string, string]>{
+
+/**
+ * Actual fetch function to get the manifest file from the provided path / object
+ * @param file either a link to a manifest file or a JSONg formatted object
+ * @returns [JSONg manifest, URL of the containing folder, manifest filename]
+ */
+export default async function fetchManifest(file: string | JSONgManifestFile): Promise<[JSONgManifestFile, string, string]>{
   let manifest: JSONgManifestFile;
   let baseURL: string = '';
   let filename: string = '';
