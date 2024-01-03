@@ -1,6 +1,5 @@
 import '../src/types.d'
-import { fetchManifest } from '../src/JSONg.parse';
-import { fileExistsURL } from '../src/JSONg.path';
+import { fetchManifest, findManifestURLInFolder } from '../src/JSONg.parse';
 
 describe('JSONg parsing', () => {
   const jsong: JSONgManifestFile = {
@@ -31,34 +30,87 @@ describe('JSONg parsing', () => {
       },
     },
     tracks: [],
-    sources: {},
+    sources: {
+      'bass': './bass.mp3',
+      'drum': 'drums.mp3',
+      'guitar': 'data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=='
+    },
   };
 
-  test('should parse a valid JSONg and fall through as object was passed', async () => {
-    const [manifest, url, file] = await fetchManifest(jsong)
-    expect(manifest).toEqual(jsong);
-  });
+  describe('success conditions',()=>{
 
+    (global as any).window = {
+      location: {
+          origin: 'http://test.com',
+      },
+    };
 
-  describe('direct file path',()=>{ 
-    test('fetch song/audio.jsong',async ()=>{
-      const spy = jest.spyOn(global, 'fetch').mockImplementationOnce(()=>{
-        return Promise.resolve({
-        json: ()=>Promise.resolve({
-          type: 'jsong',
-          jsongVersion: '0.0.3',
-          meta: {
-            title: 'My JSONg Project',
-            author: 'John Doe',
-            createdOn: 1589465600000,
-            timestamp: 1589465600000,
-            projectVersion: '1.0.0',
-            createdUsing: 'JSONg Studio 1.0.0',
-          }
-        })
-       } as Response)
-      })
+    test('direct object inject',async ()=>{
+      const obj = {type: 'jsong',
+      jsongVersion: '0.0.3',
+      meta: {
+        title: 'My JSONg Project',
+      }}
+
+      const [result, baseURL] = await fetchManifest(obj as JSONgManifestFile);
+      expect(result).toEqual(obj);
+      expect(baseURL).toBe('http://test.com/');
+    })
+      
+    test('auto find manifest in folder "test"',async ()=>{
+      const spy = jest.spyOn(global, 'fetch').mockImplementation(
+        (url: RequestInfo | URL)=>{
+          const ok = {status: 200} as Response
+          const fail = {status: 404} as Response
+          return Promise.resolve(url.toString().includes('test/audio.jsong') ? ok : fail)
+        }
+      )
+
+      const result = await findManifestURLInFolder('test');
+      expect(result).toBe('audio.jsong');
+    })
+
+    test('parse a valid JSONg and fall through as object was passed', async () => {
       const [manifest, url, file] = await fetchManifest(jsong)
+      expect(manifest).toEqual(jsong);
+      // expect(url).toBe('http://test.com');
+    });
+
+    test('fetch "song/other.jsong"',async ()=>{
+      const spy = jest.spyOn(global, 'fetch').mockImplementation(()=>{
+        return Promise.resolve({
+          json: ()=>Promise.resolve({
+            ...jsong
+          })
+        } as Response)
+      })
+      
+      const [manifest, url, file] = await fetchManifest('song/other.jsong')
+      
+      expect(spy).toHaveBeenCalled();
+      expect(manifest).toEqual(jsong);
+      expect(url).toEqual('http://test.com/song/');
+      expect(file).toEqual('other.jsong');
+    })
+
+    test('fetch from "song"',async ()=>{
+      const spy = jest.spyOn(global, 'fetch').mockImplementation((url, options)=>{
+        if(url.toString().includes('auto/audio.jsong')){
+          return Promise.resolve({
+            status: 200,
+            json: ()=>Promise.resolve({
+              ...jsong
+            })
+          } as Response)
+        }
+        return Promise.resolve({status: 404} as Response)
+      })
+      
+      const [manifest, url, file] = await fetchManifest('auto')
+      
+      expect(spy).toHaveBeenCalled();
+      expect(url).toEqual('http://test.com/auto/');
+      expect(file).toEqual('audio.jsong');
       expect(manifest).toEqual(jsong);
     })
   })

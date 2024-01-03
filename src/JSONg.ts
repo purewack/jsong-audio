@@ -17,7 +17,7 @@ import {
 } from 'tone';
 import { loadBuffers } from './JSONg.buffers'
 import { isManifestValid, fetchManifest, findManifestURLInFolder } from './JSONg.parse'
-import { getPathFilenameFromURL } from './JSONg.path'
+import { splitPathFilenameFromURL } from './JSONg.path'
 
 /* 
 parser version 0.0.3

@@ -69,6 +69,28 @@ end
 	use--"fail"-->throw
 ```
 
+# Check Path
+```mermaid
+graph
+	start("start(url)")-->url[[URL string]]
+	url-->jsong{".jsong?"}
+	jsong--"yes"-->endFile
+	
+	jsong--"no"-->json{".json?"}
+	json--"yes"-->endFile[found file]
+	json--"no"-->folder{"ends in / ?"}
+	
+	folder--"yes"-->endFolder[found folder]
+	folder--"no"-->append["append /"]-->endFolder
+
+	endFolder & endFile -->preCheck
+	preCheck{"absolute URL?"};
+	
+	preCheck--"no"-->prepend["prepend base URL"]
+	prepend-->done;
+	preCheck--"yes"-->done(done)
+```
+
 # Player ready states
 ```mermaid
 graph

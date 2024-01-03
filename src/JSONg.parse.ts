@@ -1,4 +1,4 @@
-import { fileExistsURL, getPathFilenameFromURL } from "./JSONg.path";
+import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.path";
 import Logger from "./logger";
 
 export function isManifestValid(manifest: JSONgManifestFile){
@@ -16,20 +16,28 @@ export function isManifestValid(manifest: JSONgManifestFile){
 }
 
 export async function findManifestURLInFolder(path: string): Promise<string>{
-  return new Promise((resolve, reject)=>{
+  return new Promise(async (resolve, reject)=>{
     const _path = !path.endsWith('/') ? path + '/' : path;
-    const expected = ['manifest.jsong','audio.jsong','manifest.json','audio.json']
-     let found = false;
-    expected.forEach(async url => {
-      try{
-        if(await fileExistsURL(_path + url))
-        found = true;
-        resolve(url);
+    const expected = [
+      'manifest.jsong',
+      'manifest.json',
+      'audio.jsong',
+      'audio.json',
+      'song.jsong',
+      'song.json'
+    ]
+    
+    const promises = expected.map(async (file) => {
+      if ((await fileExistsURL(_path + file)).exists) {
+        resolve(file); // Resolve with the first valid link
       }
-      catch{}
-    })
+    });
 
-    if(!found) reject();
+    // Wait for all promises to settle
+    await Promise.all(promises);
+
+    // If no valid links were found, reject
+    reject(new Error("No match for auto manifest search"));
   })
 }
 
@@ -38,44 +46,37 @@ export async function fetchManifest(file: string | JSONgManifestFile, logger?: L
   let baseURL: string = '';
   let filename: string = '';
 
-  if(typeof file === 'string') {
-    try{
-      let [_url, _file] = getPathFilenameFromURL(file);
-      
-      //folder
-      if(_file === '' && _url.endsWith('/')){
-        try{
-          const autoManifestFilename = await findManifestURLInFolder(_url);
-          [baseURL, filename] = getPathFilenameFromURL(autoManifestFilename);
-        }
-        catch{
-          logger?.error(new Error('could not automatically find .jsong in the URL'));
-          return Promise.reject('no match')
-        }
-      }
-      //file
-      else{
-        baseURL = _url;
-        filename = _file;
-        if(!(await fileExistsURL(baseURL + filename))) throw new Error('no such file');  
-      }
-
-      try {
-        const manifestFile = await fetch(baseURL + filename);
-        manifest = await manifestFile.json();
-      }
-      catch(error){
-        throw error;
-      }
-    }
-    catch{
-      throw new Error('[parse][json] parsing error');
-    }
-  }
-  //direct manifest object
-  else {
-    manifest = {...file};
+  if(typeof file !== 'string') {
+    //direct manifest object   
+    return [{...file} , (prependURL('').toString()), filename];
   }  
-  
+    
+  try{
+    const [_url, type] = rebuildURL(file);
+    const url = (_url as URL).href;
+
+    if(type === 'folder'){
+      try{
+        const autoManifestFilename = await findManifestURLInFolder(url);
+        baseURL = url
+        filename = autoManifestFilename 
+      }
+      catch{
+        return Promise.reject('No match in folder')
+      }
+    }   
+    else {
+      //file      
+      [baseURL, filename] = splitPathFilenameFromURL(url);
+      if(!(await fileExistsURL(baseURL + filename)).exists) throw new Error('no such file');  
+    }   
+
+    const manifestFile = await fetch(baseURL + filename);
+    manifest = await manifestFile.json();
+  }
+  catch{
+    return Promise.reject('Parsing error');
+  }
+
   return [manifest , baseURL, filename];
 }
