@@ -82,7 +82,7 @@ describe('JSONg parsing', () => {
       expect(file).toEqual('other.jsong');
     })
 
-    test('fetch from "song"',async ()=>{
+    test('fetch from "auto"',async ()=>{
       const spy = jest.spyOn(global, 'fetch').mockImplementation((url, options)=>{
         if(url.toString().includes('auto/audio.jsong')){
           return Promise.resolve({
@@ -99,6 +99,28 @@ describe('JSONg parsing', () => {
       
       expect(spy).toHaveBeenCalled();
       expect(url).toEqual('http://test.com/auto/');
+      expect(file).toEqual('audio.jsong');
+      expect(manifest).toEqual(jsong);
+    })
+
+
+    test('fetch external folder - "http://music.com/auto"',async ()=>{
+      const spy = jest.spyOn(global, 'fetch').mockImplementation((url, options)=>{
+        if(url.toString().includes('auto/audio.jsong')){
+          return Promise.resolve({
+            status: 200,
+            json: ()=>Promise.resolve({
+              ...jsong
+            })
+          } as Response)
+        }
+        return Promise.resolve({status: 404} as Response)
+      })
+      
+      const [manifest, url, file] = await fetchManifest('http://music.com/auto')
+      
+      expect(spy).toHaveBeenCalled();
+      expect(url).toEqual('http://music.com/auto/');
       expect(file).toEqual('audio.jsong');
       expect(manifest).toEqual(jsong);
     })

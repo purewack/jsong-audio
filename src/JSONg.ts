@@ -183,7 +183,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     return Promise.reject(new Error('parsing invalid manifest'));
   }
 
-  const manifestSourcePaths = fetchSourcePaths(manifest, baseURL);
+  const manifestSourcePaths = await fetchSourcePaths(manifest, baseURL);
 
   // begin parse after confirming that manifest is ok
   // and sources paths are ok

@@ -14,11 +14,11 @@ graph
 	new(load new)
 	empty((empty))
 	parse((parsing))
-	empty-.->new
+	empty-."parse()".->new
 	new-->parse-->checkNew{is loadable}
 	checkNew--"yes"-->stopForParse[force stop]-->parseStop((stopped))
 	checkNew--"no"-->checkLoaded
-	checkLoaded{had song?}--"yes"-->currentState-.->new
+	checkLoaded{had song?}--"yes"-->currentState-."parse()".->new
 	checkLoaded--"no"-->empty
 
 ```

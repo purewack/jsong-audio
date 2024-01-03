@@ -100,6 +100,19 @@ describe('link resolution',()=>{
         })
     })
 
+    test('resolve external link', async ()=>{
+        const baseURL = 'http://test.com/song'
+        const manifest = {
+            sources: {
+                'a': 'http://music.com/a.mp3',
+            }
+        } as Partial<JSONgManifestFile>
+
+        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        expect(res).toEqual({
+            'a': 'http://music.com/a.mp3',
+        })
+    })
     
 })
 

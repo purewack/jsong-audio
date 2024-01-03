@@ -19,7 +19,7 @@
 "type": "jsong",
 "jsongVersion":"0.0.1",
 ```
-> File type and version indentifier
+> File type and version identifier
 
 # Metadata Information
 
@@ -30,6 +30,7 @@
 }
 ```
 
+*Example definition*
 ```
   "meta": {
     "title": "Test",
@@ -53,6 +54,7 @@
 }
 ```
 
+*Example definition*
 ```
 "playback" : {
     "bpm": 95.0,
@@ -82,15 +84,17 @@
 
 ## Map
 
-*Location in file*
-```
-{
+
+ *Location in file*
+ ```
+  {
     "playback": {
         "map": {...}
     }
 }
 ```
 
+*Example definition*
 ```
 "map": {
     "intro" : { "region": [0, 8]},
@@ -124,6 +128,8 @@ This property can also be an object with specific definition of which tracks sho
     }
 }
 ```
+
+*Example definition*
 ```
 "flow": [
     "intro", 
@@ -170,7 +176,7 @@ This property can also be an object with specific definition of which tracks sho
 }
 ```
 
-Example entry:
+*Example definition*
 ```
 {
     "lnkwgpyh" : "./bass.mp3",
