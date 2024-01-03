@@ -15,7 +15,7 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
-import fetchSources from './JSONg.sources'
+import fetchSources, { fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 
 /* 
@@ -180,12 +180,13 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   const [manifest,baseURL,filename] = await fetchManifest(file);
 
   if(!isManifestValid(manifest)) {
-    return Promise.reject(new Error('[parse][manifest] invalid manifest'));
+    return Promise.reject(new Error('parsing invalid manifest'));
   }
 
   const manifestSourcePaths = fetchSourcePaths(manifest, baseURL);
 
   // begin parse after confirming that manifest is ok
+  // and sources paths are ok
   this.state = 'parsing';
 
   //transfer key information from manifest to player
