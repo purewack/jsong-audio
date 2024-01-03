@@ -1,8 +1,8 @@
 import { ToneAudioBuffer } from "tone";
-import { makeBaseURL, preConditionURL } from "./JSONg.path";
+import { rebuildURL, prependURL } from "./JSONg.paths";
 import Logger from "./logger";
 
-export function loadBuffers(manifest: JSONgManifestFile, logger?: Logger)
+export default function fetchSources(manifest: JSONgManifestFile, logger?: Logger)
 : Promise<PlayerBuffers>
 {
   return new Promise(async (resolve,reject)=>{
@@ -17,11 +17,11 @@ export function loadBuffers(manifest: JSONgManifestFile, logger?: Logger)
     for(const src_id of src_keys){
       const buffer = new ToneAudioBuffer();
 
-      const url = preConditionURL(manifest.sources[src_id]);
+      // const url = preConditionURL(manifest.sources[src_id]);
 
-      if(url.startsWith('data')) ToneAudioBuffer.baseUrl = ''
-      else ToneAudioBuffer.baseUrl = makeBaseURL(manifest.baseURL);
-      loadPromises.push(buffer.load(url));
+      // if(url.startsWith('data')) ToneAudioBuffer.baseUrl = ''
+      // else ToneAudioBuffer.baseUrl = makeBaseURL(manifest.baseURL);
+      // loadPromises.push(buffer.load(url));
 
       logger?.info('[parse][sources] adding',src_id);
     }

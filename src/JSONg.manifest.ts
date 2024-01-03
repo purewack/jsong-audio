@@ -1,4 +1,4 @@
-import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.path";
+import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.paths";
 import Logger from "./logger";
 
 export function isManifestValid(manifest: JSONgManifestFile){
@@ -41,13 +41,14 @@ export async function findManifestURLInFolder(path: string): Promise<string>{
   })
 }
 
-export async function fetchManifest(file: string | JSONgManifestFile, logger?: Logger): Promise<[JSONgManifestFile, string, string]>{
+export default async function fetchManifest(file: string | JSONgManifestFile, logger?: Logger): Promise<[JSONgManifestFile, string, string]>{
   let manifest: JSONgManifestFile;
   let baseURL: string = '';
   let filename: string = '';
 
   if(typeof file !== 'string') {
     //direct manifest object   
+  if(!isManifestValid(file)) return Promise.reject('Invalid manifest');
     return [{...file} , (prependURL('').toString()), filename];
   }  
     
@@ -77,6 +78,8 @@ export async function fetchManifest(file: string | JSONgManifestFile, logger?: L
   catch{
     return Promise.reject('Parsing error');
   }
+
+  if(!isManifestValid(manifest)) return Promise.reject('Invalid manifest');
 
   return [manifest , baseURL, filename];
 }

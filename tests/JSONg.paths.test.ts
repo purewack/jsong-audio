@@ -1,4 +1,4 @@
-import {fileExistsURL, splitPathFilenameFromURL} from '../src/JSONg.path'
+import {fileExistsURL, splitPathFilenameFromURL} from '../src/JSONg.paths'
 
 const mockWindow = {
     location: {

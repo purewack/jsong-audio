@@ -1,5 +1,5 @@
 import '../src/types.d'
-import { fetchManifest, findManifestURLInFolder } from '../src/JSONg.parse';
+import fetchManifest, { findManifestURLInFolder } from '../src/JSONg.manifest';
 
 describe('JSONg parsing', () => {
   const jsong: JSONgManifestFile = {
@@ -45,18 +45,12 @@ describe('JSONg parsing', () => {
       },
     };
 
-    test('direct object inject',async ()=>{
-      const obj = {type: 'jsong',
-      jsongVersion: '0.0.3',
-      meta: {
-        title: 'My JSONg Project',
-      }}
-
-      const [result, baseURL] = await fetchManifest(obj as JSONgManifestFile);
-      expect(result).toEqual(obj);
-      expect(baseURL).toBe('http://test.com/');
-    })
-      
+    test('parse a valid JSONg and fall through as object was passed', async () => {
+      const [manifest, url, file] = await fetchManifest(jsong)
+      expect(manifest).toEqual(jsong);
+      expect(url).toBe('http://test.com/');
+    });
+    
     test('auto find manifest in folder "test"',async ()=>{
       const spy = jest.spyOn(global, 'fetch').mockImplementation(
         (url: RequestInfo | URL)=>{
@@ -70,11 +64,6 @@ describe('JSONg parsing', () => {
       expect(result).toBe('audio.jsong');
     })
 
-    test('parse a valid JSONg and fall through as object was passed', async () => {
-      const [manifest, url, file] = await fetchManifest(jsong)
-      expect(manifest).toEqual(jsong);
-      // expect(url).toBe('http://test.com');
-    });
 
     test('fetch "song/other.jsong"',async ()=>{
       const spy = jest.spyOn(global, 'fetch').mockImplementation(()=>{
@@ -113,5 +102,30 @@ describe('JSONg parsing', () => {
       expect(file).toEqual('audio.jsong');
       expect(manifest).toEqual(jsong);
     })
+  })
+
+  describe('fail conditions - invalid manifest', ()=>{ 
+    const wrongJsong = {
+      //type: 'jsong' - missing
+      jsongVersion: '0.0.3',
+      meta: {
+        title: 'My JSONg Project',
+    }}
+
+    test('parse a invalid JSONg object',async ()=>{
+      return await fetchManifest(wrongJsong as JSONgManifestFile).catch(er => expect(er).toMatch('Invalid manifest'))
+    })
+  
+    test('auto find manifest in folder "test"',async ()=>{
+      const spy = jest.spyOn(global, 'fetch').mockImplementation(
+        (url: RequestInfo | URL)=>{
+          const ok = {json: ()=>Promise.resolve({...wrongJsong}), status: 200} as Response
+          const fail = {status: 404} as Response
+          return Promise.resolve(url.toString().includes('test/audio.jsong') ? ok : fail)
+        }
+      )
+      return await fetchManifest('test').catch(er => expect(er).toMatch('Invalid manifest'))
+    })
+
   })
 });

@@ -15,9 +15,8 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time, ToneAudioBuffers,
 } from 'tone';
-import { loadBuffers } from './JSONg.buffers'
-import { isManifestValid, fetchManifest, findManifestURLInFolder } from './JSONg.parse'
-import { splitPathFilenameFromURL } from './JSONg.path'
+import fetchSources from './JSONg.sources'
+import fetchManifest, { isManifestValid } from './JSONg.manifest'
 
 /* 
 parser version 0.0.3
@@ -184,7 +183,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     return Promise.reject(new Error('[parse][manifest] invalid manifest'));
   }
 
-  const manifestSourcePaths = getManifestSourceURLs(manifest, baseURL);
+  const manifestSourcePaths = fetchSourcePaths(manifest, baseURL);
 
   // begin parse after confirming that manifest is ok
   this.state = 'parsing';
@@ -254,7 +253,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   //Load media
   try{
-    this.sourceBuffers = await loadBuffers(manifestSourcePaths);
+    this.sourceBuffers = await fetchSources(manifestSourcePaths);
     
     this.stop(0);
 
