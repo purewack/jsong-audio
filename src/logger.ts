@@ -1,3 +1,5 @@
+import { VerboseLevel } from "./types/player";
+
 export default class Logger {
   level: VerboseLevel;
   VERBOSE_LEVELS: { [key: string]: number } = {

@@ -1,3 +1,4 @@
+import { SectionType, NestedIndex } from './types/common';
 import { setNestedIndex, getNestedIndex } from './nestedIndex'
 
 export default function nextSection(

@@ -1,3 +1,4 @@
+import { JSONgManifestFile } from "./types/jsong";
 import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.paths";
 import Logger from "./logger";
 
@@ -88,8 +89,13 @@ export default async function fetchManifest(file: string | JSONgManifestFile): P
       if(!(await fileExistsURL(baseURL + filename)).exists) throw new Error('no such file');  
     }   
 
-    const manifestFile = await fetch(baseURL + filename);
-    manifest = await manifestFile.json();
+    try{
+      const manifestFile = await fetch(baseURL + filename);
+      manifest = await manifestFile.json();
+    }
+    catch{
+      return Promise.reject(`JSON parse error ${baseURL + filename}`);
+    }
   }
   catch{
     return Promise.reject('Parsing error');

@@ -1,3 +1,4 @@
+import { NestedValue, NestedType, NestedIndex } from "./types/common";
 
 export function setNestedIndex(
   toSet: NestedValue, 

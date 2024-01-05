@@ -1,6 +1,6 @@
 import { ToneAudioBuffer } from 'tone';
 import fetchSources, {fetchSourcePaths} from '../src/JSONg.sources'
-import '../src/types.d'
+import { JSONgManifestFile, JSONgDataSources } from '../src/types/jsong';
 
 jest.mock('tone', () => ({
     ToneAudioBuffer: jest.fn(),

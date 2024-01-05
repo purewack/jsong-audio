@@ -1,5 +1,7 @@
 import { ToneAudioBuffer } from "tone";
 import { rebuildURL, prependURL, fileExistsURL } from "./JSONg.paths";
+import { JSONgManifestFile, JSONgDataSources } from "./types/jsong";
+import { PlayerBuffers } from "./types/player";
 
 /**
  * Build full URLs to needed source files using the manifest specified files
