@@ -26,11 +26,22 @@ import fetchManifest, { isManifestValid } from './JSONg.manifest'
 parser version 0.0.3
 */
 
+declare type PlayerEvent =
+  "onSectionWillStart" | 
+  "onSectionDidStart" |
+  "onSectionWillEnd" | 
+  "onSectionDidEnd" |
+  "onSectionChange" |
+  "onSectionCancelChange" |
+  "onTransport" |
+  "onStateChange" |
+  "onSectionLoop"
+
 
 export default class JSONg{
 
   //Debug related - logging extra messages
-  private log = new Logger('warning');
+  private _log = new Logger('warning');
 
   private _meta: JSONgMetadata | null = null;
   set meta(value: JSONgMetadata){
@@ -42,10 +53,11 @@ export default class JSONg{
 
 
   //List of track involved with the song
-  private tracksList: JSONgTrack[] = [];
+  private _tracksList: JSONgTrack[] = [];
+  get tracksList(){return this._tracksList}
 
   //Audio players and sources
-  private trackPlayers:  {
+  private _trackPlayers:  {
     name: string;
     source: string;
     filter: Filter;
@@ -55,63 +67,66 @@ export default class JSONg{
     b: Player;
   }[] = []
   //Available real audio buffers
-  private sourceBuffers: PlayerBuffers = {};
+  private _sourceBuffers: PlayerBuffers = {};
 
   
   //Available sections and their natural flow with extra loop counter for internal use
-  private sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
-  
+  private _sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
+
   //Natural flow of named sections including loop counts
-  private playbackFlow: FlowValue[] = [];
+  private _playbackFlow: FlowValue[] = [];
+  get playbackFlow(){return this._playbackFlow}
 
   //Song playback details like BPM
-  private playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4]};
-  
+  private _playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4]};
+  get playbackInfo(){return this._playbackInfo}
+
   //Looping details of each section, including specific directives
-  private playbackMap: JSONgPlaybackMap = {};
+  private _playbackMap: JSONgPlaybackMap = {};
+  get playbackMap (){return this._playbackMap;}
   
   //Extraction of flow directives
-  private getPlaybackMapOverrides(key: string): [JSONgPlaybackMapType, string[]] { 
-    const k = key.split('-')
-    return [this.playbackMap[k[0]] , k]
+  public parsePlaybackMapOverrides(name: string): [JSONgPlaybackMapType, string[]] { 
+    const k = name.split('-')
+    return [this._playbackMap[k[0]] , k]
   }
 
 
   private _events = new EventTarget()
 
-  public addEventListener = (type: string, listener: (...args:any)=>void)=>{
+  public addEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
     this._events.addEventListener(type,listener);
   }
-  public removeEventListener = (type: string, listener: (...args:any)=>void)=>{
+  public removeEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
     this._events.removeEventListener(type,listener);
   }
 
   //Event handlers
-  private onSectionDidStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+  private onSectionDidStart  (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[]){
     this._events.dispatchEvent(new CustomEvent('onSectionDidStart', {detail: {index, sectionOverrides}}))
   };
-  private onSectionDidEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[])=>{
+  private onSectionDidEnd    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[]){
     this._events.dispatchEvent(new CustomEvent('onSectionDidEnd', {detail: {index, sectionOverrides}}))
   };
-  private onSectionWillStart = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths)=>{
+  private onSectionWillStart (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths){
     this._events.dispatchEvent(new CustomEvent('onSectionWillStart', {detail: {index, sectionOverrides, when}}))
   };
-  private onSectionWillEnd   = (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths)=>{
+  private onSectionWillEnd   (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths){
     this._events.dispatchEvent(new CustomEvent('onSectionWillEnd', {detail: {index, sectionOverrides, when}}))
   }; 
-  private onSectionChange = (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex)=>{
+  private onSectionChange    (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex){
     this._events.dispatchEvent(new CustomEvent('onSectionChange', {detail: {fromIndex, toIndex}}))
   };
-  private onSectionCancelChange = ()=>{
+  private onSectionCancelChange  (){
     this._events.dispatchEvent(new Event('onSectionCancelChange'))
   };
-  private onTransport = (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] )=>{
+  private onTransport  (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] ){
     this._events.dispatchEvent(new CustomEvent('onTransport', {detail: {position, loopBeatPosition}}))
   };
-  private onStateChange = (state: PlayerPlaybackState)=>{
+  private onStateChange  (state: PlayerPlaybackState){
     this._events.dispatchEvent(new CustomEvent('onStateChange', {detail: state}))
   }
-  private onSectionLoop = (loops: number, index: PlayerSectionIndex) => {
+  private onSectionLoop  (loops: number, index: PlayerSectionIndex)  {
     this._events.dispatchEvent(new CustomEvent('onSectionLoop', {detail: {loops, index: [...index]}}))
   }
   // private onSectionOverrides?:    (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
@@ -146,8 +161,8 @@ export default class JSONg{
   private _sectionLastLaunchTime?: BarsBeatsSixteenths = '0:0:0'
   private set meterBeat(v: number){
     this._meterBeat = v
-    const nowIndex = [...this.sectionsFlowMap.index] as NestedIndex
-    const nowSection = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex) as string)[0]
+    const nowIndex = [...this._sectionsFlowMap.index] as NestedIndex
+    const nowSection = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, nowIndex) as string)[0]
     const sectionLen = this._sectionLen
     const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
     const pos = Transport.position as BarsBeatsSixteenths
@@ -171,8 +186,8 @@ export default class JSONg{
     this._metronome.envelope.attack = 0;
     this._metronome.envelope.release = 0.05;
     
-    this.log.level = verbose;
-    this.log.info("[JSONg] New ", this);
+    this._log.level = verbose;
+    this._log.info("[JSONg] New ", this);
     this.state = null;
   }
 
@@ -196,33 +211,33 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   //transfer key information from manifest to player
   this.playingNow = null;
   this.meta = {...manifest.meta as JSONgMetadata};
-  this.playbackInfo = {
+  this._playbackInfo = {
     bpm: manifest.playback.bpm,
     meter: manifest.playback.meter,
     grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
     metronome: manifest.playback?.metronome || ["B5","G4"],
     metronomeDB: manifest.playback?.metronomeDB || -6,
   }
-  this.tracksList = [...manifest.tracks]
-  this.playbackFlow = [...manifest.playback.flow]
-  this.playbackMap = {...manifest.playback.map}
-  this.sectionsFlowMap = buildSection(this.playbackFlow)
+  this._tracksList = [...manifest.tracks]
+  this._playbackFlow = [...manifest.playback.flow]
+  this._playbackMap = {...manifest.playback.map}
+  this._sectionsFlowMap = buildSection(this._playbackFlow)
 
 
   //meter, bpm and transport setup
   this._meterBeat = 0
-  this._metronome.volume.value = this.playbackInfo.metronomeDB || 0;
+  this._metronome.volume.value = this._playbackInfo.metronomeDB || 0;
   Transport.position = '0:0:0'
-  Transport.bpm.value = this.playbackInfo.bpm
-  Transport.timeSignature = this.playbackInfo.meter
+  Transport.bpm.value = this._playbackInfo.bpm
+  Transport.timeSignature = this._playbackInfo.meter
 
 
 
 
   //spawn tracks
-  this.trackPlayers = []
-  this.log.info('[parse][tracks]',this.tracksList)
-  for(const track of this.tracksList){
+  this._trackPlayers = []
+  this._log.info('[parse][tracks]',this._tracksList)
+  for(const track of this._tracksList){
     const source = track.source ? track.source : track.name;
     const v = track?.volumeDB || 0
 
@@ -234,15 +249,15 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     const filter = new Filter(20000, "lowpass").toDestination()
     filter.set({'Q': track?.filter?.resonance 
         ? track.filter.resonance 
-        : (this.playbackInfo?.filter?.resonance 
-          ? this.playbackInfo?.filter?.resonance 
+        : (this._playbackInfo?.filter?.resonance 
+          ? this._playbackInfo?.filter?.resonance 
           : 1
       )}) 
     filter.set({'rolloff': (
       track?.filter?.rolloff 
         ? track.filter.rolloff 
-        : (this.playbackInfo?.filter?.rolloff 
-          ? this.playbackInfo?.filter?.rolloff 
+        : (this._playbackInfo?.filter?.rolloff 
+          ? this._playbackInfo?.filter?.rolloff 
           : -12
         )  
     ) as FilterRollOff})
@@ -250,7 +265,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     a.connect(filter)
     b.connect(filter)
 
-    this.trackPlayers.push({
+    this._trackPlayers.push({
       name: track.name, source, a,b, current: a, filter, volumeLimit: v
     })
   }
@@ -258,19 +273,19 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   //Load media
   try{
-    this.sourceBuffers = await fetchSources(manifestSourcePaths);
+    this._sourceBuffers = await fetchSources(manifestSourcePaths);
     
     this.stop(0);
 
     //assign buffers to players
-    this.trackPlayers.forEach((track,i)=>{
-      track.a.buffer = this.sourceBuffers[track.source] as ToneAudioBuffer
+    this._trackPlayers.forEach((track,i)=>{
+      track.a.buffer = this._sourceBuffers[track.source] as ToneAudioBuffer
       track.b.buffer = track.a.buffer
     })
   }
   catch(error){
     this.state = null;
-    this.log.error(new Error('[parse][sources] error fetching data'))
+    this._log.error(new Error('[parse][sources] error fetching data'))
     return Promise.reject('sources')
   }
 
@@ -287,7 +302,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   // }
 
   this.state = 'stopped';
-  this.log.info("[parse] end ",this)
+  this._log.info("[parse] end ",this)
   return Promise.resolve();
 }
   
@@ -341,16 +356,16 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     if(this.state === 'stopped'){ 
       toneStart();
       
-      if(getNestedIndex(this.sectionsFlowMap, from || [0]) === undefined) {reject(); return;}
+      if(getNestedIndex(this._sectionsFlowMap, from || [0]) === undefined) {reject(); return;}
 
       this.state = 'playing'
-      this.sectionsFlowMap.index = from || [0]
-      const overrides = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, this.sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
+      this._sectionsFlowMap.index = from || [0]
+      const overrides = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, this._sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
 
-      this._schedule(this.sectionsFlowMap.index, '0:0:0', ()=>{
+      this._schedule(this._sectionsFlowMap.index, '0:0:0', ()=>{
         Draw.schedule(() => {
-          this.trackPlayers.forEach((t,i)=>{
-            const vol = this.tracksList[i]?.volumeDB || 0
+          this._trackPlayers.forEach((t,i)=>{
+            const vol = this._tracksList[i]?.volumeDB || 0
             if(fadein){
               t.a.volume.value = -60;
               t.b.volume.value = -60;
@@ -361,18 +376,18 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
             }
           })
           // this?.onSectionWillEnd?.([], [], '0:0:0')
-          this.onSectionWillStart(this.sectionsFlowMap.index, overrides, '0:0:0')
+          this.onSectionWillStart(this._sectionsFlowMap.index, overrides, '0:0:0')
         },toneNow())
       }, ()=>{
-        resolve(this.sectionsFlowMap.index);
+        resolve(this._sectionsFlowMap.index);
         Draw.schedule(() => {
           // this?.onSectionDidEnd?.([], [])
-          this.onSectionDidStart(this.sectionsFlowMap.index, overrides)
+          this.onSectionDidStart(this._sectionsFlowMap.index, overrides)
           this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
         },toneNow())
         if(!fadein) return
-        this.trackPlayers.forEach((t,i)=>{
-          const vol = this.tracksList[i]?.volumeDB || 0
+        this._trackPlayers.forEach((t,i)=>{
+          const vol = this._tracksList[i]?.volumeDB || 0
           this.rampTrackVolume(i, vol, fadein)
         })
       })
@@ -380,10 +395,10 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       this.meterBeat = 0
       this._sectionBeat = -1
       Transport.scheduleRepeat((t)=>{
-        const note = this.playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
+        const note = this._playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
         if(!note) return
         this.meterBeat = (this.meterBeat + 1) % (Transport.timeSignature as number)
-        if(this.playbackInfo.metronome && this.log.level){
+        if(this._playbackInfo.metronome && this._log.level){
           try{
             this._metronome.triggerAttackRelease(note,'64n',t);
           }
@@ -393,10 +408,10 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       Transport.position = '0:0:0'
 
       Transport.start()
-      this.log.info("[play] player starting")  
+      this._log.info("[play] player starting")  
     }
     else if(this.state === 'playing'){
-      this.log.info("[play] player next", from)  
+      this._log.info("[play] player next", from)  
       this._advanceSection(from, skip, undefined, ()=>{
         resolve(from as PlayerSectionIndex)
       })
@@ -425,33 +440,33 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     : toneNow();
     
     if(fadeout && after){
-      this.trackPlayers.forEach((p,i)=>{
+      this._trackPlayers.forEach((p,i)=>{
         this.rampTrackVolume(i,-60, afterSec);
       })
       Draw.schedule(() => {
         this.onSectionWillStart([], [], Time(when).toBarsBeatsSixteenths()) 
-        this.onSectionWillEnd([...this.sectionsFlowMap?.index], [], Time(when).toBarsBeatsSixteenths())  
+        this.onSectionWillEnd([...this._sectionsFlowMap?.index], [], Time(when).toBarsBeatsSixteenths())  
       }, toneNow())
     }
     const stopping = (t: TimeUnit)=>{
       Transport.stop(t)
       Transport.cancel()
-      this.trackPlayers.forEach((p,i)=>{
+      this._trackPlayers.forEach((p,i)=>{
         try{
             p.a.stop(t);
             p.b.stop(t);
             p.current = p.a
         }catch(error){
-          this.log.info('[stop] Empty track stopping ',this.tracksList[i]);
+          this._log.info('[stop] Empty track stopping ',this._tracksList[i]);
         }
       })
       Draw.schedule(() => {
         this.onSectionDidStart([], []) 
-        this.onSectionDidEnd([...this.sectionsFlowMap.index], []) 
+        this.onSectionDidEnd([...this._sectionsFlowMap.index], []) 
         this._sectionLastLaunchTime = undefined
       },toneNow()) 
       this.state = 'stopped'
-      this.log.info("[stop] player stopped")
+      this._log.info("[stop] player stopped")
     }
     if(after)
       Transport.scheduleOnce(stopping,when)
@@ -542,9 +557,9 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false, onDone?: ()=>void){
     if(this._pending) this.cancel()
     
-    const nowIndex = [...this.sectionsFlowMap.index] as number[]
-    if(getNestedIndex(this.sectionsFlowMap, nowIndex) === undefined) return null;
-    const [nowSection, nowOverrides] = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nowIndex))
+    const nowIndex = [...this._sectionsFlowMap.index] as number[]
+    if(getNestedIndex(this._sectionsFlowMap, nowIndex) === undefined) return null;
+    const [nowSection, nowOverrides] = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, nowIndex))
   
     let _willNext = false;
     let nextOverrides: PlayerSectionOverrideFlags[]; 
@@ -553,13 +568,13 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       nextIndex = index
       nextOverrides = []
     }else{
-      nextSection(this.sectionsFlowMap, typeof breakout === 'boolean' ? breakout : false)
-      nextIndex = [...this.sectionsFlowMap.index]
-      nextOverrides = this.getPlaybackMapOverrides(getNestedIndex(this.sectionsFlowMap, nextIndex))[1] as PlayerSectionOverrideFlags[];
+      nextSection(this._sectionsFlowMap, typeof breakout === 'boolean' ? breakout : false)
+      nextIndex = [...this._sectionsFlowMap.index]
+      nextOverrides = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, nextIndex))[1] as PlayerSectionOverrideFlags[];
       _willNext = true;
     }
     
-    this.sectionsFlowMap.index = nowIndex
+    this._sectionsFlowMap.index = nowIndex
     const regionGrainLength =  (nowSection.region[1] - nowSection.region[0]) * (Transport.timeSignature as number);
     const grain = auto ? regionGrainLength : nowSection?.grain
     const nextTime =  this._getNextTime(grain, !(typeof breakout === 'string' && breakout === 'offgrid'))
@@ -570,7 +585,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
         loopIndex[loopIndex.length-1] += 1
       }
       Draw.schedule(() => {
-        const loops = getLoopCount(this.sectionsFlowMap, nowIndex)
+        const loops = getLoopCount(this._sectionsFlowMap, nowIndex)
         if(loops) this.onSectionLoop(loops, nowIndex)
         this.onSectionWillEnd([...nowIndex],[...nowOverrides] as PlayerSectionOverrideFlags[], nextTime)
         this.onSectionWillStart([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
@@ -599,8 +614,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
     if(this._pending) return;
-    const sectionID = getNestedIndex(this.sectionsFlowMap, sectionIndex)
-    const [section, sectionFlags] = this.getPlaybackMapOverrides(sectionID)
+    const sectionID = getNestedIndex(this._sectionsFlowMap, sectionIndex)
+    const [section, sectionFlags] = this.parsePlaybackMapOverrides(sectionID)
     if(section === undefined){
       // if(this.verbose >= VerboseLevel.timed) console.warn("[schedule] non existent index");
       Draw.schedule(() => {
@@ -627,7 +642,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     this._pending = {id: null, when: nextTime}
     this._pending.id = Transport.scheduleOnce((t: number)=>{
       // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Schedule done for time: ', nextTime)
-      this.trackPlayers.forEach((track,i)=>{
+      this._trackPlayers.forEach((track,i)=>{
         const nextTrack = track.current === track.a ? track.b : track.a
 
         nextTrack.loopStart = section.region[0]+'m';
@@ -686,7 +701,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       this.playingNow = {index:sectionIndex, name: sectionID};
       // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Playing now ',this.playingNow)
       onScheduleCallback?.()
-      this.sectionsFlowMap.index = [...sectionIndex]
+      this._sectionsFlowMap.index = [...sectionIndex]
       this._sectionBeat = -1
       this._sectionLen = (section.region[1] - section.region[0]) * (Transport.timeSignature as number)
       this._pending = null
@@ -721,7 +736,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     }
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
-      this.tracksList?.forEach((o,i)=>{
+      this._tracksList?.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
       if(idx === null) {reject(); return; }
@@ -732,8 +747,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     else return
     if(idx === null)  {reject(); return; }
     
-    this.trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
-    this.trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
+    this._trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
+    this._trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
     
     Draw.schedule(() => {
       resolve(trackIndex)
@@ -752,7 +767,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     if(!this.state) {reject(); return; }
     let idx: number | null = null;
     if(typeof trackIndex === 'string'){
-      this.tracksList?.forEach((o,i)=>{
+      this._tracksList?.forEach((o,i)=>{
         if(o.name === trackIndex) idx = i
       })
       if(idx === null) {reject(); return; }
@@ -763,7 +778,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     else {reject(); return; }
     if(idx === null) {reject(); return; };
 
-    this.trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
+    this._trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
     Draw.schedule(() => {
       resolve(trackIndex)
     }, toneNow() + Time(inTime).toSeconds());
@@ -815,8 +830,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
 //================Various==========
   private _getNextTime(grain?: number, alignGrid: boolean = true){
-    const _grain = grain || this.playbackInfo?.grain || this.playbackInfo?.meter?.[0];
-    const nt = quanTime(Transport.position as BarsBeatsSixteenths, _grain, this.playbackInfo?.meter, alignGrid ? this._sectionLastLaunchTime : undefined)
+    const _grain = grain || this._playbackInfo?.grain || this._playbackInfo?.meter?.[0];
+    const nt = quanTime(Transport.position as BarsBeatsSixteenths, _grain, this._playbackInfo?.meter, alignGrid ? this._sectionLastLaunchTime : undefined)
     // if(this.#verbose) console.log('nexttime',nt,Transport.position, _grain, this.playbackInfo?.meter, this.#sectionLastLaunchTime)
     return nt
   }

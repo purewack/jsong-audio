@@ -2,7 +2,7 @@
 
 import { DataURIString, FlowValue, URLString } from "./common";
 
-export  interface JSONgMetadata {
+export  type JSONgMetadata = {
     title: string;
     author: string
     createdOn : number;
@@ -12,7 +12,7 @@ export  interface JSONgMetadata {
 }
 
 
-export  interface JSONgPlaybackInfo {
+export  type JSONgPlaybackInfo = {
     bpm: number;
     meter: [number, number];
     grain?: number | null;
@@ -24,7 +24,7 @@ export  interface JSONgPlaybackInfo {
 }
 
 
-export  interface JSONgPlaybackMapType { 
+export  type JSONgPlaybackMapType = { 
     region: [number, number];
     grain?: number;
     legato?: number | {
@@ -36,11 +36,11 @@ export  interface JSONgPlaybackMapType {
     }
 }
 
-export  interface JSONgPlaybackMap {
+export  type JSONgPlaybackMap = {
     [key: string] : JSONgPlaybackMapType,
 }
 
-export  interface JSONgTrack {
+export  type JSONgTrack = {
     name: string;
     source : string;
 	volumeDB?: number;
@@ -50,7 +50,7 @@ export  interface JSONgTrack {
     };
 }
 
-export  interface JSONgDataSources {
+export  type JSONgDataSources = {
     [key: string]: URLString | DataURIString
 }
 

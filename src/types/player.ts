@@ -15,13 +15,13 @@ export  type PlayerSectionIndex = number[];
 export  type PlayerPlaybackState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
 
-export  interface PlayerBuffers {
+export  type PlayerBuffers = {
     [key: string] : object
 }
 
 export  type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
 
-export  interface PlayerSectionOverrides { 
+export  type PlayerSectionOverrides = { 
     legato?: boolean;
     autoNext?: boolean;
 }
