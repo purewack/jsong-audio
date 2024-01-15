@@ -41,7 +41,7 @@ export async function fetchSourcePaths(manifest: JSONgManifestFile, baseURL: str
       fullURL = prependURL(path).toString();
     }
 
-    if(! (await fileExistsURL(fullURL))) throw new Error(`Source does not exist: ${fullURL}`)
+    // if(! (await fileExistsURL(fullURL))) throw new Error(`Source does not exist: ${fullURL}`)
 
     fullURLs[key] = fullURL; 
   }
@@ -72,7 +72,7 @@ export default function fetchSources(paths: JSONgDataSources)
     }
 
     if(!loadPromises || !loadPromises.length) 
-      throw new Error('no buffers');
+      throw new Error('no source buffers');
     
     try{
     const loadedBuffers = await Promise.all(loadPromises);
@@ -83,7 +83,7 @@ export default function fetchSources(paths: JSONgDataSources)
     resolve(resultBuffers); 
     }
     catch {
-      reject('buffer load failure')
+      reject('buffer source load failure')
     } 
   })
 }

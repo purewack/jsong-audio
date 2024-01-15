@@ -1,4 +1,5 @@
 import fetchManifest, { findManifestURLInFolder } from '../src/JSONg.manifest';
+import { prependURL } from '../src/JSONg.paths';
 import { JSONgManifestFile } from '../src/types/jsong';
 
 describe('JSONg parsing', () => {
@@ -86,8 +87,8 @@ describe('JSONg parsing', () => {
     });
     
     test('auto find manifest in folder "test"',async ()=>{
-      const result = await findManifestURLInFolder('test');
-      expect(result).toBe('audio.json');
+      const [filename, data] = await findManifestURLInFolder(prependURL('test').toString());
+      expect(filename).toBe('audio.json');
     })
 
 

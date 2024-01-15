@@ -49,13 +49,17 @@ export function splitPathFilenameFromURL(url: string) {
 }
 
 /**
+ * @deprecated Servers can mask responses and return 200 even if file is not real
+ * 
  * check if the provided URL points to a real file that exists
  * @param path to file to be checked
- * @returns boolean promise
+ * @returns boolean promise 
  */
 export async function fileExistsURL(path: string){
   try{
-    const resp = await fetch(path, {method: 'HEAD'});
+    const resp = await fetch(path);
+    const jsong = await resp.json()
+    console.warn(resp, jsong)
     return {exists: (resp.status !== 404), path};
   }
   catch{

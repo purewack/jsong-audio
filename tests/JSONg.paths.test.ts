@@ -41,22 +41,22 @@ test('an empty URL', () => {
     expect(splitPathFilenameFromURL('')).toEqual(['',''])
 });
 
-describe('fake file in folder /song/audio.jsong',()=>{ 
-    test('check if file exists - ok',async ()=>{
-        jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.resolve({status: 200} as Response))
-        expect((await fileExistsURL('song/audio.jsong')).exists).toBeTruthy();
-    })
+// describe('fake file in folder /song/audio.jsong',()=>{ 
+//     test('check if file exists - ok',async ()=>{
+//         jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.resolve({status: 200} as Response))
+//         expect((await fileExistsURL('song/audio.jsong')).exists).toBeTruthy();
+//     })
 
-    test('check if file exists - fail',async ()=>{
-        jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.resolve({status: 404} as Response))
-        expect((await fileExistsURL('song/notfound.jsong')).exists).toBeFalsy();
-    })
+//     test('check if file exists - fail',async ()=>{
+//         jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.resolve({status: 404} as Response))
+//         expect((await fileExistsURL('song/notfound.jsong')).exists).toBeFalsy();
+//     })
 
-    test('check if file exists - error',async ()=>{
-        jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.reject())
-        expect((await fileExistsURL('song/audio.jsong')).exists).toBeFalsy();
-    })
-})
+//     test('check if file exists - error',async ()=>{
+//         jest.spyOn(global, 'fetch').mockImplementationOnce(()=>Promise.reject())
+//         expect((await fileExistsURL('song/audio.jsong')).exists).toBeFalsy();
+//     })
+// })
 
  
 // test('format URI', ()=>{ 

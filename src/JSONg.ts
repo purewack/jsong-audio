@@ -11,6 +11,7 @@ import {getNestedIndex} from './nestedIndex'
 import Logger from './logger'
 import { BarsBeatsSixteenths, Time as TimeUnit } from "tone/build/esm/core/type/Units"
 import {
+  setContext,
   now as toneNow,
   start as toneStart,
   Player, 
@@ -21,6 +22,8 @@ import {
 } from 'tone';
 import fetchSources, { fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
+import { Tone } from 'tone/build/esm/core/Tone'
+import { SectionEventDetail, SectionEventDetailNext } from './types/event'
 
 /* 
 parser version 0.0.3
@@ -43,12 +46,18 @@ export default class JSONg{
   //Debug related - logging extra messages
   private _log = new Logger('warning');
 
-  private _meta: JSONgMetadata | null = null;
+  private _meta: JSONgMetadata = {
+    title: 'no data',
+    author: 'none',
+    createdOn: 0,
+    timestamp: 0,
+    projectVersion: '0'
+  };
   set meta(value: JSONgMetadata){
     this._meta = {...value};
   }
-  get meta(): JSONgMetadata | null {
-    return this._meta ? {...this._meta} : null;
+  get meta(): JSONgMetadata {
+    return {...this._meta};
   }
 
 
@@ -69,13 +78,14 @@ export default class JSONg{
   //Available real audio buffers
   private _sourceBuffers: PlayerBuffers = {};
 
-  
-  //Available sections and their natural flow with extra loop counter for internal use
-  private _sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
-
   //Natural flow of named sections including loop counts
   private _playbackFlow: FlowValue[] = [];
-  get playbackFlow(){return this._playbackFlow}
+  // get playbackFlow(){return this._playbackFlow}
+
+
+  //Available sections and their natural flow with extra loop counters
+  private _sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
+  get playbackFlowSections (){return this._sectionsFlowMap}
 
   //Song playback details like BPM
   private _playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4]};
@@ -85,6 +95,7 @@ export default class JSONg{
   private _playbackMap: JSONgPlaybackMap = {};
   get playbackMap (){return this._playbackMap;}
   
+
   //Extraction of flow directives
   public parsePlaybackMapOverrides(name: string): [JSONgPlaybackMapType, string[]] { 
     const k = name.split('-')
@@ -101,22 +112,35 @@ export default class JSONg{
     this._events.removeEventListener(type,listener);
   }
 
+  public getSectionInfo(index: NestedIndex) : SectionEventDetail | undefined {
+    const idx = index
+    const flow = getNestedIndex(this.playbackFlowSections,idx) as string;
+    if(!flow) return undefined;
+    const overrides = this.parsePlaybackMapOverrides(flow)[1] as PlayerSectionOverrideFlags[]
+    return {name: flow, index: idx, overrides, ...this.playbackMap[flow]}
+  }
+
   //Event handlers
-  private onSectionDidStart  (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[]){
-    this._events.dispatchEvent(new CustomEvent('onSectionDidStart', {detail: {index, sectionOverrides}}))
+
+  private onSectionDidStart  (index: PlayerSectionIndex){
+    this._events.dispatchEvent(new CustomEvent<SectionEventDetail>('onSectionDidStart', {detail: this.getSectionInfo(index)}))
   };
-  private onSectionDidEnd    (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[]){
-    this._events.dispatchEvent(new CustomEvent('onSectionDidEnd', {detail: {index, sectionOverrides}}))
+  private onSectionDidEnd    (index: PlayerSectionIndex){
+    this._events.dispatchEvent(new CustomEvent<SectionEventDetail>('onSectionDidEnd', {detail: this.getSectionInfo(index)}))
   };
-  private onSectionWillStart (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths){
-    this._events.dispatchEvent(new CustomEvent('onSectionWillStart', {detail: {index, sectionOverrides, when}}))
+  private onSectionWillStart (index: PlayerSectionIndex, when: BarsBeatsSixteenths){
+    const data = this.getSectionInfo(index)
+    if(data)
+    this._events.dispatchEvent(new CustomEvent<SectionEventDetailNext>('onSectionWillStart', {detail: {when, ...data}}))
   };
-  private onSectionWillEnd   (index: PlayerSectionIndex, sectionOverrides: PlayerSectionOverrideFlags[], when: BarsBeatsSixteenths){
-    this._events.dispatchEvent(new CustomEvent('onSectionWillEnd', {detail: {index, sectionOverrides, when}}))
+  private onSectionWillEnd   (index: PlayerSectionIndex, when: BarsBeatsSixteenths){    
+    const data = this.getSectionInfo(index)
+    if(data)
+    this._events.dispatchEvent(new CustomEvent<SectionEventDetailNext>('onSectionWillEnd', {detail: {when, ...data}}))
   }; 
-  private onSectionChange    (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex){
-    this._events.dispatchEvent(new CustomEvent('onSectionChange', {detail: {fromIndex, toIndex}}))
-  };
+  // private onSectionChange   (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex){
+  //   this._events.dispatchEvent(new CustomEvent('onSectionChangeIndex', {detail: {fromIndex, toIndex}}))
+  // };
   private onSectionCancelChange  (){
     this._events.dispatchEvent(new Event('onSectionCancelChange'))
   };
@@ -154,7 +178,7 @@ export default class JSONg{
   } 
 
   //Transport and meter event handler
-  private _metronome: Synth = new Synth().toDestination(); 
+  private _metronome: Synth;
   private _meterBeat: number = 0
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
@@ -174,18 +198,20 @@ export default class JSONg{
         this.onTransport(pos)
     }, toneNow());
   }
-  get meterBeat(): number{
-    return this._meterBeat
+  get meterBeat(): object {
+    const nowIndex = [...this._sectionsFlowMap.index] as NestedIndex
+    const nowSection = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, nowIndex) as string)[0]
+    
+    return {beat:this._meterBeat, ...nowSection}
   }
 
 
 
 
-  constructor(verbose: VerboseLevel = undefined){
-
-    this._metronome.envelope.attack = 0;
-    this._metronome.envelope.release = 0.05;
+  constructor(context?: AudioContext, verbose?: VerboseLevel){
+    if(context) setContext(context);
     
+    this._metronome = new Synth().toDestination();
     this._log.level = verbose;
     this._log.info("[JSONg] New ", this);
     this.state = null;
@@ -197,12 +223,14 @@ export default class JSONg{
 public async parse(file: string | JSONgManifestFile): Promise<void> {
   
   const [manifest,baseURL,filename] = await fetchManifest(file);
+  this._log.info({manifest,baseURL, filename});
 
   if(!isManifestValid(manifest)) {
     return Promise.reject(new Error('parsing invalid manifest'));
   }
 
   const manifestSourcePaths = await fetchSourcePaths(manifest, baseURL);
+  this._log.info('manifest sources', manifestSourcePaths);
 
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
@@ -214,7 +242,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   this._playbackInfo = {
     bpm: manifest.playback.bpm,
     meter: manifest.playback.meter,
-    grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || null,
+    grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || 1,
     metronome: manifest.playback?.metronome || ["B5","G4"],
     metronomeDB: manifest.playback?.metronomeDB || -6,
   }
@@ -226,6 +254,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   //meter, bpm and transport setup
   this._meterBeat = 0
+  this._metronome.envelope.attack = 0;
+  this._metronome.envelope.release = 0.05;
   this._metronome.volume.value = this._playbackInfo.metronomeDB || 0;
   Transport.position = '0:0:0'
   Transport.bpm.value = this._playbackInfo.bpm
@@ -348,16 +378,18 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     from: PlayerSectionIndex | null = null, 
     skip: (boolean | string) = false,
     fadein: TimeUnit = 0
-  ) : Promise<PlayerSectionIndex> 
+  ) : Promise<PlayerSectionIndex> | null
   {
-    return new Promise((resolve, reject) => {
-    if(this.state === 'stopping') {reject(); return;}
+    if(this.state === 'stopping') return null;
+    if(this.state === 'stopped'){
+      if(getNestedIndex(this._sectionsFlowMap, from || [0]) === undefined) return null;
+    }
+
+    return new Promise((resolve) => {
     
     if(this.state === 'stopped'){ 
       toneStart();
       
-      if(getNestedIndex(this._sectionsFlowMap, from || [0]) === undefined) {reject(); return;}
-
       this.state = 'playing'
       this._sectionsFlowMap.index = from || [0]
       const overrides = this.parsePlaybackMapOverrides(getNestedIndex(this._sectionsFlowMap, this._sectionsFlowMap.index))[1] as PlayerSectionOverrideFlags[]
@@ -376,15 +408,15 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
             }
           })
           // this?.onSectionWillEnd?.([], [], '0:0:0')
-          this.onSectionWillStart(this._sectionsFlowMap.index, overrides, '0:0:0')
+          this.onSectionWillStart(this._sectionsFlowMap.index, '0:0:0')
         },toneNow())
       }, ()=>{
         resolve(this._sectionsFlowMap.index);
-        Draw.schedule(() => {
+        // Draw.schedule(() => {
           // this?.onSectionDidEnd?.([], [])
-          this.onSectionDidStart(this._sectionsFlowMap.index, overrides)
+          this.onSectionDidStart(this._sectionsFlowMap.index)
           this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
-        },toneNow())
+        // },toneNow())
         if(!fadein) return
         this._trackPlayers.forEach((t,i)=>{
           const vol = this._tracksList[i]?.volumeDB || 0
@@ -395,9 +427,9 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       this.meterBeat = 0
       this._sectionBeat = -1
       Transport.scheduleRepeat((t)=>{
-        const note = this._playbackInfo?.metronome?.[this.meterBeat === 0 ? 0 : 1]
+        const note = this._playbackInfo?.metronome?.[!this._meterBeat ? 0 : 1]
         if(!note) return
-        this.meterBeat = (this.meterBeat + 1) % (Transport.timeSignature as number)
+        this.meterBeat = (this._meterBeat + 1) % (Transport.timeSignature as number)
         if(this._playbackInfo.metronome && this._log.level){
           try{
             this._metronome.triggerAttackRelease(note,'64n',t);
@@ -444,8 +476,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
         this.rampTrackVolume(i,-60, afterSec);
       })
       Draw.schedule(() => {
-        this.onSectionWillStart([], [], Time(when).toBarsBeatsSixteenths()) 
-        this.onSectionWillEnd([...this._sectionsFlowMap?.index], [], Time(when).toBarsBeatsSixteenths())  
+        this.onSectionWillStart([], Time(when).toBarsBeatsSixteenths()) 
+        this.onSectionWillEnd([...this._sectionsFlowMap?.index], Time(when).toBarsBeatsSixteenths())  
       }, toneNow())
     }
     const stopping = (t: TimeUnit)=>{
@@ -461,8 +493,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
         }
       })
       Draw.schedule(() => {
-        this.onSectionDidStart([], []) 
-        this.onSectionDidEnd([...this._sectionsFlowMap.index], []) 
+        this.onSectionDidStart([]) 
+        this.onSectionDidEnd([...this._sectionsFlowMap.index]) 
         this._sectionLastLaunchTime = undefined
       },toneNow()) 
       this.state = 'stopped'
@@ -535,8 +567,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     this._pending = null
     const when = Time(toneNow()).toBarsBeatsSixteenths()
     Draw.schedule(() => {
-      this.onSectionWillEnd([],[], when)
-      this.onSectionWillStart([],[],when)
+      this.onSectionWillEnd([], when)
+      this.onSectionWillStart([],when)
       this.onSectionCancelChange()
     }, toneNow())
   }
@@ -587,15 +619,15 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       Draw.schedule(() => {
         const loops = getLoopCount(this._sectionsFlowMap, nowIndex)
         if(loops) this.onSectionLoop(loops, nowIndex)
-        this.onSectionWillEnd([...nowIndex],[...nowOverrides] as PlayerSectionOverrideFlags[], nextTime)
-        this.onSectionWillStart([...nextIndex],[...nextOverrides] as PlayerSectionOverrideFlags[], nextTime)
+        this.onSectionWillEnd([...nowIndex], nextTime)
+        this.onSectionWillStart([...nextIndex], nextTime)
       }, toneNow());  
     }, ()=>{
       onDone?.()
       Draw.schedule(() => {
-        this.onSectionChange([...nowIndex], [...nextIndex]);
-        this.onSectionDidEnd([...nowIndex], [...nowOverrides] as PlayerSectionOverrideFlags[])
-        this.onSectionDidStart([...nextIndex], [...nextOverrides] as PlayerSectionOverrideFlags[])
+        // this.onSectionChange([...nowIndex], [...nextIndex]);
+        this.onSectionDidEnd([...nowIndex])
+        this.onSectionDidStart([...nextIndex])
         this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
       }, toneNow());
     }) 
@@ -614,6 +646,8 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
     if(this._pending) return;
+    
+    this._log.info('scheduling', sectionIndex, nextTime)
     const sectionID = getNestedIndex(this._sectionsFlowMap, sectionIndex)
     const [section, sectionFlags] = this.parsePlaybackMapOverrides(sectionID)
     if(section === undefined){
