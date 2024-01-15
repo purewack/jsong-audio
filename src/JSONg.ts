@@ -1,6 +1,6 @@
 
-import { JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgPlaybackMap, JSONgPlaybackMapType, JSONgTrack } from './types/jsong'
-import { PlayerBuffers, PlayerPlaybackState, PlayerPlayingNow, PlayerSectionIndex, PlayerSectionOverrideFlags, PlayerSectionOverrides, VerboseLevel } from './types/player'
+import { JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgPlaybackMap, JSONgSection, JSONgTrack } from './types/jsong'
+import { PlayerState, PlayerIndex, PlayerSectionOverrideFlags, PlayerSectionOverrides, PlayerSection, VerboseLevel } from './types/player'
 import { FlowValue, NestedIndex, SectionType } from './types/common'
 
 import quanTime from './quantime'
@@ -23,7 +23,6 @@ import {
 import fetchSources, { fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { Tone } from 'tone/build/esm/core/Tone'
-import { SectionEventDetail, SectionEventDetailNext } from './types/event'
 
 /* 
 parser version 0.0.3
@@ -41,7 +40,7 @@ declare type PlayerEvent =
   "onSectionLoop"
 
 
-export default class JSONg{
+export default class JSONg extends EventTarget{
 
   //Debug related - logging extra messages
   private _log = new Logger('warning');
@@ -75,21 +74,23 @@ export default class JSONg{
     a: Player;
     b: Player;
   }[] = []
+
   //Available real audio buffers
-  private _sourceBuffers: PlayerBuffers = {};
+  private _sourceBuffers: {[key: string]: ToneAudioBuffer} = {};
+
+
+  //Song playback details like BPM
+  private _playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4], grain: 4};
+  get playbackInfo(){return this._playbackInfo}
+
 
   //Natural flow of named sections including loop counts
   private _playbackFlow: FlowValue[] = [];
   // get playbackFlow(){return this._playbackFlow}
 
-
   //Available sections and their natural flow with extra loop counters
   private _sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
   get playbackFlowSections (){return this._sectionsFlowMap}
-
-  //Song playback details like BPM
-  private _playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4]};
-  get playbackInfo(){return this._playbackInfo}
 
   //Looping details of each section, including specific directives
   private _playbackMap: JSONgPlaybackMap = {};
@@ -97,85 +98,90 @@ export default class JSONg{
   
 
   //Extraction of flow directives
-  public parsePlaybackMapOverrides(name: string): [JSONgPlaybackMapType, string[]] { 
+  public parsePlaybackMapOverrides(name: string): [JSONgSection, string[]] { 
     const k = name.split('-')
     return [this._playbackMap[k[0]] , k]
   }
 
 
-  private _events = new EventTarget()
-
-  public addEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
-    this._events.addEventListener(type,listener);
-  }
-  public removeEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
-    this._events.removeEventListener(type,listener);
+  private getGrain(index: PlayerIndex){
+    const flow = getNestedIndex(this.playbackFlowSections,index) as string; 
   }
 
-  public getSectionInfo(index: NestedIndex) : SectionEventDetail | undefined {
+  // private _events = new EventTarget()
+  // public addEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
+  //   this._events.addEventListener(type,listener);
+  // }
+  // public removeEventListener = (type: PlayerEvent, listener: (...args:any)=>void)=>{
+  //   this._events.removeEventListener(type,listener);
+  // }
+
+  public getSectionInfo(index: PlayerIndex) : PlayerSection | undefined {
     const idx = index
     const flow = getNestedIndex(this.playbackFlowSections,idx) as string;
     if(!flow) return undefined;
-    const overrides = this.parsePlaybackMapOverrides(flow)[1] as PlayerSectionOverrideFlags[]
-    return {name: flow, index: idx, overrides, ...this.playbackMap[flow]}
+    // const overrides = this.parsePlaybackMapOverrides(flow)[1] as PlayerSectionOverrideFlags[]
+    return {name: flow, index: idx, region:this.playbackMap[flow].region, grain: 1}
   }
 
   //Event handlers
-
-  private onSectionDidStart  (index: PlayerSectionIndex){
-    this._events.dispatchEvent(new CustomEvent<SectionEventDetail>('onSectionDidStart', {detail: this.getSectionInfo(index)}))
+  private onSectionDidStart  (index: PlayerIndex){
+    this.dispatchEvent(new CustomEvent<PlayerSection>('onSectionDidStart', {detail: this.getSectionInfo(index)}))
   };
-  private onSectionDidEnd    (index: PlayerSectionIndex){
-    this._events.dispatchEvent(new CustomEvent<SectionEventDetail>('onSectionDidEnd', {detail: this.getSectionInfo(index)}))
+  private onSectionDidEnd    (index: PlayerIndex){
+    this.dispatchEvent(new CustomEvent<PlayerSection>('onSectionDidEnd', {detail: this.getSectionInfo(index)}))
   };
-  private onSectionWillStart (index: PlayerSectionIndex, when: BarsBeatsSixteenths){
+  private onSectionWillStart (index: PlayerIndex, when: BarsBeatsSixteenths){
     const data = this.getSectionInfo(index)
     if(data)
-    this._events.dispatchEvent(new CustomEvent<SectionEventDetailNext>('onSectionWillStart', {detail: {when, ...data}}))
+    this.dispatchEvent(new CustomEvent<PlayerSection>('onSectionWillStart', {detail: {when, ...data}}))
   };
-  private onSectionWillEnd   (index: PlayerSectionIndex, when: BarsBeatsSixteenths){    
+  private onSectionWillEnd   (index: PlayerIndex, when: BarsBeatsSixteenths){    
     const data = this.getSectionInfo(index)
     if(data)
-    this._events.dispatchEvent(new CustomEvent<SectionEventDetailNext>('onSectionWillEnd', {detail: {when, ...data}}))
+    this.dispatchEvent(new CustomEvent<PlayerSection>('onSectionWillEnd', {detail: {when, ...data}}))
   }; 
-  // private onSectionChange   (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex){
-  //   this._events.dispatchEvent(new CustomEvent('onSectionChangeIndex', {detail: {fromIndex, toIndex}}))
+  // // private onSectionChange   (fromIndex: PlayerSectionIndex, toIndex: PlayerSectionIndex){
+  // //   this._events.dispatchEvent(new CustomEvent('onSectionChangeIndex', {detail: {fromIndex, toIndex}}))
+  // // };
+  // private onSectionCancelChange  (){
+  //   this._events.dispatchEvent(new Event('onSectionCancelChange'))
   // };
-  private onSectionCancelChange  (){
-    this._events.dispatchEvent(new Event('onSectionCancelChange'))
-  };
-  private onTransport  (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] ){
-    this._events.dispatchEvent(new CustomEvent('onTransport', {detail: {position, loopBeatPosition}}))
-  };
-  private onStateChange  (state: PlayerPlaybackState){
-    this._events.dispatchEvent(new CustomEvent('onStateChange', {detail: state}))
-  }
-  private onSectionLoop  (loops: number, index: PlayerSectionIndex)  {
-    this._events.dispatchEvent(new CustomEvent('onSectionLoop', {detail: {loops, index: [...index]}}))
-  }
+  // private onTransport  (position: BarsBeatsSixteenths, loopBeatPosition?: [number, number] ){
+  //   this._events.dispatchEvent(new CustomEvent('onTransport', {detail: {position, loopBeatPosition}}))
+  // };
+  // private onStateChange  (state: PlayerPlaybackState){
+  //   this._events.dispatchEvent(new CustomEvent('onStateChange', {detail: state}))
+  // }
+  // private onSectionLoop  (loops: number, index: PlayerSectionIndex)  {
+  //   this._events.dispatchEvent(new CustomEvent('onSectionLoop', {detail: {loops, index: [...index]}}))
+  // }
   // private onSectionOverrides?:    (index: PlayerSectionIndex, overrides: PlayerSectionOverrideFlags[])=>void;
   
 
+
+
+
   //State of the player and its property observer
-  private _state:PlayerPlaybackState = null;
-  set state(value: PlayerPlaybackState){
+  private _state:PlayerState = null;
+  set state(value: PlayerState){
     this._state = value
-    Draw.schedule(() => {
-      this.onStateChange(value)
-    }, toneNow());
+    // Draw.schedule(() => {
+    //   this.onStateChange(value)
+    // }, toneNow());
   }
-  get state(): PlayerPlaybackState{
+  get state(): PlayerState{
     return this._state
   }
 
-  //Currently playing now 
-  private _playingNow: PlayerPlayingNow = {index: [], name: ''};
-  get playingNow(): PlayerPlayingNow {
-    return this._playingNow ? {...this._playingNow} : null;
-  }
-  private set playingNow(val: PlayerPlayingNow) {
-    this._playingNow = val;
-  } 
+  // //Currently playing now 
+  // private _playingNow: PlayerSection = {index: [0], region:[0,0], grain:0, name: ''};
+  // get playingNow(): PlayerPlayingNow {
+  //   return this._playingNow ? {...this._playingNow} : null;
+  // }
+  // private set playingNow(val: PlayerPlayingNow) {
+  //   this._playingNow = val;
+  // } 
 
   //Transport and meter event handler
   private _metronome: Synth;
@@ -190,13 +196,13 @@ export default class JSONg{
     const sectionLen = this._sectionLen
     const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
     const pos = Transport.position as BarsBeatsSixteenths
-    Draw.schedule(() => {
-      if(nowSection){
-        this.onTransport(pos, [sectionBeat,sectionLen])
-      }
-      else 
-        this.onTransport(pos)
-    }, toneNow());
+    // Draw.schedule(() => {
+    //   if(nowSection){
+    //     this.onTransport(pos, [sectionBeat,sectionLen])
+    //   }
+    //   else 
+    //     this.onTransport(pos)
+    // }, toneNow());
   }
   get meterBeat(): object {
     const nowIndex = [...this._sectionsFlowMap.index] as NestedIndex
@@ -209,6 +215,7 @@ export default class JSONg{
 
 
   constructor(context?: AudioContext, verbose?: VerboseLevel){
+    super();
     if(context) setContext(context);
     
     this._metronome = new Synth().toDestination();
@@ -237,7 +244,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   this.state = 'parsing';
 
   //transfer key information from manifest to player
-  this.playingNow = null;
+  // this.playingNow = null;
   this.meta = {...manifest.meta as JSONgMetadata};
   this._playbackInfo = {
     bpm: manifest.playback.bpm,
@@ -375,10 +382,10 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
  * @returns 
  */
   public play(
-    from: PlayerSectionIndex | null = null, 
+    from: PlayerIndex | null = null, 
     skip: (boolean | string) = false,
     fadein: TimeUnit = 0
-  ) : Promise<PlayerSectionIndex> | null
+  ) : Promise<PlayerIndex> | null
   {
     if(this.state === 'stopping') return null;
     if(this.state === 'stopped'){
@@ -445,7 +452,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     else if(this.state === 'playing'){
       this._log.info("[play] player next", from)  
       this._advanceSection(from, skip, undefined, ()=>{
-        resolve(from as PlayerSectionIndex)
+        resolve(from as PlayerIndex)
       })
     }
     })
@@ -529,12 +536,12 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     this.play(null, 'offgrid')
   }
 
-  public skipTo(index: PlayerSectionIndex, fade = '4n')  : void
+  public skipTo(index: PlayerIndex, fade = '4n')  : void
   {
     this.play(index, true, fade);
   }
   
-  public skipToOffGrid(index: PlayerSectionIndex) : void
+  public skipToOffGrid(index: PlayerIndex) : void
   {
     if(this.state === 'playing')
     this.play(index, 'offgrid');
@@ -569,7 +576,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
     Draw.schedule(() => {
       this.onSectionWillEnd([], when)
       this.onSectionWillStart([],when)
-      this.onSectionCancelChange()
+      // this.onSectionCancelChange()
     }, toneNow())
   }
 
@@ -586,7 +593,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
 
 
-  private _advanceSection(index: PlayerSectionIndex | null, breakout: string | boolean = false, auto:boolean = false, onDone?: ()=>void){
+  private _advanceSection(index: PlayerIndex | null, breakout: string | boolean = false, auto:boolean = false, onDone?: ()=>void){
     if(this._pending) this.cancel()
     
     const nowIndex = [...this._sectionsFlowMap.index] as number[]
@@ -595,7 +602,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   
     let _willNext = false;
     let nextOverrides: PlayerSectionOverrideFlags[]; 
-    let nextIndex: PlayerSectionIndex;
+    let nextIndex: PlayerIndex;
     if(index !== null){
       nextIndex = index
       nextOverrides = []
@@ -613,12 +620,12 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
     this._schedule(nextIndex, nextTime, ()=>{
       if(_willNext){
-        const loopIndex = [...nowIndex] as PlayerSectionIndex
+        const loopIndex = [...nowIndex] as PlayerIndex
         loopIndex[loopIndex.length-1] += 1
       }
       Draw.schedule(() => {
         const loops = getLoopCount(this._sectionsFlowMap, nowIndex)
-        if(loops) this.onSectionLoop(loops, nowIndex)
+        // if(loops) this.onSectionLoop(loops, nowIndex)
         this.onSectionWillEnd([...nowIndex], nextTime)
         this.onSectionWillStart([...nextIndex], nextTime)
       }, toneNow());  
@@ -644,7 +651,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
 
 
-  private _schedule(sectionIndex: PlayerSectionIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
+  private _schedule(sectionIndex: PlayerIndex, nextTime: BarsBeatsSixteenths, onPreScheduleCallback?: ()=>void, onScheduleCallback?: ()=>void){
     if(this._pending) return;
     
     this._log.info('scheduling', sectionIndex, nextTime)
@@ -655,7 +662,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       Draw.schedule(() => {
       //   this.onSectionWillEnd?.(null)
       //   this.onSectionWillStart?.(null)
-        this.onSectionCancelChange()
+        // this.onSectionCancelChange()
       }, toneNow())
       return;
     }
@@ -732,7 +739,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
           // if(this.verbose >= VerboseLevel.timed) console.warn(`[schedule][-(${sectionIndex})] Empty playing`);
         }
       })
-      this.playingNow = {index:sectionIndex, name: sectionID};
+      // this.playingNow = {index:sectionIndex, name: sectionID};
       // if(this.verbose >= VerboseLevel.timed) console.log('[schedule] Playing now ',this.playingNow)
       onScheduleCallback?.()
       this._sectionsFlowMap.index = [...sectionIndex]
