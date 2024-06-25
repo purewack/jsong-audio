@@ -25,12 +25,16 @@ export  type JSONgMetadata = {
 export  type JSONgPlaybackInfo = {
     bpm: number;
     meter: [number, number];
-    grain: number | null;
-    metronome?: [string,string];
-    metronomeDB?: number;
-    filter?: {resonance: number,rolloff: number}
-    | {resonance?: number, rolloff:  number}
-    | {resonance:  number, rolloff?: number};
+    grain?: number | null;
+    metronome?: 
+        {db: number, high?: string, low?: string} | 
+        {high: string, low?: string} | 
+        {high?: string, low: string} | 
+        boolean | null;
+    filter?: 
+        {resonance: number,rolloff: number}    |
+        {resonance?: number, rolloff:  number} |
+        {resonance:  number, rolloff?: number};
 }
 
 /**
@@ -65,7 +69,7 @@ export  type JSONgPlaybackMap = {
 export  type JSONgTrack = {
     name: string;
     source : string;
-	volumeDB?: number;
+	db?: number;
     filter?: {
         resonance: number;
         rolloff: number;

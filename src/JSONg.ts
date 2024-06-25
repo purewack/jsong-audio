@@ -22,7 +22,7 @@ import {
 } from 'tone';
 import fetchSources, { fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
-import { Tone } from 'tone/build/esm/core/Tone'
+// import { Tone } from 'tone/build/esm/core/Tone'
 
 /* 
 parser version 0.0.3
@@ -45,13 +45,7 @@ export default class JSONg extends EventTarget{
   //Debug related - logging extra messages
   private _log = new Logger('warning');
 
-  private _meta: JSONgMetadata = {
-    title: 'no data',
-    author: 'none',
-    createdOn: 0,
-    timestamp: 0,
-    projectVersion: '0'
-  };
+  private _meta!: JSONgMetadata;
   set meta(value: JSONgMetadata){
     this._meta = {...value};
   }
@@ -61,11 +55,11 @@ export default class JSONg extends EventTarget{
 
 
   //List of track involved with the song
-  private _tracksList: JSONgTrack[] = [];
+  private _tracksList!: JSONgTrack[];
   get tracksList(){return this._tracksList}
 
   //Audio players and sources
-  private _trackPlayers:  {
+  private _trackPlayers!:  {
     name: string;
     source: string;
     filter: Filter;
@@ -73,27 +67,32 @@ export default class JSONg extends EventTarget{
     current: Player;
     a: Player;
     b: Player;
-  }[] = []
+  }[]
 
   //Available real audio buffers
-  private _sourceBuffers: {[key: string]: ToneAudioBuffer} = {};
+  private _sourceBuffers!: {[key: string]: ToneAudioBuffer};
 
 
   //Song playback details like BPM
-  private _playbackInfo: JSONgPlaybackInfo = {bpm: 120, meter: [4,4], grain: 4};
+  private _playbackInfo!: {
+      bpm: number;
+      meter: [number, number];
+      grain: number;
+      metronome: {db: number, high: string, low: string}
+    } & JSONgPlaybackInfo
   get playbackInfo(){return this._playbackInfo}
 
 
   //Natural flow of named sections including loop counts
-  private _playbackFlow: FlowValue[] = [];
+  private _playbackFlow!: FlowValue[];
   // get playbackFlow(){return this._playbackFlow}
 
   //Available sections and their natural flow with extra loop counters
-  private _sectionsFlowMap: SectionType = {count: 0, loop: 0, loopLimit: Infinity, index: []};
+  private _sectionsFlowMap!: SectionType;
   get playbackFlowSections (){return this._sectionsFlowMap}
 
   //Looping details of each section, including specific directives
-  private _playbackMap: JSONgPlaybackMap = {};
+  private _playbackMap!: JSONgPlaybackMap;
   get playbackMap (){return this._playbackMap;}
   
 
@@ -229,29 +228,45 @@ export default class JSONg extends EventTarget{
 
 public async parse(file: string | JSONgManifestFile): Promise<void> {
   
+  // begin parse after confirming that manifest is ok
+  // and sources paths are ok
   const [manifest,baseURL,filename] = await fetchManifest(file);
   this._log.info({manifest,baseURL, filename});
 
-  if(!isManifestValid(manifest)) {
+  if (manifest?.type !== 'jsong')
     return Promise.reject(new Error('parsing invalid manifest'));
-  }
+  if(!manifest?.playback?.bpm) 
+    return Promise.reject(new Error("invalid bpm"))
+  if(!manifest?.playback?.meter) 
+    return Promise.reject(new Error("invalid meter"))
 
-  const manifestSourcePaths = await fetchSourcePaths(manifest, baseURL);
-  this._log.info('manifest sources', manifestSourcePaths);
-
-  // begin parse after confirming that manifest is ok
-  // and sources paths are ok
-  this.state = 'parsing';
-
+  this.state = 'parsing'
   //transfer key information from manifest to player
   // this.playingNow = null;
   this.meta = {...manifest.meta as JSONgMetadata};
+
+  const _metro = manifest.playback.metronome
+  const _metro_def = {
+    db: 0,
+    high: 'G6',
+    low: 'G5'
+  }
+
   this._playbackInfo = {
     bpm: manifest.playback.bpm,
     meter: manifest.playback.meter,
     grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || 1,
-    metronome: manifest.playback?.metronome || ["B5","G4"],
-    metronomeDB: manifest.playback?.metronomeDB || -6,
+    metronome: 
+      typeof _metro === 'boolean' ? 
+      {
+        ... _metro_def,
+        db: _metro ? -6 : -120,
+      } : 
+      typeof _metro === 'object' && _metro ? {
+        db: 'db' in _metro ? _metro.db : _metro_def.db,
+        high: 'high' in _metro ? _metro.high ?? _metro_def.high : _metro_def.high,
+        low: 'low' in _metro ? _metro.low ?? _metro_def.low : _metro_def.low,
+      } : {... _metro_def}
   }
   this._tracksList = [...manifest.tracks]
   this._playbackFlow = [...manifest.playback.flow]
@@ -263,12 +278,10 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   this._meterBeat = 0
   this._metronome.envelope.attack = 0;
   this._metronome.envelope.release = 0.05;
-  this._metronome.volume.value = this._playbackInfo.metronomeDB || 0;
+  this._metronome.volume.value = this.playbackInfo.metronome.db
   Transport.position = '0:0:0'
   Transport.bpm.value = this._playbackInfo.bpm
   Transport.timeSignature = this._playbackInfo.meter
-
-
 
 
   //spawn tracks
@@ -276,7 +289,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   this._log.info('[parse][tracks]',this._tracksList)
   for(const track of this._tracksList){
     const source = track.source ? track.source : track.name;
-    const v = track?.volumeDB || 0
+    const v = track?.db || 0
 
     const a = new Player()
     const b = new Player()
@@ -308,6 +321,19 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   }
 
 
+  //quit if there are no audio files to load
+  if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
+    this.state = 'stopped'
+    this._log.info("[parse] end - no sources",this)
+    return Promise.resolve()
+  }
+
+  const manifestSourcePaths = await fetchSourcePaths(manifest, baseURL);
+  this._log.info('manifest sources', manifestSourcePaths);
+
+  // begin parse after confirming that manifest is ok
+  // and sources paths are ok
+  this.state = 'loading';
   //Load media
   try{
     this._sourceBuffers = await fetchSources(manifestSourcePaths);
@@ -404,7 +430,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       this._schedule(this._sectionsFlowMap.index, '0:0:0', ()=>{
         Draw.schedule(() => {
           this._trackPlayers.forEach((t,i)=>{
-            const vol = this._tracksList[i]?.volumeDB || 0
+            const vol = this._tracksList[i]?.db || 0
             if(fadein){
               t.a.volume.value = -60;
               t.b.volume.value = -60;
@@ -426,7 +452,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
         // },toneNow())
         if(!fadein) return
         this._trackPlayers.forEach((t,i)=>{
-          const vol = this._tracksList[i]?.volumeDB || 0
+          const vol = this._tracksList[i]?.db || 0
           this.rampTrackVolume(i, vol, fadein)
         })
       })
@@ -434,7 +460,7 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
       this.meterBeat = 0
       this._sectionBeat = -1
       Transport.scheduleRepeat((t)=>{
-        const note = this._playbackInfo?.metronome?.[!this._meterBeat ? 0 : 1]
+        const note = this._playbackInfo.metronome[!this._meterBeat ? 'high' : 'low']
         if(!note) return
         this.meterBeat = (this._meterBeat + 1) % (Transport.timeSignature as number)
         if(this._playbackInfo.metronome && this._log.level){

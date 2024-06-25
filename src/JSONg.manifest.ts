@@ -12,10 +12,6 @@ export function isManifestValid(manifest: JSONgManifestFile){
     return false;
   }
 
-  //quit if there are no audio files to load
-  if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
-    return false
-  }
 
   return true
 }

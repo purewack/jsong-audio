@@ -12,7 +12,7 @@ export  type PlayerIndex = number[];
  * - `"next"`: The player is transitioning from 'current' to 'next' sections, if not transition time this is immediate.
  * - `"stopping"`: The player is in the process of stopping playback.
  */
-export  type PlayerState = (null | "parsing" |"stopped" | "playing" | "queue" | "next" | "stopping" )
+export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
 /**
  * A set of flags that can be provided in the flows part of the manifest.

@@ -1,7 +1,7 @@
 import { ToneAudioBuffer } from "tone";
 import { rebuildURL, prependURL, fileExistsURL } from "./JSONg.paths";
 import { JSONgManifestFile, JSONgDataSources } from "./types/jsong";
-import { PlayerBuffers } from "./types/player";
+// import { PlayerBuffers } from "./types/player";
 
 /**
  * Build full URLs to needed source files using the manifest specified files
@@ -14,9 +14,9 @@ import { PlayerBuffers } from "./types/player";
  * 
  *  Base URL = http://test.com/song/
  * 
- *  ./audio.wav = http://test/com/song/audio.wav
+ *  ./audio.wav = http://test.com/song/audio.wav
  * 
- *  audio.wav = http://test/com/audio.wav
+ *  audio.wav = http://test.com/audio.wav
  * @param manifest JSONg formatted object
  * @param baseURL container folder path
  */
@@ -55,7 +55,7 @@ export async function fetchSourcePaths(manifest: JSONgManifestFile, baseURL: str
  * @returns an array of audio buffers
  */
 export default function fetchSources(paths: JSONgDataSources)
-: Promise<PlayerBuffers>
+: Promise<any>
 {
   return new Promise(async (resolve, reject)=>{
     
@@ -76,7 +76,7 @@ export default function fetchSources(paths: JSONgDataSources)
     
     try{
     const loadedBuffers = await Promise.all(loadPromises);
-    const resultBuffers: PlayerBuffers = {}
+    const resultBuffers: any = {}
     loadedBuffers.forEach((buffer,i) => {
       resultBuffers[keys[i]] = buffer;
     })
