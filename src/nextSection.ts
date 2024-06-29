@@ -1,55 +1,45 @@
-import { SectionType, NestedIndex } from './types/common';
-import { setNestedIndex, getNestedIndex } from './nestedIndex'
+import { NestedIndex } from './types/common';
+import {SectionData, SectionInfo} from './types/player'
+import { getNestedIndex } from './nestedIndex'
+import { getIndexInfo } from './indexInfo';
 
-export default function nextSection(
-  topLevel: SectionType, 
-  breakLoop: boolean = false
-) {
-  const traverse = (sec: SectionType) => {
-    if(topLevel?.index === undefined) topLevel.index = [0]
+/*{
+  0: {
+    0: {
+      0: [1,0,0],
+      1: [1,0,1],
+    },
+    1: [1,1],
+    2: {
+      0: [1,2,0],
+      1: [1,2,1],
+    },
+    3: [0,3]
+  },
+  1: [1],
+}*/
 
-    const r = getNestedIndex(topLevel, topLevel.index as NestedIndex);
-    // console.log(">", r, topLevel.index);
-    if (r === undefined) {
-      if (topLevel.index.length > 1) {
-        const prevIndex = topLevel.index.slice(0, -1);
-        const prevSection = getNestedIndex(topLevel, prevIndex) as SectionType;
-        // console.log("-nested index loop", prevIndex, prevSection);
-        // console.log("loop");
-        if(prevSection === undefined) return
+export default function getNextSectionIndex(
+  topLevel: SectionInfo,
+  from: NestedIndex,
+  breakLoop: boolean = false,
+) : (NestedIndex | undefined) {
+  
+  const levelInfo = getIndexInfo(topLevel, from) as SectionInfo
+  if(levelInfo?.sectionCount === undefined) return undefined
 
-        if (prevSection.loop + 1 < prevSection.loopLimit && !breakLoop) {
-          topLevel.index[topLevel.index.length - 1] = 0;
-          prevSection.loop += 1;
-          // console.log("inlimt");
+  const idxOnLevel = from[from.length - 1] as number
+  const sec = levelInfo[idxOnLevel as number] as SectionData
 
-          // console.log("--loop", prevSection, prevIndex);
-          setNestedIndex({ ...prevSection }, topLevel, prevIndex);
-        } else {
-          // console.log("endlimit");
-          prevSection.loop = 0;
-          setNestedIndex({ ...prevSection }, topLevel, prevIndex);
-          topLevel.index.pop();
-          topLevel.index[topLevel.index.length - 1] += 1;
-        }
-        traverse(sec);
-      } else {
-        // console.log("root index loop");
-        topLevel.index = [0];
-        traverse(sec);
-        return;
-      }
-    } else if (typeof r === "object") {
-      topLevel.index.push(0);
-      // console.log(">> obj", topLevel.index);
-      traverse(sec);
-    } else if (typeof r === "string") {
-      // console.log(">>>>>>>>>>>>>>found next", r, sec.index);
-      return;
+  if(breakLoop || idxOnLevel + 1 <= levelInfo.sectionCount-1)
+    return sec.next
+  else{
+    const deepCheck = (depth: NestedIndex) 
+    : (NestedIndex | undefined) =>{    
+      const levelCheck = getNestedIndex(topLevel, depth)
+      if(levelCheck?.name) return depth
+      return deepCheck([...depth, 0])
     }
-  };
-
-  if(topLevel?.index === undefined) topLevel.index = [0]
-  topLevel.index[topLevel.index.length - 1] += 1;
-  traverse(topLevel);
+    return deepCheck([...from.slice(0,-1),0])
+  }
 }
