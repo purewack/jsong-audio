@@ -27,7 +27,7 @@ export  type NestedValue = number | string | any;
  *  0: "intro",
  *  1: {
  *      0: "sub1",
- *      1: "sub2"
+ *      1: {something: "else"}
  *  }
  * } as NestedType
  * 
@@ -37,27 +37,7 @@ export  type NestedType = {
     [key: number | string]: NestedType | NestedValue;
 }
 
-/**
- * This is an extension of a nested type where it specifically refers to a 'built' section map.
- * This 'built' section map is composed using the Flow sections and all loop counters are resolved into real numbers.
- */
-export  type SectionData = {
-    [key: number] : SectionData | NestedType | any | undefined;
-    loop: number;
-    loopLimit: number;
-    count: number;
-}
 
-/**
- * This is the root type for sections with one addition, the current index counter. This counter is vital to keep track of the sections flow.
- */
-export  type SectionType = {
-    [key: number] : SectionType | SectionData | NestedType | any | undefined;
-    loop: number;
-    loopLimit: number;
-    count: number;
-    index: number[];
-}
 
 export  type URLString = string
 export  type DataURIString = `data${string}`

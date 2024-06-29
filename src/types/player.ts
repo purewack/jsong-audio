@@ -1,3 +1,4 @@
+import { NestedIndex, NestedType } from "./common";
 
 export  type PlayerIndex = number[];
 
@@ -25,8 +26,11 @@ export  type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
  * Expanded boolean flags using `PlayerSectionOverrideFlags`
  */
 export  type PlayerSectionOverrides = { 
-    legato?: boolean;
-    autoNext?: boolean;
+    fade: boolean;
+    next?: boolean;
+} | { 
+    fade?: boolean;
+    next: boolean;
 }
 
 /**
@@ -37,7 +41,8 @@ export  type PlayerSection = {
     name: string,
     region: [number, number],
     grain: number,
-    when?: string
+    when?: string,
+    overrides?: PlayerSectionOverrides
 } | null
 
 export  type VerboseLevel =
@@ -45,3 +50,27 @@ export  type VerboseLevel =
     'warning' |
     'info' |
     'all'
+
+export type SectionData = {
+    name: string, 
+    index: NestedIndex, 
+    next: NestedIndex, 
+    overrides?: PlayerSectionOverrides
+}
+/**
+ * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.
+ * This 'built' section map expands the Flow sections from manifest and resolves all properties.
+ */
+export  type SectionInfo = {
+    [key: number] : SectionInfo | SectionData;
+    loopCurrent: number;
+    loopLimit: number;
+    sectionCount: number;
+}
+
+// /**
+//  * This is the root type for sections with one addition, the current index counter. This counter is vital to keep track of the sections flow.
+//  */
+// export  type SectionType = SectionData & {
+//     at: number[];
+// }

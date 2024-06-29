@@ -139,8 +139,8 @@ describe('link loading - ToneAudioBuffer mock', () => {
     
         expect(Object.keys(loadedBuffers).length).toBe(2);
         expect(mockToneAudioBuffer.load).toHaveBeenCalledTimes(2);
-        expect(mockToneAudioBuffer.load).toHaveBeenCalledWith(filePaths.one);
-        expect(mockToneAudioBuffer.load).toHaveBeenCalledWith(filePaths.two);
+        expect(mockToneAudioBuffer.load).toHaveBeenCalledWith(filePaths!.one);
+        expect(mockToneAudioBuffer.load).toHaveBeenCalledWith(filePaths!.two);
     });
 
     test('should fail to load audio files as one is missing', async () => {
@@ -165,7 +165,7 @@ describe('link loading - ToneAudioBuffer mock', () => {
         (ToneAudioBuffer as unknown as jest.Mock).mockImplementation(() => mockToneAudioBuffer);
 
         const paths = await fetchSourcePaths(mockManifest as JSONgManifestFile, baseURL);
-        return await fetchSources(paths).catch((er)=>expect(er).toBeDefined())
+        return await fetchSources(paths!).catch((er)=>expect(er).toBeDefined())
     });
     
 });

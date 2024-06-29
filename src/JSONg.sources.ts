@@ -25,6 +25,8 @@ export async function fetchSourcePaths(manifest: JSONgManifestFile, baseURL: str
 
   const _origin = baseURL.endsWith('/') ? baseURL : baseURL + '/'
 
+  if(!manifest.sources) return null;
+  
   const keys = Object.keys(manifest.sources);
   for(const key of keys){
     let fullURL;

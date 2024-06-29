@@ -12,13 +12,13 @@ describe('JSONg parsing', () => {
 
   const jsong: JSONgManifestFile = {
     type: 'jsong',
-    jsongVersion: '0.0.3',
+    version: '0.0.1',
     meta: {
       title: 'My JSONg Project',
       author: 'John Doe',
-      createdOn: 1589465600000,
-      timestamp: 1589465600000,
-      projectVersion: '1.0.0',
+      created: 1589465600000,
+      modified: 1589465600000,
+      version: '1.0.0',
       createdUsing: 'JSONg Studio 1.0.0',
     },
     playback: {
@@ -37,12 +37,7 @@ describe('JSONg parsing', () => {
         },
       },
     },
-    tracks: [],
-    sources: {
-      'bass': './bass.mp3',
-      'drum': 'drums.mp3',
-      'guitar': 'data:text/plain;base64,SGVsbG8sIFdvcmxkIQ=='
-    },
+    tracks: []
   };
 
   describe('success conditions',()=>{

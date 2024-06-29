@@ -1,7 +1,7 @@
 import { NestedValue, NestedType, NestedIndex } from "./types/common";
 
 export function setNestedIndex(
-  toSet: NestedValue, 
+  value: NestedValue, 
   flows: NestedType, 
   targetIndex: NestedIndex
 ): void 
@@ -12,7 +12,7 @@ export function setNestedIndex(
     // console.log(levelIndex, _indexCounter, targetIndex);
     if (_indexCounter + "" === targetIndex + "") {
       // console.log("set", _indexCounter);
-      _flows[levelIndex] = toSet;
+      _flows[levelIndex] = value;
     } else {
       deep(_flows[levelIndex] as NestedType, depth + 1, _indexCounter);
     }

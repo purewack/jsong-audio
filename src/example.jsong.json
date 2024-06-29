@@ -1,0 +1,55 @@
+{
+    "type": "jsong",
+    "version": "0.0.1",
+    "meta": {
+      "title": "Test",
+      "author": "Damian Nowacki",
+      "created": "1679741210",
+      "modified": "1679741210",
+      "version": "1.0.0",
+      "createdUsing": ""
+    },
+    "playback": {
+      "bpm": 95.0,
+      "meter": [4, 4],
+      "metronome": true,
+      "map": {
+        "intro": { "region": [0, 4], "grain": 16 },
+        "chorus": { "region": [4, 12], "grain": 8 },
+        "verse1": { "region": [12, 16]},
+        "bridge1": { "region": [16, 24], "legato": {"xfades": ["guitar", "lead"]}},
+        "verse2": { "region": [24,32], "legato": 6}
+      },
+      "flow": ["intro", "chorus", "verse1", [["bridge-X", "verse2"],"verse1"]],
+      "filter": {
+        "rolloff": -24,
+        "resonance": 3
+      }
+    },
+    "tracks": [
+      {
+        "name": "drums",
+        "filter": {
+          "rolloff": -24,
+          "resonance": 2
+        }
+      },
+      {
+        "name": "bass"
+      },
+      {
+        "name": "guitar",
+        "db": -6
+      },
+      {
+        "name": "lead"
+      }
+    ],
+    "sources": {
+      "bass": "test_bass.mp3",
+      "drums": "test_drums.mp3",
+      "guitar": "./test_guitar.mp3",
+      "lead": "./test_lead.mp3"
+    }
+  }
+  

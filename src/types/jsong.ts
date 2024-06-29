@@ -8,10 +8,10 @@ import { DataURIString, FlowValue, URLString } from "./common";
 export  type JSONgMetadata = {
     title: string;
     author: string
-    createdOn : number;
-    timestamp : number;
-    projectVersion: string;
+    version: string;
+    created : number;
     createdUsing?: string;
+    modified? : number;
 }
 
 /**
@@ -56,12 +56,6 @@ export  type JSONgSection = {
 }
 
 
-/**
- * an object full of song section definitions, not strictly in any musical order.
- */
-export  type JSONgPlaybackMap = {
-    [key: string] : JSONgSection,
-}
 
 /**
  * Details of each track along with the required 
@@ -89,12 +83,12 @@ export  type JSONgDataSources = {
  */
 export  type JSONgManifestFile = {
     type: 'jsong' | undefined;
-    jsongVersion: string;
+    version: string;
     meta: JSONgMetadata;
     playback: JSONgPlaybackInfo & {
         flow: FlowValue[];
-        map: JSONgPlaybackMap;
+        map: {[key: string] : JSONgSection};
     };
     tracks: JSONgTrack[];
-    sources: JSONgDataSources;
+    sources?: JSONgDataSources;
 }
