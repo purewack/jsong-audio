@@ -5,8 +5,7 @@ import {SectionInfo} from "./types/player"
 export function getIndexInfo(flows: SectionInfo, index: NestedIndex) 
 : (SectionInfo | undefined) {
     if(index.length > 1) {
-        index.pop()
-        return {...getNestedIndex(flows, index)}
+        return {...getNestedIndex(flows, index.slice(0,-1))}
     }
     else{
         return {...flows}

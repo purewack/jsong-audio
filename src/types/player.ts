@@ -1,4 +1,4 @@
-import { NestedIndex, NestedType } from "./common";
+import { NestedIndex } from "./common";
 
 export  type PlayerIndex = number[];
 
@@ -7,9 +7,10 @@ export  type PlayerIndex = number[];
  * 
  * - `null`: No media is loaded or the player is uninitialized.
  * - `"parsing"`: The player is currently parsing media information.
- * - `"stopped"`: Playback has been stopped but contains media.
+ * - `"loading"`: The player is currently loading media buffers.
+ * - `"stopped"`: Playback has been stopped and is ready to play media.
  * - `"playing"`: The player is actively playing media.
- * - `"queue"`: The next section is queued for playback.
+ * - `"queue"`: A next section is queued for playback.
  * - `"next"`: The player is transitioning from 'current' to 'next' sections, if not transition time this is immediate.
  * - `"stopping"`: The player is in the process of stopping playback.
  */
