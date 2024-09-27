@@ -101,11 +101,76 @@ graph
 	next[next]
 	cancel[cancel]
 	
-	play-.->q-->next
-	q-.->cancel
+	play-."play()".->q-->next
+	q-."cancel()".->cancel
 	cancel-->play
 	next-->play
 	play-.->prestop
 	prestop-->stop
 	stop-.->play
 ```
+
+## More complete states
+```mermaid
+graph BT
+
+	created[[created]]
+	empty{{empty}}
+	parse{{parsing...}}
+	load{{loading...}}
+
+	created-->empty-.->new
+	new-->checkNew{Check if loadable}-->stopForParse[force stop]
+	parsed-."any".->new(load new)
+	stopForParse-->parse
+	
+	parse-->load--"ok"-->stop
+	load--"error"-->empty
+		
+	subgraph parsed
+		play{{playing...}}
+		stop{{stopped}}
+		prestop{{stopping...}}
+		q{{queue...}}
+		next{{next...}}
+		cancel{{cancel check}}
+		
+
+	next-->next
+		play-.->q-->cancel
+		cancel-."yes".->play
+		cancel--"no"-->next-->play
+		play-.->prestop
+		prestop-->stop
+		stop-.->play
+	end
+```
+
+# Sample usage
+```js
+
+const jsong = new JSONg("example.jsong")
+jsong.addEventListener("sectionQueue",queuedSection)
+jsong.addEventListener("sectionChange",changedSection)
+
+jsong.play()
+setTimeout(async ()=>{
+	await jsong.play()
+	json.play()
+},1000)
+
+
+
+
+function queuedSection(ev){
+	console.log("Will change sections",ev.from, ev.to)
+	//do visual effects to signal upcoming changing of sections
+}
+
+function changedSection(ev){
+	console.log("Did change sections",ev.from, ev.to)
+	//stop effects on section change
+}
+
+```
+

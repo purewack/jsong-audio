@@ -12,7 +12,7 @@ describe('JSONg parsing', () => {
 
   const jsong: JSONgManifestFile = {
     type: 'jsong',
-    version: '0.0.1',
+    version: 'J/1',
     meta: {
       title: 'My JSONg Project',
       author: 'John Doe',

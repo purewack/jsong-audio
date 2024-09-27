@@ -1,17 +1,17 @@
 import {getIndexInfo, setIndexInfo} from "../src/indexInfo";
-import { SectionInfo } from "../src/types/player";
+import { PlayerSections } from "../src/types/player";
 
 let sections = {
-  0: {name:"intro", index: [0], next: [1,0,0]},
+  0: {name:"intro", index: [0], next: [1,0,0], region:[0,4], grain:4},
   1: {
     0: {
-      0: {name:"chorus", index: [1,0,0], next: [1,0,1]},
-      1: {name:"verse",  index: [1,0,1], next: [1,1]},
+      0: {name:"chorus", index: [1,0,0], next: [1,0,1], region:[4,8], grain:16},
+      1: {name:"verse",  index: [1,0,1], next: [1,1], region:[8,12], grain:4},
       loopCurrent: 0,
       loopLimit: 2,
       sectionCount: 2,
     },
-    1: {name:"bass", index: [1,1], next:[0]},
+    1: {name:"bass", index: [1,1], next:[0], region:[12,16], grain:4},
     loopCurrent: 0,
     loopLimit: Infinity,
     sectionCount: 2,
@@ -19,7 +19,7 @@ let sections = {
   loopCurrent: 0,
   loopLimit: Infinity,
   sectionCount: 2,
-} as SectionInfo
+} as PlayerSections
 
 
 test("top level", () => {

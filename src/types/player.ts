@@ -1,6 +1,5 @@
-import { NestedIndex } from "./common";
-
-export  type PlayerIndex = number[];
+import { BarsBeatsSixteenths } from "tone/build/esm/core/type/Units";
+import { JSONgSection, JSONgTrack } from "./jsong";
 
 /**
  * Represents the possible states for a JSONg player.
@@ -16,15 +15,20 @@ export  type PlayerIndex = number[];
  */
 export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "next" | "stopping" )
 
-/**
- * A set of flags that can be provided in the flows part of the manifest.
- * - `>` automatically go to the next section after the region end is reached
- * - `X` or `x` automatically cross-fade the current section into the next one when triggered
- */
-export  type PlayerSectionOverrideFlags =  null | ">" | "X" | "x"
 
 /**
- * Expanded boolean flags using `PlayerSectionOverrideFlags`
+ * Used to refer to built player section for progression purposes
+ */
+export  type PlayerIndex = number[];
+
+/**
+ * Processed flow sections from manifest and directives expanded
+ */
+export type PlayerFlowValue = { name: string; flags?: PlayerSectionOverrides } | number | PlayerFlowValue[];
+
+
+/**
+ * Expanded boolean flags using `FlowOverrideFlags`
  */
 export  type PlayerSectionOverrides = { 
     fade: boolean;
@@ -34,44 +38,37 @@ export  type PlayerSectionOverrides = {
     next: boolean;
 }
 
+
+
+
+
+
 /**
+ * Full section information
  * Describes either the current section or scheduled sections for referencing outside the player
  */
-export  type PlayerSection = {
+export type PlayerSection = {
+    name: string, 
     index: PlayerIndex, 
-    name: string,
-    region: [number, number],
-    grain: number,
-    when?: string,
+    next: PlayerIndex, 
     overrides?: PlayerSectionOverrides
-} | null
+} & JSONgSection;
+
+/**
+ * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.
+ * This 'built' section map expands the Flow sections from manifest and resolves all properties.
+ */
+export  type PlayerSections = {
+    [key: number] : PlayerSections | PlayerSection;
+    loopCurrent: number; //current loop iteration of the possible loop flow
+    loopLimit: number; //maximum number to loop flow section
+    sectionCount: number; //number of sections that follow this level of flows
+}
+
+
 
 export  type VerboseLevel =
     null | undefined |
     'warning' |
     'info' |
     'all'
-
-export type SectionData = {
-    name: string, 
-    index: NestedIndex, 
-    next: NestedIndex, 
-    overrides?: PlayerSectionOverrides
-}
-/**
- * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.
- * This 'built' section map expands the Flow sections from manifest and resolves all properties.
- */
-export  type SectionInfo = {
-    [key: number] : SectionInfo | SectionData;
-    loopCurrent: number;
-    loopLimit: number;
-    sectionCount: number;
-}
-
-// /**
-//  * This is the root type for sections with one addition, the current index counter. This counter is vital to keep track of the sections flow.
-//  */
-// export  type SectionType = SectionData & {
-//     at: number[];
-// }

@@ -1,6 +1,6 @@
 {
     "type": "jsong",
-    "version": "0.0.1",
+    "version": "J/1",
     "meta": {
       "title": "Test",
       "author": "Damian Nowacki",
@@ -17,10 +17,10 @@
         "intro": { "region": [0, 4], "grain": 16 },
         "chorus": { "region": [4, 12], "grain": 8 },
         "verse1": { "region": [12, 16]},
-        "bridge1": { "region": [16, 24], "legato": {"xfades": ["guitar", "lead"]}},
-        "verse2": { "region": [24,32], "legato": 6}
+        "bridge1": { "region": [16, 24]},
+        "verse2": { "region": [24,32]}
       },
-      "flow": ["intro", "chorus", "verse1", [["bridge-X", "verse2"],"verse1"]],
+      "flow": ["intro", "chorus", "verse1", [2,["bridge-X", "verse2"],"verse1"]],
       "filter": {
         "rolloff": -24,
         "resonance": 3

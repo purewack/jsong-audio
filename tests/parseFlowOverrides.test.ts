@@ -1,5 +1,5 @@
 import { PlayerSectionOverrides } from "../src/types/player"
-import {parseFlowOverrides} from "../src/parseOverrides"
+import {parseFlowOverrides} from "../src/overrides"
 
 test('extract override flags from section name', ()=>{
     expect(parseFlowOverrides('test-x->').flags).toMatchObject({

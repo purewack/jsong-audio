@@ -2,6 +2,8 @@
 
 import { DataURIString, FlowValue, URLString } from "./common";
 
+export type JSONgVerison = "J/1"
+
 /**
  * Metadata information about the music and its creator
  */
@@ -45,14 +47,14 @@ export  type JSONgPlaybackInfo = {
  */
 export  type JSONgSection = { 
     region: [number, number];
-    grain?: number;
+    grain?: number | undefined;
     legato?: number | {
         duration: number;
-        xfades: undefined | string[];
+        xfades?: string[];
     } | {
-        duration: undefined | number;
+        duration?: number;
         xfades: string[];
-    }
+    } | undefined;
 }
 
 
@@ -83,7 +85,7 @@ export  type JSONgDataSources = {
  */
 export  type JSONgManifestFile = {
     type: 'jsong' | undefined;
-    version: string;
+    version: JSONgVerison;
     meta: JSONgMetadata;
     playback: JSONgPlaybackInfo & {
         flow: FlowValue[];
@@ -92,3 +94,11 @@ export  type JSONgManifestFile = {
     tracks: JSONgTrack[];
     sources?: JSONgDataSources;
 }
+
+
+/**
+ * A set of flags that can be provided in the flows part of the manifest.
+ * - `>` automatically go to the next section after the region end is reached
+ * - `X` or `x` automatically cross-fade the current section into the next one when triggered
+ */
+export  type FlowOverrideFlags =  null | ">" | "X" | "x"

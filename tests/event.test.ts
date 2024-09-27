@@ -1,6 +1,6 @@
-import {TransportEvent, PlayerEvent} from '../src/types/events'
+import {TransportEvent} from '../src/types/events'
 
-const ev = new TransportEvent("timing", '4:2')
+const ev = new TransportEvent("timing", '4:2',0,0,0)
 class Emmiter extends EventTarget {
   doTest(){
     this.dispatchEvent(ev)
