@@ -1,7 +1,7 @@
 import {getIndexInfo, setIndexInfo} from "../src/indexInfo";
 import { PlayerSections } from "../src/types/player";
 
-let sections = {
+let sections:PlayerSections = {
   0: {name:"intro", index: [0], next: [1,0,0], region:[0,4], grain:4},
   1: {
     0: {
@@ -19,7 +19,7 @@ let sections = {
   loopCurrent: 0,
   loopLimit: Infinity,
   sectionCount: 2,
-} as PlayerSections
+}
 
 
 test("top level", () => {

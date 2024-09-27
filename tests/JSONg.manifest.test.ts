@@ -26,15 +26,9 @@ describe('JSONg parsing', () => {
       meter: [4,4],
       flow: ['A','B','C','A'],
       map: {
-        'A': {
-          region: [0, 1],
-        },
-        'B': {
-          region: [1, 2],
-        },
-        'C': {
-          region: [2, 3],
-        },
+        'A': [0, 1],
+        'B': [1, 2],
+        'C': [2, 3],
       },
     },
     tracks: []

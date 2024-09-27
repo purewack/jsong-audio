@@ -1,17 +1,17 @@
 import {getNextSectionIndex, findStart } from "../src/nextSection";
 import { PlayerSection, PlayerSections } from "../src/types/player";
 
-const sections = {
+const sections: PlayerSections = {
   0: {
     0: {
       0: {name:"A", index: [0,0,0], next: [0,0,1],region:[0,0], grain:4},
-      1: {name:"V", index: [0,0,1], next: [0,1],region:[0,0], grain:4},
+      1: {name:"V", index: [0,0,1], next: [0,1],  region:[0,0], grain:4},
       loopCurrent: 0,
       loopLimit: 2,
       sectionCount: 2,
     },
-    1: {name: "A", index:[0,1], next: [0,2],region:[0,0], grain:4, overrides: {fade: true, next: true}},
-    2: {name: "B", index: [0,2], next: [1],region:[0,0], grain:4},
+    1: {name: "A", index:[0,1], next: [0,2],region:[0,0], grain:4, fade: true, once: true},
+    2: {name: "B", index: [0,2], next: [1], region:[0,0], grain:4},
     loopCurrent: 0,
     loopLimit: Infinity,
     sectionCount: 3,
@@ -20,7 +20,7 @@ const sections = {
   loopCurrent: 0,
   loopLimit: Infinity,
   sectionCount: 2,
-} as PlayerSections
+} 
 
 test("Next - simple obey loop limits", () => {
   expect(getNextSectionIndex(sections, [0,0,0])).toStrictEqual([0,0,1]);
@@ -52,18 +52,18 @@ test("Start - find start index of whole song", ()=>{
 })
 
 test("Start - non nested start sections beginning index", ()=>{
-  const other = {
+  const other: PlayerSections = {
     0: {name: "C", index: [0], next: [1], region:[0,0], grain:4},
     1: {
       0: {
         0: {name:"A", index: [1,0,0], next: [1,0,1], region:[0,0], grain:4},
-        1: {name:"V", index: [1,0,1], next: [1,1], region:[0,0], grain:4},
+        1: {name:"V", index: [1,0,1], next: [1,1],   region:[0,0], grain:4},
         loopCurrent: 0,
         loopLimit: 2,
         sectionCount: 2,
       },
-      1: {name: "A", index:[1,1], next: [1,2], region:[0,0], grain:4, overrides: {fade: true, next: true}},
-      2: {name: "B", index: [1,2], next: [0], region:[0,0], grain:4},
+      1: {name: "A", index:[1,1],  next: [1,2], region:[0,0], grain:4, fade: true, once: true},
+      2: {name: "B", index: [1,2], next: [0],   region:[0,0], grain:4},
       loopCurrent: 0,
       loopLimit: Infinity,
       sectionCount: 3,
@@ -71,7 +71,7 @@ test("Start - non nested start sections beginning index", ()=>{
     loopCurrent: 0,
     loopLimit: Infinity,
     sectionCount: 2,
-  } as PlayerSections
+  }
 
   expect(findStart(other)).toStrictEqual([0]);
 })

@@ -6,7 +6,7 @@
       "author": "Damian Nowacki",
       "created": "1679741210",
       "modified": "1679741210",
-      "version": "1.0.0",
+      "version": "R/1",
       "createdUsing": ""
     },
     "playback": {
@@ -14,17 +14,30 @@
       "meter": [4, 4],
       "metronome": true,
       "map": {
-        "intro": { "region": [0, 4], "grain": 16 },
-        "chorus": { "region": [4, 12], "grain": 8 },
-        "verse1": { "region": [12, 16]},
-        "bridge1": { "region": [16, 24]},
-        "verse2": { "region": [24,32]}
+        "intro": [0, 4],
+        "chorus": [4, 12],
+        "verse1": [12, 16],
+        "bridge1": [16, 24],
+        "verse2":  [24,32]
       },
-      "flow": ["intro", "chorus", "verse1", [2,["bridge-X", "verse2"],"verse1"]],
-      "filter": {
-        "rolloff": -24,
-        "resonance": 3
-      }
+      "flow": [
+        "intro", 
+        "chorus", 
+        "verse1", 
+        [2,
+          [
+            {"name":"bridge","fade":true,"once":true}, 
+            "verse2"
+          ],
+          {"name":"verse1",
+            "grain": 4,
+            "fade":{
+              "bass": 4,
+              "guitar": 4
+            }
+          } 
+        ]
+      ]
     },
     "tracks": [
       {

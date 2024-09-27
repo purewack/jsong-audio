@@ -1,6 +1,6 @@
 //JSONg Manifest types
 
-import { DataURIString, FlowValue, URLString } from "./common";
+import { DataURIString, URLString } from "./common";
 
 export type JSONgVerison = "J/1"
 
@@ -39,30 +39,11 @@ export  type JSONgPlaybackInfo = {
         {resonance:  number, rolloff?: number};
 }
 
-/**
- * This type supplies information required to construct a section of music
- * - `region` defines the start and end bars of the section
- * - `grain` is an optional override of global granularity
- * - `legato` is an optional override of the global cross-fade time and tracks which to cross fade
- */
-export  type JSONgSection = { 
-    region: [number, number];
-    grain?: number | undefined;
-    legato?: number | {
-        duration: number;
-        xfades?: string[];
-    } | {
-        duration?: number;
-        xfades: string[];
-    } | undefined;
-}
-
-
 
 /**
  * Details of each track along with the required 
  */
-export  type JSONgTrack = {
+export type JSONgTrack = {
     name: string;
     source : string;
 	db?: number;
@@ -79,6 +60,25 @@ export  type JSONgDataSources = {
     [key: string]: URLString | DataURIString
 }
 
+export type JSONgFlowInstruction = {
+    //name of section reference
+    name: string; 
+    
+    //granularity of current section - override
+    grain?: number;
+
+    //whether the section only plays once without looping itself - override
+    once?: boolean; 
+
+     //which tracks to fade, if true fade all, if number fade all over the given time - override
+    fade?: boolean
+    | number 
+    | string[] 
+    | {[key:string] :{ 
+        duration: number | string //explicit definition of fade times per track
+    }}
+} 
+export type JSONgFlowEntry = (number | string | JSONgFlowInstruction) | JSONgFlowEntry[]
 
 /**
  * Final manifest file layout
@@ -88,17 +88,9 @@ export  type JSONgManifestFile = {
     version: JSONgVerison;
     meta: JSONgMetadata;
     playback: JSONgPlaybackInfo & {
-        flow: FlowValue[];
-        map: {[key: string] : JSONgSection};
+        map: {[key: string] : [number, number]};
+        flow: JSONgFlowEntry[];
     };
     tracks: JSONgTrack[];
     sources?: JSONgDataSources;
 }
-
-
-/**
- * A set of flags that can be provided in the flows part of the manifest.
- * - `>` automatically go to the next section after the region end is reached
- * - `X` or `x` automatically cross-fade the current section into the next one when triggered
- */
-export  type FlowOverrideFlags =  null | ">" | "X" | "x"

@@ -1,8 +1,8 @@
-import { NestedValue, NestedType, NestedIndex } from "./types/common";
+import { NestedType, NestedIndex } from "./types/common";
 
 export function setNestedIndex(
-  value: NestedValue, 
-  flows: NestedType, 
+  value: any, 
+  target: NestedType, 
   targetIndex: NestedIndex
 ): void 
 {
@@ -17,26 +17,26 @@ export function setNestedIndex(
       deep(_flows[levelIndex] as NestedType, depth + 1, _indexCounter);
     }
   }
-  deep(flows, 0, [...Array(targetIndex.length)]);
+  deep(target, 0, [...Array(targetIndex.length)]);
 }
   
 export function getNestedIndex(
-  flows: NestedType, 
+  target: NestedType, 
   targetIndex: NestedIndex
 ):
-(undefined | NestedValue) {
+(undefined | any) {
   function deep(_flows: NestedType, depth: number, _indexCounter: NestedIndex)
-  : (NestedValue | undefined) {
+  : (undefined | any) {
     const levelIndex = targetIndex[depth];
     _indexCounter[depth] = levelIndex;
     // console.log({ levelIndex, _indexCounter, targetIndex, depth });
     // console.log(_indexCounter + "", targetIndex + "");
     if (_indexCounter + "" === targetIndex + "") {
       // console.log("get", targetIndex);
-      return _flows[levelIndex] as NestedValue;
+      return _flows[levelIndex];
     } else if (_flows[levelIndex]) {
       return deep(_flows[levelIndex] as NestedType, depth + 1, _indexCounter);
     } else return undefined;
   }
-  return deep(flows, 0, [...Array(targetIndex.length)]);
+  return deep(target, 0, [...Array(targetIndex.length)]);
 } 

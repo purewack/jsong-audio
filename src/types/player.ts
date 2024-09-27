@@ -1,6 +1,3 @@
-import { BarsBeatsSixteenths } from "tone/build/esm/core/type/Units";
-import { JSONgSection, JSONgTrack } from "./jsong";
-
 /**
  * Represents the possible states for a JSONg player.
  * 
@@ -21,38 +18,34 @@ export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" 
  */
 export  type PlayerIndex = number[];
 
-/**
- * Processed flow sections from manifest and directives expanded
- */
-export type PlayerFlowValue = { name: string; flags?: PlayerSectionOverrides } | number | PlayerFlowValue[];
-
 
 /**
  * Expanded boolean flags using `FlowOverrideFlags`
  */
 export  type PlayerSectionOverrides = { 
-    fade: boolean;
-    next?: boolean;
-} | { 
-    fade?: boolean;
-    next: boolean;
+    fade?: boolean
+    | number 
+    | string[] 
+    | {[key:string] :{ 
+        duration: number | string
+    }} 
+    once?: boolean ;
 }
-
-
 
 
 
 
 /**
  * Full section information
- * Describes either the current section or scheduled sections for referencing outside the player
+ * Describes either the current section or JSONgSeconscheduled sections for referencing outside the player
  */
 export type PlayerSection = {
     name: string, 
     index: PlayerIndex, 
     next: PlayerIndex, 
-    overrides?: PlayerSectionOverrides
-} & JSONgSection;
+    grain: number,
+    region: [number, number]
+} & PlayerSectionOverrides;
 
 /**
  * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.

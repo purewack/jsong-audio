@@ -1,15 +1,14 @@
-import { JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack, FlowOverrideFlags } from './types/jsong'
-import { PlayerSections, PlayerState, PlayerIndex, PlayerSectionOverrides, PlayerSection, VerboseLevel, PlayerFlowValue } from './types/player'
+import { JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
+import { PlayerSections, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
 import quanTime from './quantime'
 import {getNextSectionIndex,  findStart } from './nextSection'
-import buildSection from './buildSection'
+import buildSections from './buildSection'
 import {getNestedIndex} from './nestedIndex'
 import Logger from './logger'
 import fetchSources, { fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
 import { SectionEvent, JSONgEventsList, ParseOptions, StateEvent, TransportEvent } from './types/events'
-import { applyFlowOverrides, parseFlowOverrides } from './overrides'
 
 import { BarsBeatsSixteenths, Time as TimeUnit } from "tone/build/esm/core/type/Units"
 import {
@@ -83,7 +82,7 @@ export default class JSONg extends EventTarget{
    * Visual flow of named sections including loop counts
    * Private so stripped of any directives  
    */
-  private _flow!: PlayerFlowValue;
+  private _flow!: JSONgFlowEntry[];
   get flow(){
     return this._flow
   }
@@ -284,9 +283,15 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
 
   this._dispatchParsePhase('sections')
   //build sections
-  this._sections = buildSection(manifest.playback.flow, manifest.playback.map, this._timingInfo.grain);
+  this._sections = buildSections(
+    manifest.playback.flow, 
+    manifest.playback.map, 
+    {
+      grain: this._timingInfo.grain
+    }
+  );
   this._beginning = findStart(this._sections);
-  this._flow = applyFlowOverrides(manifest.playback.flow);
+  this._flow = manifest.playback.flow;
   
 
   this._dispatchParsePhase('tracks')

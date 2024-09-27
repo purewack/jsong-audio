@@ -1,4 +1,3 @@
-import { NestedIndex } from './types/common';
 import {PlayerIndex, PlayerSection, PlayerSections} from './types/player'
 import { getNestedIndex } from './nestedIndex'
 import { getIndexInfo } from './indexInfo';
