@@ -1,68 +1,69 @@
 {
-    "type": "jsong",
-    "version": "J/1",
-    "meta": {
-      "title": "Test",
-      "author": "Damian Nowacki",
-      "created": "1679741210",
-      "modified": "1679741210",
-      "version": "R/1",
-      "createdUsing": ""
+  "type": "jsong",
+  "version": "J/1",
+  "meta": {
+    "title": "Test",
+    "author": "Damian Nowacki",
+    "created": "1679741210",
+    "modified": "1679741210",
+    "version": "R/1",
+    "createdUsing": ""
+  },
+  "playback": {
+    "bpm": 95.0,
+    "meter": [4, 4],
+    "metronome": true,
+    "map": {
+      "intro":   [0,  4],
+      "chorus":  [4,  12],
+      "verse1":  [12, 16],
+      "bridge1": [16, 24],
+      "verse2":  [24, 32]
     },
-    "playback": {
-      "bpm": 95.0,
-      "meter": [4, 4],
-      "metronome": true,
-      "map": {
-        "intro": [0, 4],
-        "chorus": [4, 12],
-        "verse1": [12, 16],
-        "bridge1": [16, 24],
-        "verse2":  [24,32]
-      },
-      "flow": [
-        "intro", 
-        "chorus", 
-        "verse1", 
-        [2,
-          [
-            {"name":"bridge","fade":true,"once":true}, 
-            "verse2"
-          ],
-          {"name":"verse1",
-            "grain": 4,
-            "fade":{
-              "bass": 4,
-              "guitar": 4
+    "flow": [
+      "intro->", 
+      "chorus", 
+      "verse1", 
+      [2,
+        [
+          {"name":"bridge", "fade":true, "once":true}, 
+          "verse2"
+        ],
+        {"name":"verse1", "grain": 4,
+          "fade":{
+            "bass": 4,
+            "guitar": {
+              "duration": 8,
+              "filter": {
+                "rolloff": -24,
+                "resonance": 2
+              }
             }
-          } 
-        ]
+          }
+        } 
       ]
+    ]
+  },
+  "tracks": [
+    {
+      "name": "drums"
     },
-    "tracks": [
-      {
-        "name": "drums",
-        "filter": {
-          "rolloff": -24,
-          "resonance": 2
-        }
-      },
-      {
-        "name": "bass"
-      },
-      {
-        "name": "guitar",
-        "db": -6
-      },
-      {
-        "name": "lead"
-      }
-    ],
-    "sources": {
-      "bass": "test_bass.mp3",
-      "drums": "test_drums.mp3",
-      "guitar": "./test_guitar.mp3",
-      "lead": "./test_lead.mp3"
+    {
+      "name": "bass"
+    },
+    {
+      "name": "guitar",
+      "db": -6
+    },
+    {
+      "name": "lead"
     }
+  ],
+  "sources": {
+    "bass": "test_bass.mp3",
+    "drums": "test_drums.mp3",
+    "guitar": "./test_guitar.mp3",
+    "lead": "./test_lead.mp3"
   }
+}
   

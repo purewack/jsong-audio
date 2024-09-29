@@ -1,6 +1,7 @@
-import {PlayerSection, PlayerSectionOverrides, PlayerSections} from "./types/player"
+import {PlayerSection, PlayerSections} from "./types/player"
 import {splitSectionName} from "./overrides"
-import { JSONgFlowEntry } from "./types/jsong";
+import { JSONgFlowEntry, JSONgFlowInstruction } from "./types/jsong";
+import { split } from "lodash";
 
 //example flow to build from:
 // ["intro", "chorus", "verse1", [["bridge-X", "verse2"],"verse1"]]
@@ -48,10 +49,7 @@ export default function buildSections(
 
       } else if (typeof entry !== "number") {
         let newEntry:any = {}
-        let splitName: {
-            name: string;
-            flags?: PlayerSectionOverrides;
-        };
+        let splitName: JSONgFlowInstruction;
         
         newEntry.grain = sectionDefaults.grain
         if(typeof entry === "object"){
@@ -63,8 +61,7 @@ export default function buildSections(
         }
         else{
           splitName = splitSectionName(entry);
-          if(splitName.flags)
-            newEntry = {...newEntry, ...splitName.flags}
+          newEntry = {...newEntry, ...splitName}
         }
 
         const name = splitName.name

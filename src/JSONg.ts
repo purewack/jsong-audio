@@ -685,7 +685,15 @@ private _clear(){
 // });
 
 
-
+/**
+ * Schedule change of sections. 
+ * The scheduler will wait until the correct time to change sections during the `queue` state
+ * or
+ * The scheduler will fade the tracks using an intermediate state `transition` when the transition starts, after `queue`
+ * @param to 
+ * @param forWhen 
+ * @returns 
+ */
 private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<PlayerSection> {
   this._clear()
 
@@ -705,10 +713,12 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
      
       trackPromises = this._trackPlayers.map(track => {
         return new Promise((trackResolve)=>{
+
           const nextTrack = track.current === track.a ? track.b : track.a
           nextTrack.loopStart = to.region[0]+'m';
           nextTrack.loopEnd = to.region[1]+'m';
           nextTrack.loop = true;
+
           try{
             // const nonLegatoStart = ()=>{
               this._log.info(`[schedule] {${track.name}}[${to.index}]:${to.name} - non-legato`)
@@ -769,10 +779,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
       this._clear()     
       resolve(to)
     })
-
-    // if(sectionOverrides?.skip){
-    //   this._advanceSection(null, false, true)
-    // }
   })
 
 }

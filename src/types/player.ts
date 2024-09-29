@@ -1,3 +1,5 @@
+import { JSONgFlowInstruction } from "./jsong";
+
 /**
  * Represents the possible states for a JSONg player.
  * 
@@ -6,11 +8,11 @@
  * - `"loading"`: The player is currently loading media buffers.
  * - `"stopped"`: Playback has been stopped and is ready to play media.
  * - `"playing"`: The player is actively playing media.
- * - `"queue"`: A next section is queued for playback.
- * - `"next"`: The player is transitioning from 'current' to 'next' sections, if not transition time this is immediate.
+ * - `"queue"`: A next section is queued for playback. This state will revert to `playing` after the new section takes place.
+ * - `"transition"`: The player is transitioning from 'current' to 'next' sections if tracks are fading.
  * - `"stopping"`: The player is in the process of stopping playback.
  */
-export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "next" | "stopping" )
+export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "transition" | "stopping" )
 
 
 /**
@@ -19,33 +21,17 @@ export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" 
 export  type PlayerIndex = number[];
 
 
-/**
- * Expanded boolean flags using `FlowOverrideFlags`
- */
-export  type PlayerSectionOverrides = { 
-    fade?: boolean
-    | number 
-    | string[] 
-    | {[key:string] :{ 
-        duration: number | string
-    }} 
-    once?: boolean ;
-}
-
-
-
 
 /**
  * Full section information
  * Describes either the current section or JSONgSeconscheduled sections for referencing outside the player
  */
 export type PlayerSection = {
-    name: string, 
     index: PlayerIndex, 
     next: PlayerIndex, 
     grain: number,
     region: [number, number]
-} & PlayerSectionOverrides;
+} & JSONgFlowInstruction;
 
 /**
  * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.

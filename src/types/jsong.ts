@@ -70,6 +70,10 @@ export type JSONgFlowInstruction = {
     //whether the section only plays once without looping itself - override
     once?: boolean; 
 
+    //if true, next section will start at the position of current section,
+    //i.e. if section A is 70% complete, next section (B) will start playing from its 70% mark at time of schedule
+    legato?: boolean;
+
      //which tracks to fade, if true fade all, if number fade all over the given time - override
     fade?: boolean
     | number 
