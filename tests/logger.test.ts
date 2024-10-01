@@ -1,6 +1,5 @@
 import Logger from '../src/logger';
 
-describe('Logger', () => {
   // test('should log an error', () => {
   //   const logger = new Logger();
   //   const spy = jest.spyOn(console, 'error');
@@ -43,4 +42,3 @@ describe('Logger', () => {
    expect(spy).not.toHaveBeenCalled();
    spy.mockClear();
  });
-});

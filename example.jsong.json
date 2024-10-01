@@ -14,7 +14,7 @@
     "meter": [4, 4],
     "metronome": true,
     "map": {
-      "intro":   [0,  4],
+      "intro":   [0,   4],
       "chorus":  [4,  12],
       "verse1":  [12, 16],
       "bridge1": [16, 24],
@@ -45,18 +45,12 @@
     ]
   },
   "tracks": [
-    {
-      "name": "drums"
-    },
-    {
-      "name": "bass"
-    },
+    "drums",
+    "bass",
+    "lead",
     {
       "name": "guitar",
       "db": -6
-    },
-    {
-      "name": "lead"
     }
   ],
   "sources": {

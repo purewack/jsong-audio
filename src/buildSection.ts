@@ -14,7 +14,9 @@ export default function buildSections(
   flow: JSONgFlowEntry[], 
   map:{[key: string]: [number,number]}, 
   sectionDefaults: {
-    grain: number
+    grain: number,
+    tracks: string[],
+    fadeDuration: number
   })
 : PlayerSections {
 
@@ -48,29 +50,76 @@ export default function buildSections(
         currentIndex.pop();
 
       } else if (typeof entry !== "number") {
-        let newEntry:any = {}
-        let splitName: JSONgFlowInstruction;
-        
-        newEntry.grain = sectionDefaults.grain
-        if(typeof entry === "object"){
-          splitName = splitSectionName(entry.name)
-          newEntry.grain =  entry?.grain || sectionDefaults.grain
-          if(entry.fade) newEntry.fade = entry.fade
-          if(entry.once) newEntry.once = entry.once
-          if(entry.grain) newEntry.grain = entry.grain
+        let newEntry: PlayerSection 
+
+        const transitionDefaults = sectionDefaults.tracks.map(t=>({
+          name: t,
+          type: "sync" as const,
+          duration: 0
+        }))
+        function allTracksLegato(){
+          newEntry.transition = newEntry.transition.map(tr => ({...tr, type:'fade',duration: 0}))
         }
-        else{
-          splitName = splitSectionName(entry);
-          newEntry = {...newEntry, ...splitName}
+        function allTracksFade(duration?: number){
+          newEntry.transition = newEntry.transition.map(tr => ({...tr, type:'fade' as const, duration: duration || sectionDefaults.fadeDuration}))
+        }
+        function perTrackFade(track: {name:string, duration:number}, duration?:number){
+          return {...track, type: "fade" as const, duration: duration || sectionDefaults.fadeDuration}
         }
 
-        const name = splitName.name
-        newEntry.name = name
-        newEntry.region = map[name]
+        newEntry = {
+          name: '',
+          region: [0,0],
+          index: [],
+          next: [],
+          grain: sectionDefaults.grain,
+          once: false,
+          transition: transitionDefaults,
+        }
+        let splitName;
+        
+        if(typeof entry === "object"){ //JSONgFlowInstruction
+          newEntry.name = entry.name
+          newEntry.grain =  entry?.grain || sectionDefaults.grain
+          newEntry.once = entry?.once || false
+          if(entry?.fade) {
+            if(typeof entry.fade === 'boolean' && entry.fade === true)
+              allTracksFade()
+            else if(typeof entry.fade === 'number') //override transition time
+              allTracksFade(entry.fade)
+            else if(Array.isArray(entry.fade)){ //array of string or object
+              entry.fade.forEach(f => {
+                if(typeof f === 'object'){ // fade object
+                  newEntry.transition = newEntry.transition.map((track)=>track.name === f.name ? perTrackFade(track,f.duration) : track)
+                }
+                else if(typeof f === 'string'){ //fade string 
+                  newEntry.transition = newEntry.transition.map(track => track.name === f ? perTrackFade(track) : track)
+                }
+              })
+            }
+          }
+          else if(entry?.legato){
+            allTracksLegato()
+          }
+        }
+        else{ //JSONgFlowInstruction string, can contain '>', 'x', '|'
+          splitName = splitSectionName(entry);
+          newEntry.name = splitName.name
+          if(splitName?.legato){
+            allTracksLegato()
+          }
+          else if(splitName.fade){
+            allTracksFade()
+          }
+          if(splitName.once)
+            newEntry.once = true
+        }
+
+        newEntry.region = map[newEntry.name]
         newEntry.index = [...currentIndex]
          
-        _sections[idx] = newEntry as PlayerSection;
-        _orderedEntries.push(newEntry);
+        _sections[idx] = newEntry ;
+        _orderedEntries.push(newEntry as PlayerSection);
       }
     }
     if (depth) return _sections;

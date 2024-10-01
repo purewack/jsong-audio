@@ -2,8 +2,8 @@ import { NestedIndex } from "./types/common"
 import { getNestedIndex, setNestedIndex } from "./nestedIndex"
 import {PlayerSections} from "./types/player"
 
-export function getIndexInfo(sections: PlayerSections, index: NestedIndex) 
-: (PlayerSections | undefined) {
+export function getIndexInfo(sections: any, index: NestedIndex) 
+: (any | undefined) {
     if(index.length > 1) {
         return {...getNestedIndex(sections, index.slice(0,-1))}
     }
@@ -12,8 +12,8 @@ export function getIndexInfo(sections: PlayerSections, index: NestedIndex)
     }
 }
 
-export function setIndexInfo(toSet: object, sections: PlayerSections, index: NestedIndex)
-: (PlayerSections | undefined) {
+export function setIndexInfo(toSet: object, sections: any, index: NestedIndex)
+: (any | undefined) {
     const n = {...sections}
     if(index.length > 1) {
         index.pop()

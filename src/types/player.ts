@@ -27,11 +27,19 @@ export  type PlayerIndex = number[];
  * Describes either the current section or JSONgSeconscheduled sections for referencing outside the player
  */
 export type PlayerSection = {
+    name: string,
+    region: [number, number],
     index: PlayerIndex, 
     next: PlayerIndex, 
     grain: number,
-    region: [number, number]
-} & JSONgFlowInstruction;
+    once: boolean,
+    transition: 
+        {
+            name: string;
+            type: "fade" | "sync",
+            duration: number;
+        }[]  
+};
 
 /**
  * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.

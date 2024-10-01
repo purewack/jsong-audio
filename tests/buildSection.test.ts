@@ -1,7 +1,12 @@
 import buildSection from "../src/buildSection";
 
 const defaults = {
-  grain: 4
+  grain: 4,
+  tracks: [
+    "trackA",
+    "trackB"
+  ],
+  fadeDuration: 4
 };
 
 test("Build sections from flow with section options", () => {
@@ -18,16 +23,16 @@ test("Build sections from flow with section options", () => {
     loopCurrent: 0,
     loopLimit: Infinity,
     sectionCount: 2,
-    0: {name:"intro", index: [0], next: [1,0,0], region: [0, 4], grain: 4},
+    0: {name:"intro", index: [0], next: [1,0,0], region: [0, 4], grain: 4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
     1: {
       0: {
-        0: {name:"A",     index: [1,0,0], next: [1,0,1], region: [4, 12], grain: 4},
-        1: {name:"verse", index: [1,0,1], next: [1,1],   region: [12,16], grain: 8},
+        0: {name:"A",     index: [1,0,0], next: [1,0,1], region: [4, 12], grain: 4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        1: {name:"verse", index: [1,0,1], next: [1,1],   region: [12,16], grain: 8, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
         loopCurrent: 0,
         loopLimit: 2,
         sectionCount: 2,
       },
-      1: {name: "bass", index: [1,1], next: [0], region: [16,24], grain:4},
+      1: {name: "bass", index: [1,1], next: [0], region: [16,24], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
       loopCurrent: 0,
       loopLimit: Infinity,
       sectionCount: 2,
@@ -49,17 +54,17 @@ test("Build sections with overrides", () => {
     loopCurrent: 0,
     loopLimit: Infinity,
     sectionCount: 2,
-    0: {name:"intro", index: [0], next: [1,0,0], region:[0,4], grain:4 ,once: true},
+    0: {name:"intro", index: [0], next: [1,0,0], region:[0,4], grain:4 , once:true, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
     1: {
       0: {
-        0: {name:"A",     index: [1,0,0], next: [1,0,1],  region:[4,12],  grain:16 },
-        1: {name:"verse", index: [1,0,1], next: [1,1],    region:[12,16], grain:4},
+        0: {name:"A",     index: [1,0,0], next: [1,0,1],  region:[4,12],  grain:16 , once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        1: {name:"verse", index: [1,0,1], next: [1,1],    region:[12,16], grain:4 ,  once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
         loopCurrent: 0,
         loopLimit: 2,
         sectionCount: 2,
       },
-      1: {name: "A",    index:[1,1],  next: [1,2],region:[4,12],  grain:4, fade: true, once: true},
-      2: {name: "bass", index: [1,2], next: [0],  region:[16,24], grain:4},
+      1: {name: "A",    index:[1,1],  next: [1,2],region:[4,12],  grain:4, once:true,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"fade",duration:4}]},
+      2: {name: "bass", index: [1,2], next: [0],  region:[16,24], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
       loopCurrent: 0,
       loopLimit: Infinity,
       sectionCount: 3,
@@ -75,29 +80,48 @@ test("Build sections with overrides and deep start", () => {
     "C": [12, 16] as  [number,number],
     "V": [16, 24] as  [number,number],
   }
-  const flow = [[[2, 'A', {name:"V",fade:["aa","bb"]}], "A-x->", "B"], "C"];
+  const flow = [[[2, 'A', {name:"V",fade:["trackA"]}], "A-x->", "B"], "C"];
   const sections = buildSection(flow,map,defaults);
  
   expect(sections).toMatchObject(
     {
       0: {
         0: {
-          0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4},
-          1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, fade: ["aa", "bb"]},
+          0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:false, transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
           loopCurrent: 0,
           loopLimit: 2,
           sectionCount: 2,
         },
-        1: {name: "A", index:[0,1],  next: [0,2], region:[0,4],  grain:4, fade: true, once: true},
-        2: {name: "B", index: [0,2], next: [1],   region:[4,12], grain:4},
+        1: {name: "A", index:[0,1],  next: [0,2], region:[0,4],  grain:4, once:true,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"fade",duration:4}]},
+        2: {name: "B", index: [0,2], next: [1],   region:[4,12], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
         loopCurrent: 0,
         loopLimit: Infinity,
         sectionCount: 3,
       },
-      1: {name: "C", index: [1], next: [0,0,0], region:[12,16], grain:4},
+      1: {name: "C", index: [1], next: [0,0,0], region:[12,16], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
       loopCurrent: 0,
       loopLimit: Infinity,
       sectionCount: 2,
     }
   );
 });
+
+test("Build extensive transition instructions",()=>{
+  const map = {
+    "A": [0, 4] as [number,number],
+  }
+  const flow = [{name:"A",fade:[
+    {name: "trackA", duration: 8},
+    {name: "trackB", duration: 4}
+  ]}];
+  const sections = buildSection(flow,map,defaults);
+  expect(sections).toMatchObject(
+    {
+      0: {name:"A", index:[0], next:[0], region: [0,4], grain:4, once:false, transition:[{name:"trackA",type:"fade",duration:8},{name:"trackB",type:"fade",duration:4}]},
+      loopCurrent:0,
+      loopLimit: Infinity,
+      sectionCount:1,
+    }
+  )
+})

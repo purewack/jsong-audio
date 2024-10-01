@@ -1,6 +1,5 @@
 import { setNestedIndex, getNestedIndex } from "../src/nestedIndex";
 
-describe("NestedIndex", () => {
   const nest = {
     0: {
       0: "a",
@@ -56,4 +55,4 @@ describe("NestedIndex", () => {
   test("get object item", ()=>{
     expect(getNestedIndex(nest, [0,3,3])).toMatchObject({section:"helloobject", autoNext: true})
   })
-});
+

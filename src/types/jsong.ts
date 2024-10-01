@@ -25,8 +25,12 @@ export  type JSONgMetadata = {
  * - `filter` this information describes how tracks should (default to and) behave when audio filtering is to be applied
  */
 export  type JSONgPlaybackInfo = {
-    bpm: number;
-    meter: [number, number];
+    bpm: number; // required
+    meter?: [number, number]; //assumed 4/4 if missing
+    /**
+     * Assumed the meter duration, so 4 notes of 1/4 i.e. 1 bar default.
+     * Formula = `grain * one_beat_length`
+     */
     grain?: number | null;
     metronome?: 
         {db: number, high?: string, low?: string} | 
@@ -43,9 +47,9 @@ export  type JSONgPlaybackInfo = {
 /**
  * Details of each track along with the required 
  */
-export type JSONgTrack = {
+export type JSONgTrack = string | {
     name: string;
-    source : string;
+    source? : string;
 	db?: number;
     filter?: {
         resonance: number;
@@ -70,18 +74,28 @@ export type JSONgFlowInstruction = {
     //whether the section only plays once without looping itself - override
     once?: boolean; 
 
-    //if true, next section will start at the position of current section,
-    //i.e. if section A is 70% complete, next section (B) will start playing from its 70% mark at time of schedule
-    legato?: boolean;
-
-     //which tracks to fade, if true fade all, if number fade all over the given time - override
+} &  
+({  
+    /** if section `A` is 70% complete, next section (`B`) will start playing from its 70% mark at time of schedule */
+    legato?: boolean; 
+    fade?: never
+} 
+| {
+   legato?: never;
+    /** 
+     * - if `true` fade all, 
+     * - if `number` fade all over the given time 
+     * - if `string[]`, cross fade named tracks, legato the remaining. Default fade duration applied
+     * - if an `object`, provide per track durations
+     */
     fade?: boolean
     | number 
     | string[] 
-    | {[key:string] :{ 
-        duration: number | string //explicit definition of fade times per track
-    }}
-} 
+    | { 
+        name: string,
+        duration: number //explicit definition of fade times per track
+    }[]
+})
 export type JSONgFlowEntry = (number | string | JSONgFlowInstruction) | JSONgFlowEntry[]
 
 /**
