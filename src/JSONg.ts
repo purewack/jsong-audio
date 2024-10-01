@@ -1,11 +1,11 @@
-import { JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
+import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
 import { PlayerSections, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
 import quanTime from './quantime'
 import {getNextSectionIndex,  findStart } from './nextSection'
 import buildSections from './buildSection'
 import {getNestedIndex} from './nestedIndex'
 import Logger from './logger'
-import fetchSources, { fetchSourcePaths } from './JSONg.sources'
+import {fetchSources, fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
 import { SectionEvent, JSONgEventsList, ParseOptions, StateEvent, TransportEvent } from './types/events'
@@ -95,7 +95,7 @@ export default class JSONg extends EventTarget{
   get sections(){
     return this._sections;
   }
-  public getSection(index: PlayerIndex): PlayerSection {
+  public getSectionFromIndex(index: PlayerIndex): PlayerSection | undefined {
     return getNestedIndex(this._sections, index)
   }
 
@@ -185,24 +185,18 @@ export default class JSONg extends EventTarget{
 
   private _sectionInQueue: PlayerSection | null = null;
   private _dispatchSectionQueue(when: BarsBeatsSixteenths, to: PlayerSection | null ){
-    this._sectionInQueue = to;
-    this.dispatchEvent(new SectionEvent("sectionQueue",when,Transport.position.toString(), to, this._current))
+    // this._sectionInQueue = to;
+    // this.dispatchEvent(new SectionEvent("sectionQueue",when,Transport.position.toString(), to, this._current))
   }
   private _dispatchSectionChanged(){
-    console.assert(this._sectionInQueue, "no section was queued")
-    this.dispatchEvent(new SectionEvent("sectionChange",Transport.position.toString(),Transport.position.toString(),this._sectionInQueue, this._current))
+    // console.assert(this._sectionInQueue, "no section was queued")
+    // this.dispatchEvent(new SectionEvent("sectionChange",Transport.position.toString(),Transport.position.toString(),this._sectionInQueue, this._current))
   }
 
 
   private _dispatchParsePhase(parsing: ParseOptions){
-    this.dispatchEvent(new StateEvent({type: 'parse', parsing}))
+    // this.dispatchEvent(new StateEvent({type: 'parse', parsing}))
   }
-
-
-
-
-
-
 
   constructor(context?: AudioContext, verbose?: VerboseLevel){
     super();
@@ -221,7 +215,7 @@ export default class JSONg extends EventTarget{
 //==================Loader============
 
 
-public async parse(file: string | JSONgManifestFile): Promise<void> {
+public async loadManifest(file: string | JSONgManifestFile, options = {loadSound:true}): Promise<void> {
   
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
@@ -231,8 +225,10 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   this._dispatchParsePhase('meta')
   if (manifest?.type !== 'jsong')
     return Promise.reject(new Error('parsing invalid manifest'));
-  if (!(manifest?.version in this.VERSION_SUPPORT))
-    return Promise.reject(new Error('unsupported parser version'));
+  if (!this.VERSION_SUPPORT.includes(manifest?.version)){
+    this._log.info(manifest)
+    return Promise.reject(new Error('unsupported parser version:'));
+  }
   if(!manifest?.playback?.bpm) 
     return Promise.reject(new Error("missing bpm"))
   if(!manifest?.playback?.meter) 
@@ -360,58 +356,13 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   }
 
 
-  this.manifest = JSON.parse(JSON.stringify(manifest));
+  this.manifest = manifest
 
+  if(manifest.sources && options.loadSound){
+    await this.loadSound(manifest.sources)
+  }
   
-  this._dispatchParsePhase('audio')
-  //quit if there are no audio files to load
-  if(!manifest?.sources || !Object.keys(manifest?.sources).length) {
-    this.state = 'stopped'
-    this._log.info("[parse] end - no sources",this)
-    this._dispatchParsePhase('done')
-    return Promise.resolve()
-  }
-
-  const manifestSourcePaths = await fetchSourcePaths(manifest, baseURL);
-  if(!manifestSourcePaths?.sources){
-    this._log.info('[parse] no sources listed in manifest');
-  }
-  else{
-    this._log.info('[parse] manifest sources', manifestSourcePaths);
-    // begin parse after confirming that manifest is ok
-    // and sources paths are ok
-    this.state = 'loading';
-    //Load media
-    try{
-      this._sourceBuffers = await fetchSources(manifestSourcePaths);
-      
-      this.stop(false);
-
-      //assign buffers to players
-      this._trackPlayers.forEach((track,i)=>{
-        track.a.buffer = this._sourceBuffers[track.source] as ToneAudioBuffer
-        track.b.buffer = track.a.buffer
-      })
-    }
-    catch(error){
-      this.state = null;
-      this._log.error(new Error('[parse][sources] error fetching data'))
-      return Promise.reject('sources')
-    }
-  }
-
-  //audio reset if parsing on parsed player
-  // if(this.state){
-    // Transport.cancel()
-    // this.trackPlayers.forEach((t)=>{
-    //   t.a.stop();
-    //   t.b.stop();
-    //   t.a.dispose()
-    //   t.b.dispose()
-    // })
-    // if(this.verbose) console.log('[parse][sources] Audio reset')
-  // }
-  
+  this.stop(false);
   this._dispatchParsePhase('done')
   this.state = 'stopped';
   this._log.info("[parse] end ",this)
@@ -420,6 +371,49 @@ public async parse(file: string | JSONgManifestFile): Promise<void> {
   
 
 
+public async loadSound(sources: JSONgDataSources, origin: string = '/'){
+  this._dispatchParsePhase('audio')
+  //quit if there are no audio files to load
+  if(!sources || !Object.keys(sources).length) {
+    this.state = 'stopped'
+    this._log.info("[parse] end - no sources",sources)
+    this._dispatchParsePhase('done')
+    return Promise.resolve()
+  }
+
+  const manifestSourcePaths = await fetchSourcePaths(sources, origin);
+  if(!manifestSourcePaths){
+    this._log.info('[parse] no sources listed in manifest', manifestSourcePaths);
+    return Promise.reject('no sources')
+  }
+  else if(Object.keys(manifestSourcePaths)?.length){
+    this._log.info('[parse] manifest sources', manifestSourcePaths);
+    // begin parse after confirming that manifest is ok
+    // and sources paths are ok
+    this.state = 'loading';
+    //Load media
+    try{
+      this._sourceBuffers = await fetchSources(manifestSourcePaths);
+      console.log("LOADED", this._sourceBuffers)
+
+      //assign buffers to players
+      this._trackPlayers.forEach((track,i)=>{
+        console.log("loading track",track.name)
+        track.a.buffer = this._sourceBuffers[track.source] as ToneAudioBuffer
+        track.b.buffer = track.a.buffer
+      })
+    }
+    catch(error){
+      this.state = null;
+      this._log.error(new Error('[parse][sources] error fetching data'))
+      return Promise.reject('sources error')
+    }
+  }
+}
+
+public async addSourceData(name: string, data: any){
+  this._sourceBuffers[name] = data
+}
 
 
 
@@ -514,7 +508,7 @@ public async play(
  * @param from - You may play `from` any section or from the beginning
  * @returns Promise - fired when the player switches to the queued section
  */
-public async continue(breakout: (boolean) = false, to: PlayerIndex | undefined): Promise<void>{
+public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
   
   //only schedule next section if in these states
   if(!(this.state === 'playing' || this.state === 'queue')) return
@@ -569,7 +563,7 @@ public async continue(breakout: (boolean) = false, to: PlayerIndex | undefined):
 
 public stop(synced: boolean = true)  : Promise<void> | undefined
 {
-  if(this.state === 'stopped' || this.state === 'stopping') return
+  if(this.state === 'stopped' || this.state === 'stopping' ) return
 
   const next =  quanTime(
     Transport.position as BarsBeatsSixteenths, 
@@ -778,6 +772,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         }
         else {
           Transport.scheduleOnce((t)=>{
+            console.log("[schedule] standard schedule",t,to);
             nextTrack.start(t,to.region[0]+'m');
             track.current.stop(t);
             onTrackResolve()
