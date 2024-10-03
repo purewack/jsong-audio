@@ -21,6 +21,7 @@ import {
   Filter,
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time as ToneTime, ToneAudioBuffers,
+  Timeline,
 } from 'tone';
 import { NestedIndex } from './types/common'
 import { prependURL } from './JSONg.paths'
@@ -58,6 +59,7 @@ export default class JSONg extends EventTarget{
     current: Player;
     a: Player;
     b: Player;
+    lastLoopPlayerStartTime: number;
   }[]
 
   //Available real audio buffers
@@ -150,11 +152,9 @@ export default class JSONg extends EventTarget{
     const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
     const sectionBar = 0
     const pos = Transport.position as BarsBeatsSixteenths
-    Draw.schedule(() => {
-      if(this._current){
-        this.dispatchEvent(new TransportEvent('timing',pos,sectionBeat,sectionLen,sectionBar))
-      }
-    }, toneNow());
+    if(this._current){
+      this.dispatchEvent(new TransportEvent('timing',pos,sectionBeat,sectionLen,sectionBar))
+    }
   }
   public getPosition(){
     return {
@@ -200,14 +200,38 @@ export default class JSONg extends EventTarget{
     // this.dispatchEvent(new StateEvent({type: 'parse', parsing}))
   }
 
-  constructor(context?: AudioContext, verbose?: VerboseLevel){
+  constructor(path?:string, options?: {
+    onload?: ()=>void, 
+    context?: AudioContext, 
+    verbose?: VerboseLevel,
+    debug?: boolean
+  }){
     super();
-    if(context) setContext(context);
+    if(options?.context) setContext(options?.context);
     
-    this._log.level = verbose;
+    this._log.level = options?.verbose;
     console.log("[JSONg] new jsong player");
     this.state = null;
-    toneStart()
+
+    const onDebug = ()=>{
+      if(options?.debug){
+        Destination.volume.value = -18
+      }
+    }
+
+    try{
+      toneStart().then(()=>{
+        if(path) this.loadManifest(path).then(()=>{
+          options?.onload?.()
+          onDebug()
+        })
+        else{
+          onDebug()
+        }
+      })
+    }
+    catch{}
+
   }
 
   get context(): AnyAudioContext{
@@ -218,7 +242,9 @@ export default class JSONg extends EventTarget{
 
 
 public async loadManifest(file: string | JSONgManifestFile, options = {loadSound:true,soundOrigin:undefined}): Promise<void> {
-  
+  if(this._state === 'loading') return
+  if(this._state === 'parsing') return
+
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
   const [manifest,baseURL,filename] = await fetchManifest(file);
@@ -355,7 +381,7 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
     }
 
     this._trackPlayers.push({
-      ...info, a,b, current: a, filter
+      ...info, a,b, current: a, filter, lastLoopPlayerStartTime: 0
     })
   }
 
@@ -366,9 +392,6 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
     await this.loadSound(manifest.sources, options?.soundOrigin || baseURL)
   }
   
-  this.stop(false);
-  this._dispatchParsePhase('done')
-  this.state = 'stopped';
   this._log.info("[parse] end ")
   return Promise.resolve();
 }
@@ -391,6 +414,7 @@ public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} 
     this.stop(false);
     this._dispatchParsePhase('done')
     this.state = 'stopped';
+    this._log.info("[load] end ")
   }
 
   //quit if there are no audio files to load
@@ -562,7 +586,7 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
   const nextSection = getNestedIndex(this._sections, nextIndex as NestedIndex) as PlayerSection
   const nextTime =  quanTime(
     Transport.position as BarsBeatsSixteenths, 
-    nextSection.grain, 
+    this._current.grain, 
     this._timingInfo?.meter, 
     !breakout ? this._sectionLastLaunchTime as string : undefined
   )
@@ -610,10 +634,11 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
 {
   if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
+  if(!this._current) return
 
   const next =  quanTime(
-    Transport.position as BarsBeatsSixteenths, 
-    this._timingInfo.grain, 
+    Transport.position.toString() as BarsBeatsSixteenths, 
+    this._current.grain, 
     this._timingInfo?.meter
   ) as BarsBeatsSixteenths
   const when = ToneTime(next).toSeconds()
@@ -637,12 +662,13 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this._sectionLastLaunchTime = null
     
     this.state = 'stopped'
-    this._log.info("[stop] player stopped")
+    this._log.info("[player] stopped")
     res()
   }
 
   if(synced){
     this.state = 'stopping'
+    this._log.info("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
     Transport.scheduleOnce(doStop,when)
   }else 
@@ -650,53 +676,6 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     res()
   })
 }
-
-
-
-
-
-
-
-
-
-
-
-  // public skip() : void
-  // {
-  //   if(this.state === 'playing')
-  //   this.play(null, true)
-  // }
-
-  // public skipOffGrid()  : void
-  // {
-  //   if(this.state === 'playing')
-  //   this.play(null, 'offgrid')
-  // }
-
-  // public skipTo(index: PlayerIndex)  : void
-  // {
-  //   this.play(index, true);
-  // }
-  
-  // public skipToOffGrid(index: PlayerIndex) : void
-  // {
-  //   if(this.state === 'playing')
-  //   this.play(index, 'offgrid');
-  // }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -775,52 +754,67 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
         const onTrackResolve = ()=>{
           track.current = nextTrack;
+          console.log("[schedule] END RESOLVE")
           trackResolve()
         }
 
-        const transitionInfo = to.transition.find(t => t.name === track.name)!
+        const transitionInfo = this._current.transition.find(t => t.name === track.name)!
 
         
         if(transitionInfo.type === 'fade'){
-          const t = toneNow() + 0.1
+          const t = toneNow() + 0.1 
+          
+          const loopStart = ToneTime(track.current.loopStart).toSeconds();
+          const loopEnd = ToneTime(track.current.loopEnd).toSeconds();
+          const currentTime = t
+          const loopDuration = loopEnd - loopStart;
+          const elapsedTime = (currentTime - track.lastLoopPlayerStartTime) % loopDuration;
+          const progress = (elapsedTime / loopDuration);
+
+          const nextLoopStart = ToneTime((nextTrack as Player).loopStart).toSeconds()
+          const nextLoopEnd = ToneTime((nextTrack as Player).loopEnd).toSeconds()
+          
+          const whereFrom = progress * (nextLoopEnd - nextLoopStart) + nextLoopStart
+           
 
           if(transitionInfo.duration === 0){ //legato jump
-            const loopStart = track.current.loopStart as number;
-            const loopEnd = track.current.loopEnd  as number;
-            const currentTime = track.current.context.currentTime;
-            const loopDuration = loopEnd - loopStart;
-            const elapsedTime = (currentTime - loopStart) % loopDuration;
-            const progress = (elapsedTime / loopDuration);
-
-            const nextLoopStart = (nextTrack as Player).loopStart as number
-            const nextLoopEnd = (nextTrack as Player).loopEnd as number
-
+           
             nextTrack.volume.setValueAtTime(track.volumeLimit, t)
-            nextTrack.start(t,progress * (nextLoopEnd - nextLoopStart) + nextLoopStart);
+            nextTrack.start(t,whereFrom);
             track.current.stop(t);
+
+            console.log("[schedule] legato schedule @",t,to.name,elapsedTime,loopStart,loopEnd,loopDuration);
 
             onTrackResolve()
           }
 
           else{ //cross fade
             const dt = transitionInfo.duration
-            // track.current.volume.setValueAtTime(track.volumeLimit, t + dt);
+           
+            nextTrack.volume.setValueAtTime(-72, t);
+            nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
+            nextTrack.start(t,whereFrom); 
+            
+            track.current.volume.setValueAtTime(track.volumeLimit, t);
             track.current.volume.linearRampToValueAtTime(-72, t + dt)
             track.current.stop(t + dt);
-
-            nextTrack.volume.setValueAtTime(-72, t + dt);
-            nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
-            nextTrack.start(t,to.region[0]+'m');
             
-            Transport.scheduleOnce(onTrackResolve,t + dt)
+            onTrackResolve()
             // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
+            
+            console.log("[schedule] cross fade schedule @",t,to);
           }
+
+          track.lastLoopPlayerStartTime = t
         }
         else {
           Transport.scheduleOnce((t)=>{
-            console.log("[schedule] standard schedule",t,to);
+            console.log("[schedule] standard schedule @",t,to);
+            track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
+            track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
             try{
             nextTrack.start(t,to.region[0]+'m');
+            track.lastLoopPlayerStartTime = t
             }
             catch{}
             track.current.stop(t);
@@ -915,7 +909,16 @@ public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | num
   }) 
 }
 
-
+public click(state?:boolean){
+  let vol = this._timingInfo.metronome.db
+  if(state !== undefined){
+    vol = state ? this._timingInfo.metronome.db : -200
+  }
+  else if(this._metronome.volume.value !== vol)
+    this._metronome.volume.value = vol
+  else
+    this._metronome.volume.value = -200
+}
 
 public isMute(){
   return Destination.volume.value > -200;
@@ -926,10 +929,12 @@ public mute(){
 }
 
 public unmute(value:number = 0){
-  
   Destination.volume.linearRampToValueAtTime(value,'+1s');
 }
 
+get destination(){
+  return Destination
+}
 
 
 
@@ -940,6 +945,19 @@ public unmute(value:number = 0){
 //========other===========
 public draw(callback: ()=>void){
   Draw.schedule(callback,toneNow());
+}
+
+public get(key: string):any{
+  switch(key){
+    case 'timeline':
+      return Transport.position.toString()
+
+    case 'players':
+      return this._trackPlayers
+    
+    default:
+      return undefined
+  }
 }
 
 }
