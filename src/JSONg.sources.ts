@@ -1,6 +1,6 @@
 import { ToneAudioBuffer, ToneAudioBuffers } from "tone";
 import { rebuildURL, prependURL, fileExistsURL } from "./JSONg.paths";
-import { JSONgManifestFile, JSONgDataSources } from "./types/jsong";
+import { JSONgDataSources } from "./types/jsong";
 // import { PlayerBuffers } from "./types/player";
 
 /**
@@ -12,15 +12,16 @@ import { JSONgManifestFile, JSONgDataSources } from "./types/jsong";
  * 
  * *Example of paths:*
  * 
- *  Base URL = http://test.com/song/
- * 
- *  ./audio.wav = http://test.com/song/audio.wav
- * 
- *  audio.wav = http://test.com/audio.wav
- * @param manifest JSONg formatted object
+ *  origin URL = http://test.com/song/
+ *  - `./audio.wav` = http://test.com/song/audio.wav
+ *  - `./nested/audio.wav` = http://test.com/song/nested/audio.wav
+ *  - __`nested/audio.wav`__ = http://test.com/nested/audio.wav
+ *  - `audio.mp3` = http://test.com/audio.mp3
+ *  
+ * @param sources object with key names referring to track names and values are links
  * @param origin container folder path
  */
-export async function fetchSourcePaths(sources: JSONgDataSources, origin: string){
+export async function compileSourcePaths(sources: JSONgDataSources, origin: string){
   const fullURLs: JSONgDataSources = {};
 
   const _origin = origin.endsWith('/') ? origin : origin + '/'
@@ -31,7 +32,7 @@ export async function fetchSourcePaths(sources: JSONgDataSources, origin: string
   for(const key of keys){
     let fullURL;
     const path = sources[key]
-
+    console.log("check path",key,path)
     if (path.startsWith('data:')) {
       // Direct audio data as a data:URI
       fullURL = path;
@@ -53,26 +54,40 @@ export async function fetchSourcePaths(sources: JSONgDataSources, origin: string
 
 /**
  * Return all needed audio buffers built from the provided links
- * @param paths links to audio sources
+ * @param paths links to audio sources per track name `{track: url}`
  * @returns an array of audio buffers
  */
 export async function fetchSources(paths: JSONgDataSources)
 : Promise<{[key:string] : ToneAudioBuffer}>
 {
-  return new Promise((resolve, reject) => {
-    const buffers: {[key:string] : ToneAudioBuffer} = {};
+  return new Promise(async (resolve, reject)=>{
+    
+    const keys = Object.keys(paths);
+  
+    if(!keys.length) return new Error('nothing to load')
 
-    const instrumentNames = Object.keys(paths);
+    ToneAudioBuffer.baseUrl = ''
+      
+    let loadPromises: Promise<ToneAudioBuffer>[] = [];
+    for(const key of keys){
+      const buffer = new ToneAudioBuffer()
+      console.log("[source] loading", key, paths[key].slice(0,128))
+      loadPromises.push(buffer.load(paths[key]));
+    }
 
-    const toneBuffers = new ToneAudioBuffers(
-      paths,
-      () => {
-        console.log("ALLL")
-        instrumentNames.forEach(name => {
-          buffers[name] = toneBuffers.get(name);
-        });
-        resolve(buffers);
+    if(!loadPromises || !loadPromises.length) 
+      throw new Error('no source buffers');
+    
+    try{
+      const loadedBuffers = await Promise.all(loadPromises);
+      const resultBuffers: any = {}
+      loadedBuffers.forEach((buffer,i) => {
+        resultBuffers[keys[i]] = buffer;
+      })
+      resolve(resultBuffers); 
       }
-    );
-  });
+    catch {
+      reject('buffer source load failure')
+    } 
+  })
 }

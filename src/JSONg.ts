@@ -5,7 +5,7 @@ import {getNextSectionIndex,  findStart } from './nextSection'
 import buildSections from './buildSection'
 import {getNestedIndex} from './nestedIndex'
 import Logger from './logger'
-import {fetchSources, fetchSourcePaths } from './JSONg.sources'
+// import {fetchSources, fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
 import { SectionEvent, JSONgEventsList, ParseOptions, StateEvent, TransportEvent } from './types/events'
@@ -23,6 +23,8 @@ import {
   Synth, Transport, FilterRollOff, Destination, Time as ToneTime, ToneAudioBuffers,
 } from 'tone';
 import { NestedIndex } from './types/common'
+import { prependURL } from './JSONg.paths'
+import { compileSourcePaths, fetchSources } from './JSONg.sources'
 
 
 export default class JSONg extends EventTarget{
@@ -136,7 +138,7 @@ export default class JSONg extends EventTarget{
 
 
   //Transport and meter event handler
-  private _metronome: Synth;
+  private _metronome!: Synth;
   private _meterBeat: number = 0
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
@@ -202,10 +204,10 @@ export default class JSONg extends EventTarget{
     super();
     if(context) setContext(context);
     
-    this._metronome = new Synth().toDestination();
     this._log.level = verbose;
-    this._log.info("[JSONg] New ", this);
+    console.log("[JSONg] new jsong player");
     this.state = null;
+    toneStart()
   }
 
   get context(): AnyAudioContext{
@@ -215,7 +217,7 @@ export default class JSONg extends EventTarget{
 //==================Loader============
 
 
-public async loadManifest(file: string | JSONgManifestFile, options = {loadSound:true}): Promise<void> {
+public async loadManifest(file: string | JSONgManifestFile, options = {loadSound:true,soundOrigin:undefined}): Promise<void> {
   
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
@@ -278,6 +280,8 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
       {... _metro_def}
   }
   this._setMeterBeat(0)
+
+  this._metronome = new Synth().toDestination();
   this._metronome.envelope.attack = 0;
   this._metronome.envelope.release = 0.05;
   this._metronome.volume.value = this.timingInfo.metronome.db
@@ -359,29 +363,77 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
   this.manifest = manifest
 
   if(manifest.sources && options.loadSound){
-    await this.loadSound(manifest.sources)
+    await this.loadSound(manifest.sources, options?.soundOrigin || baseURL)
   }
   
   this.stop(false);
   this._dispatchParsePhase('done')
   this.state = 'stopped';
-  this._log.info("[parse] end ",this)
+  this._log.info("[parse] end ")
   return Promise.resolve();
 }
   
 
 
-public async loadSound(sources: JSONgDataSources, origin: string = '/'){
+public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} | {[key: string]: ToneAudioBuffer}, origin: string = '/'){
   this._dispatchParsePhase('audio')
+
+  const onDone = ()=>{
+    Object.keys(sources).forEach((src)=>{
+      this._trackPlayers.forEach(tr => {
+        if(tr.name === src){
+          tr.a.buffer = this._sourceBuffers[src] as ToneAudioBuffer
+          tr.b.buffer = tr.a.buffer
+          console.log("[track] buffer loaded",src,tr.a.buffer)
+        }
+      })
+    })
+    this.stop(false);
+    this._dispatchParsePhase('done')
+    this.state = 'stopped';
+  }
+
   //quit if there are no audio files to load
   if(!sources || !Object.keys(sources).length) {
-    this.state = 'stopped'
     this._log.info("[parse] end - no sources",sources)
-    this._dispatchParsePhase('done')
     return Promise.resolve()
   }
 
-  const manifestSourcePaths = await fetchSourcePaths(sources, origin);
+  let toneBufferCheck = false
+  Object.keys(sources).forEach((s:any) => {
+    if(sources[s] instanceof ToneAudioBuffer)
+      toneBufferCheck = true
+  }) 
+  let audioBufferCheck = false
+  Object.keys(sources).forEach((s:any) => {
+    if(sources[s] instanceof AudioBuffer)
+      audioBufferCheck = true
+  }) 
+
+  console.log("[check] results",toneBufferCheck,audioBufferCheck, sources)
+
+  if(toneBufferCheck){
+    console.log("ToneAudioBuffer loading phase")
+    this._sourceBuffers = (sources as {[key: string]: ToneAudioBuffer})
+    onDone()
+    return
+  }
+
+  if(audioBufferCheck){
+    console.log("AudioBuffer loading phase")
+    let buffers: {[key:string]: ToneAudioBuffer} = {}
+    Object.keys(sources).forEach((key:string) => {
+      const buf = new ToneAudioBuffer()
+      buf.set(sources[key] as AudioBuffer)
+      buffers[key] = buf
+    })
+    this._sourceBuffers = buffers
+    console.log("[load]",this._sourceBuffers)
+    onDone()
+    return
+  }
+
+  const manifestSourcePaths = await compileSourcePaths(sources as JSONgDataSources, origin);
   if(!manifestSourcePaths){
     this._log.info('[parse] no sources listed in manifest', manifestSourcePaths);
     return Promise.reject('no sources')
@@ -394,14 +446,7 @@ public async loadSound(sources: JSONgDataSources, origin: string = '/'){
     //Load media
     try{
       this._sourceBuffers = await fetchSources(manifestSourcePaths);
-      console.log("LOADED", this._sourceBuffers)
-
-      //assign buffers to players
-      this._trackPlayers.forEach((track,i)=>{
-        console.log("loading track",track.name)
-        track.a.buffer = this._sourceBuffers[track.source] as ToneAudioBuffer
-        track.b.buffer = track.a.buffer
-      })
+      onDone()
     }
     catch(error){
       this.state = null;
@@ -563,6 +608,7 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
 
 public stop(synced: boolean = true)  : Promise<void> | undefined
 {
+  if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
 
   const next =  quanTime(
@@ -575,8 +621,6 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
   return new Promise((res)=>{
 
   const doStop = (t: Time)=>{
-    Transport.stop(t)
-    Transport.cancel()
     this._trackPlayers.forEach((p,i)=>{
       try{
           p.a.stop(t);
@@ -586,6 +630,8 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
         this._log.info('[stop] Empty track stopping ',this._tracksList[i]);
       }
     })
+    Transport.stop(t)
+    Transport.cancel()
     this.state = 'stopped'
     this._dispatchSectionChanged()
     this._sectionLastLaunchTime = null
@@ -668,7 +714,7 @@ public cancel(){
 }
 
 private _clear(){
-  if(this._pending.scheduleAborter) this._pending.scheduleAborter.abort()
+  if(this._pending?.scheduleAborter) this._pending.scheduleAborter.abort()
   if(this._pending?.transportSchedule) Transport.clear(this._pending.transportSchedule)
   this._pending.scheduleAborter = null
   this._pending.transportSchedule = null
@@ -711,7 +757,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
   return new Promise<PlayerSection>((resolve,reject)=>{
     this._pending.scheduleAborter = new AbortController()
     this._pending.scheduleAborter.signal.addEventListener('abort',()=>{
-      reject()
+      // reject()
     })
 
 
@@ -773,7 +819,10 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         else {
           Transport.scheduleOnce((t)=>{
             console.log("[schedule] standard schedule",t,to);
+            try{
             nextTrack.start(t,to.region[0]+'m');
+            }
+            catch{}
             track.current.stop(t);
             onTrackResolve()
           },forWhen)
