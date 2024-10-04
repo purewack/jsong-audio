@@ -1,5 +1,5 @@
 import { ToneAudioBuffer } from 'tone';
-import fetchSources, {fetchSourcePaths} from '../src/JSONg.sources'
+import {fetchSources, compileSourcePaths} from '../src/JSONg.sources'
 import { JSONgManifestFile, JSONgDataSources } from '../src/types/jsong';
 
 jest.mock('tone', () => ({
@@ -24,14 +24,12 @@ describe('link resolution',()=>{
 
     test('resolve relative links', async ()=>{
         const baseURL = 'http://test.com/song'
-        const manifest = {
-            sources: {
+        const sources = {
                 'a': './a.mp3',
                 'b': './b.wav'
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'http://test.com/song/a.mp3',
             'b': 'http://test.com/song/b.wav'
@@ -40,14 +38,12 @@ describe('link resolution',()=>{
 
     test('resolve relative links - root', async ()=>{
         const baseURL = 'http://test.com'
-        const manifest = {
-            sources: {
+        const sources = {
                 'a': './a.mp3',
                 'b': './b.wav'
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'http://test.com/a.mp3',
             'b': 'http://test.com/b.wav'
@@ -56,14 +52,12 @@ describe('link resolution',()=>{
 
     test('resolve absolute links', async ()=>{
         const baseURL = 'http://test.com/song'
-        const manifest = {
-            sources: {
+        const sources = {
                 'a': 'a.mp3',
                 'b': 'b.wav'
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'http://test.com/a.mp3',
             'b': 'http://test.com/b.wav'
@@ -72,13 +66,11 @@ describe('link resolution',()=>{
 
     test('resolve data links', async ()=>{
         const baseURL = 'http://test.com/song'
-        const manifest = {
-            sources: {
+        const sources ={
                 'a': 'data:audio',
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'data:audio',
         })
@@ -86,14 +78,12 @@ describe('link resolution',()=>{
 
     test('resolve absolute and relative links', async ()=>{
         const baseURL = 'http://test.com/song'
-        const manifest = {
-            sources: {
+        const sources = {
                 'a': 'a.mp3',
                 'b': './b.wav',
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'http://test.com/a.mp3',
             'b': 'http://test.com/song/b.wav'
@@ -102,13 +92,11 @@ describe('link resolution',()=>{
 
     test('resolve external link', async ()=>{
         const baseURL = 'http://test.com/song'
-        const manifest = {
-            sources: {
+        const sources = {
                 'a': 'http://music.com/a.mp3',
             }
-        } as Partial<JSONgManifestFile>
 
-        const res = await fetchSourcePaths(manifest as JSONgManifestFile, baseURL);
+        const res = await compileSourcePaths(sources, baseURL);
         expect(res).toEqual({
             'a': 'http://music.com/a.mp3',
         })
@@ -120,13 +108,10 @@ describe('link loading - ToneAudioBuffer mock', () => {
 
     test('should load audio files successfully', async () => {
         const baseURL = 'http://test.com'
-        const mockManifest: Partial<JSONgManifestFile> = {
-            type: 'jsong',
-            sources: {
+        const sources = {
                 'one':'./path/to/audio1.mp3', 
                 'two':'./path/to/audio2.mp3'
-            },
-        }
+            }
         const mockToneAudioBuffer = {
             load: jest.fn().mockResolvedValue(new Promise(resolve=>{
                 resolve(new ToneAudioBuffer());
@@ -134,7 +119,7 @@ describe('link loading - ToneAudioBuffer mock', () => {
         };
         (ToneAudioBuffer as unknown as jest.Mock).mockImplementation(() => mockToneAudioBuffer );
         
-        const filePaths = await fetchSourcePaths(mockManifest as JSONgManifestFile, baseURL);
+        const filePaths = await compileSourcePaths(sources, baseURL);
         const loadedBuffers = await fetchSources(filePaths as JSONgDataSources);
     
         expect(Object.keys(loadedBuffers).length).toBe(2);
@@ -145,13 +130,10 @@ describe('link loading - ToneAudioBuffer mock', () => {
 
     test('should fail to load audio files as one is missing', async () => {
         const baseURL = 'http://test.com'
-        const mockManifest: Partial<JSONgManifestFile> = {
-            type: 'jsong',
-            sources: {
+        const sources = {
                 'one':'./path/to/audio1.mp3', 
                 'two':'./fail/to/audio2.mp3'
-            },
-        }
+            }
         const mockToneAudioBuffer = {
             load: jest.fn().mockImplementation((filePath: string)=>{
                 console.log(filePath)
@@ -164,7 +146,7 @@ describe('link loading - ToneAudioBuffer mock', () => {
         };
         (ToneAudioBuffer as unknown as jest.Mock).mockImplementation(() => mockToneAudioBuffer);
 
-        const paths = await fetchSourcePaths(mockManifest as JSONgManifestFile, baseURL);
+        const paths = await compileSourcePaths(sources, baseURL);
         return await fetchSources(paths!).catch((er)=>expect(er).toBeDefined())
     });
     
