@@ -144,20 +144,17 @@ export default class JSONg extends EventTarget{
   private _sectionLastLaunchTime: BarsBeatsSixteenths | null = null
   private _setMeterBeat(v: number){
     this._meterBeat = v
-   
-    const sectionLen = this._sectionLen
-    const sectionBeat = this._sectionBeat = (this._sectionBeat+1) % this._sectionLen
-    const sectionBar = 0
     const pos = Transport.position as BarsBeatsSixteenths
     if(this._current){
-      this.dispatchEvent(new TransportEvent('timing',pos,sectionBeat,sectionLen,sectionBar))
+      // this.dispatchEvent(new TransportEvent('timing',pos,sectionBeat,sectionLen,sectionBar))
     }
   }
   public getPosition(){
     return {
       beat: [this._sectionBeat, this._sectionLen],
       transportBeat: this._meterBeat,
-      lastLaunchTime: this._sectionLastLaunchTime
+      lastLaunchTime: this._sectionLastLaunchTime,
+      transport: Transport.position.toString()
     }
   }
 
@@ -301,7 +298,7 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
       : 
       {... _metro_def}
   }
-  this._setMeterBeat(0)
+  this._setMeterBeat(-1)
 
   this._metronome = new Synth().toDestination();
   this._metronome.envelope.attack = 0;
@@ -516,10 +513,14 @@ public async addSourceData(name: string, data: any){
 private _pending: {
   scheduleAborter: null | AbortController;
   transportSchedule: null | number;
+  scheduledEvents: number[],
 } = {
   scheduleAborter: null,
-  transportSchedule: null
+  transportSchedule: null,
+  scheduledEvents: [],
 }
+
+
 
 /**
  * Used to initiate the song playback.
@@ -542,12 +543,16 @@ public async play(
   Transport.cancel(0);
   Transport.position = '0:0:0'
 
-  this._setMeterBeat(0)
+  this._setMeterBeat(-1)
   this._sectionBeat = -1
+  this._sectionLen = (beginning.region[1] - beginning.region[0]) * this._timingInfo.meter[0]
   this._timingInfo.metronomeSchedule = Transport.scheduleRepeat((t)=>{
-    const note = this._timingInfo.metronome[!this._meterBeat ? 'high' : 'low']
-    if(!note) return
-    this._setMeterBeat((this._meterBeat + 1) % (Transport.timeSignature as number))
+    this._setMeterBeat((this._meterBeat + 1) % this._timingInfo.meter[0])
+    
+    if(this._sectionLen)
+      this._sectionBeat = (this._sectionBeat + 1) % this._sectionLen
+
+    const note = this._timingInfo.metronome[this._meterBeat === 0 ? 'high' : 'low']
     if(this._timingInfo.metronome){
       try{
         this._metronome.triggerAttackRelease(note,'64n',t);
@@ -581,7 +586,7 @@ public async play(
 public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
   
   //only schedule next section if in these states
-  if(!(this.state === 'playing' || this.state === 'queue')) return
+  if(this.state !== 'playing') return
   
   const nextIndex = getNextSectionIndex(this._sections, to || this._current.index, typeof breakout === 'boolean' ? breakout : false)
   const nextSection = getNestedIndex(this._sections, nextIndex as NestedIndex) as PlayerSection
@@ -602,7 +607,7 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
   try{
     this._state = 'queue'
     const scheduledTo = await this._schedule(nextSection, nextTime)
-    this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
+    this._state = 'playing'
     if(scheduledTo.once) await this.continue()
     // this._dispatchSectionChange();
   }
@@ -637,6 +642,8 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
   if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
   if(!this._current) return
+
+  this._clear()
 
   const next =  quanTime(
     Transport.position.toString() as BarsBeatsSixteenths, 
@@ -695,6 +702,10 @@ public cancel(){
 private _clear(){
   if(this._pending?.scheduleAborter) this._pending.scheduleAborter.abort()
   if(this._pending?.transportSchedule) Transport.clear(this._pending.transportSchedule)
+  this._pending.scheduledEvents.forEach(v => {
+    Transport.clear(v)
+  })
+  this._pending.scheduledEvents = []
   this._pending.scheduleAborter = null
   this._pending.transportSchedule = null
 }
@@ -744,6 +755,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
     
     this._clear()
     
+    console.log("[schedule] START",toneNow())
     trackPromises = this._trackPlayers.map(track => {
       return new Promise((trackResolve)=>{
 
@@ -764,11 +776,14 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             try{
             nextTrack.start(t,to.region[0]+'m');
             track.lastLoopPlayerStartTime = t
-            console.log("[schedule] standard schedule @",t,to);
+            // console.log("[schedule] standard schedule @",t,to);
             }
             catch(e){
               console.error(e)
             }
+            this._sectionBeat = -1
+            this._sectionLastLaunchTime = Transport.position.toString()
+            this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
             track.current.stop(t);
             onTrackResolve()
           },forWhen)
@@ -782,36 +797,36 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         const transitionInfo = this._current.transition.find(t => t.name === track.name)!
 
         if(transitionInfo.type === 'fade'){
-          const t = toneNow() + 0.1 
+          const t = toneNow()
           
-          const sectionLastLaunchTimeSec = ToneTime(this._sectionLastLaunchTime!).toSeconds()
-          const loopStart = ToneTime(track.current.loopStart).toSeconds();
-          const loopEnd = ToneTime(track.current.loopEnd).toSeconds();
-          const currentTime = t
-          const loopDuration = loopEnd - loopStart;
-          const elapsedTime = (currentTime - track.lastLoopPlayerStartTime) % loopDuration;
-          const progress = (elapsedTime / loopDuration);
+          const progress = this.getPlaybackProgress(track) || 0
+
+          this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
+          this._sectionBeat = Math.ceil(progress * this._sectionLen)-1
 
           const nextLoopStart = ToneTime((nextTrack as Player).loopStart).toSeconds()
           const nextLoopEnd = ToneTime((nextTrack as Player).loopEnd).toSeconds()
-          
-          const whereFrom = progress * (nextLoopEnd - nextLoopStart) + nextLoopStart
+          const nextLoopDuration = nextLoopEnd - nextLoopStart
+
+          const whereFrom = (progress * nextLoopDuration) + nextLoopStart
            
+          console.info("[track]",{transport: ToneTime(Transport.progress.toString()).toSeconds(), nextLoopDuration,nextLoopStart,nextLoopEnd, progress, whereFrom})
 
-          if(transitionInfo.duration === 0){ //legato jump
+          // if(transitionInfo.duration === 0){ //legato jump
            
-            nextTrack.volume.setValueAtTime(track.volumeLimit, t)
-            nextTrack.start(t,whereFrom);
-            track.current.stop(t);
+          //   nextTrack.volume.setValueAtTime(track.volumeLimit, t)
+          //   nextTrack.start(t,whereFrom);
+          //   track.current.stop(t);
 
-            console.log("[schedule] legato schedule @",t,to.name,elapsedTime,loopStart,loopEnd,loopDuration);
+          //   console.log("[schedule] legato schedule @",t,to.name,elapsedTime,loopStart,loopEnd,loopDuration);
 
-            onTrackResolve()
-          }
+          //   onTrackResolve()
+          // }
 
-          else{ //cross fade
-            this._state = 'transition'
+          // else{ //cross fade
             const dt = transitionInfo.duration
+            if(dt)
+              this._state = 'transition'
            
             nextTrack.volume.setValueAtTime(-72, t);
             nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
@@ -824,27 +839,27 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             const e = Transport.scheduleOnce(()=>{
               // console.log("RES")
               onTrackResolve()
+              this._pending.scheduledEvents.filter((v)=>v !== e)
             },t + dt)
+            this._pending.scheduledEvents.push(e)
             // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
             
-            console.log("[schedule] cross fade schedule @",t,to,dt);
-          }
+            // console.log("[schedule] cross fade schedule @",t,to,dt);
+          // }
 
-          track.lastLoopPlayerStartTime = t
+          track.lastLoopPlayerStartTime = t - whereFrom
         }
         else {
           normalStart()
         }
       })
     })
-
+    
     Promise.all(trackPromises).then(()=>{
       this._current = to
-      this._sectionBeat = -1
-      this._sectionLen = (to.region[1] - to.region[0]) * (Transport.timeSignature as number)
       this._clear()    
       resolveAll(to)      
-
+      console.log("[schedule] END",toneNow())
     }).catch(()=>{
       //transition cancel, revert track fades
     })
@@ -954,6 +969,28 @@ get destination(){
 //========other===========
 public draw(callback: ()=>void){
   Draw.schedule(callback,toneNow());
+}
+
+
+public getPlaybackProgress(track: string | object) {
+  const _track = typeof track === 'object' ? (track as {
+    name: string;
+    source: string;
+    filter: Filter;
+    volumeLimit: number;
+    current: Player;
+    a: Player;
+    b: Player;
+    lastLoopPlayerStartTime: number;
+}) : this._trackPlayers.find((v)=>v.name === track)!
+  if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return null; // If the player hasn't started, progress is 0%
+  
+  const currentTime = toneNow() // Get the current time
+  const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time
+  const loopDuration = ToneTime(_track.current.loopEnd).toSeconds() - ToneTime(_track.current.loopStart).toSeconds() ; // Loop duration in seconds
+  const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
+  
+  return loopProgress
 }
 
 public get(key: string):any{
