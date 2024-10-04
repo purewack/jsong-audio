@@ -79,11 +79,12 @@ export default function buildSections(
         let splitName;
         
         if(typeof entry === "object"){ //JSONgFlowInstruction
-          newEntry.name = entry.name
+          const split = splitSectionName(entry.name);
+          newEntry.name = split.name;
           newEntry.grain =  entry?.grain || sectionDefaults.grain
-          newEntry.once = entry?.once || false
-          if(entry?.fade) {
-            if(typeof entry.fade === 'boolean' && entry.fade === true)
+          newEntry.once = entry?.once || split.once || false
+          if(entry?.fade || split.fade) {
+            if(split.fade || (typeof entry.fade === 'boolean' && entry.fade === true))
               allTracksFade()
             else if(typeof entry.fade === 'number') //override transition time
               allTracksFade(entry.fade)
@@ -98,7 +99,7 @@ export default function buildSections(
               })
             }
           }
-          else if(entry?.legato){
+          else if(entry?.legato || split.legato){
             allTracksLegato()
           }
         }

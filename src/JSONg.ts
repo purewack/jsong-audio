@@ -329,6 +329,9 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
   );
   this._beginning = findStart(this._sections);
   this._flow = manifest.playback.flow;
+  console.log("[manifest] sections",this._sections)
+  console.log("[manifest] flow",this._flow)
+  console.log("[manifest] start",this._beginning)
 
   //convert all regions to seconds
   
@@ -558,7 +561,11 @@ public async play(
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  console.log("[play] player starting", startFrom) 
+  console.log("[play] player starting", startFrom)
+  
+  if(beginning.once){
+    await this.continue()
+  }
   // this._dispatchSectionChanged('0:0:0',null,beginning);
 }
 
@@ -592,10 +599,11 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
   // this._dispatchSectionQueue('0:0:0',this._current);
   console.log("[continue] advance to next:", nextIndex)  
 
-  this._state = 'queue'
   try{
-    await this._schedule(nextSection, nextTime)
+    this._state = 'queue'
+    const scheduledTo = await this._schedule(nextSection, nextTime)
     this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
+    if(scheduledTo.once) await this.continue()
     // this._dispatchSectionChange();
   }
   catch{
@@ -723,7 +731,7 @@ private _clear(){
 private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<PlayerSection> {
   this._clear()
 
-  console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen}`)
+  console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
 
   return new Promise<PlayerSection>((resolveAll,reject)=>{
     this._pending.scheduleAborter = new AbortController()
@@ -746,7 +754,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
         const onTrackResolve = ()=>{
           track.current = nextTrack;
-          console.log("[schedule] END RESOLVE")
           trackResolve()
         }
 
@@ -814,12 +821,13 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             track.current.volume.linearRampToValueAtTime(-72, t + dt)
             track.current.stop(t + dt);
             
-            Transport.scheduleOnce(()=>{
+            const e = Transport.scheduleOnce(()=>{
+              // console.log("RES")
               onTrackResolve()
             },t + dt)
             // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
             
-            console.log("[schedule] cross fade schedule @",t,to);
+            console.log("[schedule] cross fade schedule @",t,to,dt);
           }
 
           track.lastLoopPlayerStartTime = t
@@ -831,16 +839,12 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
     })
 
     Promise.all(trackPromises).then(()=>{
-      const pre = this._current
       this._current = to
       this._sectionBeat = -1
       this._sectionLen = (to.region[1] - to.region[0]) * (Transport.timeSignature as number)
       this._clear()    
-      resolveAll(to)
-      if(pre.once) {
-        console.log("[schedule] current once, auto next")
-        this._schedule(getNestedIndex(this._sections, to.next), '')
-      }
+      resolveAll(to)      
+
     }).catch(()=>{
       //transition cancel, revert track fades
     })

@@ -80,7 +80,7 @@ test("Build sections with overrides and deep start", () => {
     "C": [12, 16] as  [number,number],
     "V": [16, 24] as  [number,number],
   }
-  const flow = [[[2, 'A', {name:"V",fade:["trackA"]}], "A-x->", "B"], "C"];
+  const flow = [[[2, 'A', {name:"V->",fade:["trackA"]}], "A-x->", "B"], "C"];
   const sections = buildSection(flow,map,defaults);
  
   expect(sections).toMatchObject(
@@ -88,7 +88,7 @@ test("Build sections with overrides and deep start", () => {
       0: {
         0: {
           0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
-          1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:false, transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
+          1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:true,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
           loopCurrent: 0,
           loopLimit: 2,
           sectionCount: 2,
