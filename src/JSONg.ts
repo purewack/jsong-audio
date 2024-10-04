@@ -543,12 +543,6 @@ public async play(
   Transport.cancel(0);
   Transport.position = '0:0:0'
 
-  this.state = 'playing'
-  this._current = beginning
-
-  this._sectionLastLaunchTime = '0:0:0'
-  this._schedule(this._current, '0:0:0')
-
   this._setMeterBeat(0)
   this._sectionBeat = -1
   this._timingInfo.metronomeSchedule = Transport.scheduleRepeat((t)=>{
@@ -564,7 +558,11 @@ public async play(
   },'4n');
 
   Transport.start()
-  this._log.info("[play] player starting", startFrom)  
+  await this._schedule(beginning, '0:0:0')
+  this.state = 'playing'
+  this._sectionLastLaunchTime = '0:0:0'
+  this._current = beginning
+  this._log.info("[play] player starting", startFrom) 
   // this._dispatchSectionChanged('0:0:0',null,beginning);
 }
 
@@ -660,8 +658,6 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this.state = 'stopped'
     this._dispatchSectionChanged()
     this._sectionLastLaunchTime = null
-    
-    this.state = 'stopped'
     this._log.info("[player] stopped")
     res()
   }
@@ -733,7 +729,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
   this._log.info('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen}`)
 
-  return new Promise<PlayerSection>((resolve,reject)=>{
+  return new Promise<PlayerSection>((resolveAll,reject)=>{
     this._pending.scheduleAborter = new AbortController()
     this._pending.scheduleAborter.signal.addEventListener('abort',()=>{
       // reject()
@@ -758,12 +754,34 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
           trackResolve()
         }
 
+        const normalStart = ()=>{
+          Transport.scheduleOnce((t)=>{
+            track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
+            track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
+            try{
+            nextTrack.start(t,to.region[0]+'m');
+            track.lastLoopPlayerStartTime = t
+            console.log("[schedule] standard schedule @",t,to);
+            }
+            catch(e){
+              console.error(e)
+            }
+            track.current.stop(t);
+            onTrackResolve()
+          },forWhen)
+        }
+
+        if(this._sectionLastLaunchTime === null){
+          normalStart()
+          return
+        }
+
         const transitionInfo = this._current.transition.find(t => t.name === track.name)!
 
-        
         if(transitionInfo.type === 'fade'){
           const t = toneNow() + 0.1 
           
+          const sectionLastLaunchTimeSec = ToneTime(this._sectionLastLaunchTime!).toSeconds()
           const loopStart = ToneTime(track.current.loopStart).toSeconds();
           const loopEnd = ToneTime(track.current.loopEnd).toSeconds();
           const currentTime = t
@@ -789,6 +807,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
           }
 
           else{ //cross fade
+            this._state = 'transition'
             const dt = transitionInfo.duration
            
             nextTrack.volume.setValueAtTime(-72, t);
@@ -799,7 +818,9 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             track.current.volume.linearRampToValueAtTime(-72, t + dt)
             track.current.stop(t + dt);
             
-            onTrackResolve()
+            Transport.scheduleOnce(()=>{
+              onTrackResolve()
+            },t + dt)
             // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
             
             console.log("[schedule] cross fade schedule @",t,to);
@@ -808,18 +829,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
           track.lastLoopPlayerStartTime = t
         }
         else {
-          Transport.scheduleOnce((t)=>{
-            console.log("[schedule] standard schedule @",t,to);
-            track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
-            track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
-            try{
-            nextTrack.start(t,to.region[0]+'m');
-            track.lastLoopPlayerStartTime = t
-            }
-            catch{}
-            track.current.stop(t);
-            onTrackResolve()
-          },forWhen)
+          normalStart()
         }
       })
     })
@@ -830,7 +840,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
       this._sectionBeat = -1
       this._sectionLen = (to.region[1] - to.region[0]) * (Transport.timeSignature as number)
       this._clear()    
-      resolve(to)
+      resolveAll(to)
       if(pre.once) {
         this._log.info("[schedule] current once, auto next")
         this._schedule(getNestedIndex(this._sections, to.next), '')
@@ -909,15 +919,14 @@ public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | num
   }) 
 }
 
-public click(state?:boolean){
+public toggleMetronome(state?:boolean){
   let vol = this._timingInfo.metronome.db
   if(state !== undefined){
     vol = state ? this._timingInfo.metronome.db : -200
   }
-  else if(this._metronome.volume.value !== vol)
-    this._metronome.volume.value = vol
-  else
-    this._metronome.volume.value = -200
+  else{
+    this._metronome.volume.value = this._metronome.volume.value < -100 ? this._timingInfo.metronome.db : -200
+  }
 }
 
 public isMute(){
