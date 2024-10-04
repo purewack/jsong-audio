@@ -32,9 +32,6 @@ export default class JSONg extends EventTarget{
   
   public VERSION_SUPPORT = ["J/1"]
 
-  //Debug related - logging extra messages
-  private _log = new Logger('warning');
-
   private _meta!: JSONgMetadata;
   set meta(value: JSONgMetadata){
     this._meta = {...value};
@@ -209,7 +206,6 @@ export default class JSONg extends EventTarget{
     super();
     if(options?.context) setContext(options?.context);
     
-    this._log.level = options?.verbose;
     console.log("[JSONg] new jsong player");
     this.state = null;
 
@@ -248,13 +244,13 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
   const [manifest,baseURL,filename] = await fetchManifest(file);
-  this._log.info({manifest,baseURL, filename});
+  console.log({manifest,baseURL, filename});
 
   this._dispatchParsePhase('meta')
   if (manifest?.type !== 'jsong')
     return Promise.reject(new Error('parsing invalid manifest'));
   if (!this.VERSION_SUPPORT.includes(manifest?.version)){
-    this._log.info(manifest)
+    console.log(manifest)
     return Promise.reject(new Error('unsupported parser version:'));
   }
   if(!manifest?.playback?.bpm) 
@@ -342,7 +338,7 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
   //spawn tracks
   this._tracksList = [...manifest.tracks]
   this._trackPlayers = []
-  this._log.info('[parse][tracks]',this._tracksList)
+  console.log('[parse][tracks]',this._tracksList)
   for(const track of this._tracksList){
     const a = new Player()
     const b = new Player()
@@ -392,7 +388,7 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
     await this.loadSound(manifest.sources, options?.soundOrigin || baseURL)
   }
   
-  this._log.info("[parse] end ")
+  console.log("[parse] end ")
   return Promise.resolve();
 }
   
@@ -414,12 +410,12 @@ public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} 
     this.stop(false);
     this._dispatchParsePhase('done')
     this.state = 'stopped';
-    this._log.info("[load] end ")
+    console.log("[load] end ")
   }
 
   //quit if there are no audio files to load
   if(!sources || !Object.keys(sources).length) {
-    this._log.info("[parse] end - no sources",sources)
+    console.log("[parse] end - no sources",sources)
     return Promise.resolve()
   }
 
@@ -459,11 +455,11 @@ public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} 
 
   const manifestSourcePaths = await compileSourcePaths(sources as JSONgDataSources, origin);
   if(!manifestSourcePaths){
-    this._log.info('[parse] no sources listed in manifest', manifestSourcePaths);
+    console.log('[parse] no sources listed in manifest', manifestSourcePaths);
     return Promise.reject('no sources')
   }
   else if(Object.keys(manifestSourcePaths)?.length){
-    this._log.info('[parse] manifest sources', manifestSourcePaths);
+    console.log('[parse] manifest sources', manifestSourcePaths);
     // begin parse after confirming that manifest is ok
     // and sources paths are ok
     this.state = 'loading';
@@ -474,7 +470,7 @@ public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} 
     }
     catch(error){
       this.state = null;
-      this._log.error(new Error('[parse][sources] error fetching data'))
+      console.error(new Error('[parse][sources] error fetching data'))
       return Promise.reject('sources error')
     }
   }
@@ -549,7 +545,7 @@ public async play(
     const note = this._timingInfo.metronome[!this._meterBeat ? 'high' : 'low']
     if(!note) return
     this._setMeterBeat((this._meterBeat + 1) % (Transport.timeSignature as number))
-    if(this._timingInfo.metronome || this._log.level){
+    if(this._timingInfo.metronome){
       try{
         this._metronome.triggerAttackRelease(note,'64n',t);
       }
@@ -562,7 +558,7 @@ public async play(
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  this._log.info("[play] player starting", startFrom) 
+  console.log("[play] player starting", startFrom) 
   // this._dispatchSectionChanged('0:0:0',null,beginning);
 }
 
@@ -594,7 +590,7 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
   } 
 
   // this._dispatchSectionQueue('0:0:0',this._current);
-  this._log.info("[continue] advance to next:", nextIndex)  
+  console.log("[continue] advance to next:", nextIndex)  
 
   this._state = 'queue'
   try{
@@ -650,7 +646,7 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
           p.b.stop(t);
           p.current = p.a
       }catch(error){
-        this._log.info('[stop] Empty track stopping ',this._tracksList[i]);
+        console.log('[stop] Empty track stopping ',this._tracksList[i]);
       }
     })
     Transport.stop(t)
@@ -658,13 +654,13 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this.state = 'stopped'
     this._dispatchSectionChanged()
     this._sectionLastLaunchTime = null
-    this._log.info("[player] stopped")
+    console.log("[player] stopped")
     res()
   }
 
   if(synced){
     this.state = 'stopping'
-    this._log.info("[player] stopping",next,when,Transport.position)
+    console.log("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
     Transport.scheduleOnce(doStop,when)
   }else 
@@ -727,7 +723,7 @@ private _clear(){
 private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<PlayerSection> {
   this._clear()
 
-  this._log.info('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen}`)
+  console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen}`)
 
   return new Promise<PlayerSection>((resolveAll,reject)=>{
     this._pending.scheduleAborter = new AbortController()
@@ -842,7 +838,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
       this._clear()    
       resolveAll(to)
       if(pre.once) {
-        this._log.info("[schedule] current once, auto next")
+        console.log("[schedule] current once, auto next")
         this._schedule(getNestedIndex(this._sections, to.next), '')
       }
     }).catch(()=>{
