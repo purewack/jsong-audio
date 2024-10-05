@@ -1,4 +1,4 @@
-import {getIndexInfo, setIndexInfo} from "../src/indexInfo";
+import {getIndexInfo, setIndexInfo} from "../src/sectionsNavigation";
 import { PlayerSections } from "../src/types/player";
 
 let sections = {

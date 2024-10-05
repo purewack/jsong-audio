@@ -32,7 +32,7 @@ export async function compileSourcePaths(sources: JSONgDataSources, origin: stri
   for(const key of keys){
     let fullURL;
     const path = sources[key]
-    console.log("check path",key,path)
+    // console.log("check path",key,path)
     if (path.startsWith('data:')) {
       // Direct audio data as a data:URI
       fullURL = path;
@@ -71,7 +71,7 @@ export async function fetchSources(paths: JSONgDataSources)
     let loadPromises: Promise<ToneAudioBuffer>[] = [];
     for(const key of keys){
       const buffer = new ToneAudioBuffer()
-      console.log("[source] loading", key, paths[key].slice(0,128))
+      // console.log("[source] loading", key, paths[key].slice(0,128))
       loadPromises.push(buffer.load(paths[key]));
     }
 

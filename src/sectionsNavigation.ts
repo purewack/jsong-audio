@@ -1,6 +1,6 @@
 import {PlayerIndex, PlayerSection, PlayerSections} from './types/player'
-import { getNestedIndex } from './nestedIndex'
-import { getIndexInfo } from './indexInfo';
+import { getNestedIndex, setNestedIndex } from './util/nestedIndex'
+import { NestedIndex } from './types/common'
 
 /*{
   0: {
@@ -57,4 +57,29 @@ export function findStart(sections: PlayerSections): PlayerIndex{
   }
 
   return deepestIndex;
+}
+
+
+export function getIndexInfo(sections: any, index: NestedIndex) 
+: (any | undefined) {
+    if(index.length > 1) {
+        return {...getNestedIndex(sections, index.slice(0,-1))}
+    }
+    else{
+        return {...sections}
+    }
+}
+
+export function setIndexInfo(toSet: object, sections: any, index: NestedIndex)
+: (any | undefined) {
+    const n = {...sections}
+    if(index.length > 1) {
+        index.pop()
+        const e = {...getNestedIndex(n,index), ...toSet}
+        setNestedIndex(e,n,index)
+        return n
+    }
+    else{
+        return {...sections, ...toSet}
+    }
 }

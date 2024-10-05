@@ -1,4 +1,4 @@
-export default function quanTime(
+export function quanTime(
   nowPosition: string, 
   atBeats: number = 4, 
   meter: number[] = [4,4], 

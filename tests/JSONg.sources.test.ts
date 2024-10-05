@@ -136,7 +136,7 @@ describe('link loading - ToneAudioBuffer mock', () => {
             }
         const mockToneAudioBuffer = {
             load: jest.fn().mockImplementation((filePath: string)=>{
-                console.log(filePath)
+                // console.log(filePath)
                 return filePath.includes('fail') 
                 ? 
                     Promise.reject(new Error('cannot load'))

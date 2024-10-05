@@ -1,4 +1,4 @@
-import buildSection from "../src/buildSection";
+import buildSection from "../src/sectionsBuild";
 
 const defaults = {
   grain: 4,

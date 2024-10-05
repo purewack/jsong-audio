@@ -1,8 +1,6 @@
 import {PlayerSection, PlayerSections} from "./types/player"
-import {splitSectionName} from "./overrides"
 import { JSONgFlowEntry, JSONgFlowInstruction } from "./types/jsong";
-import { split } from "lodash";
-
+import _ from 'lodash'
 //example flow to build from:
 // ["intro", "chorus", "verse1", [["bridge-X", "verse2"],"verse1"]]
 
@@ -136,4 +134,19 @@ export default function buildSections(
   }
 
   return structure as PlayerSections;
+}
+
+
+//Extraction of flow directives
+export function splitSectionName(name: string) { 
+  const k = name.split('-')
+  const extra = k.length > 1
+  const fade = extra ? _.includes(k, 'X') || _.includes(k, 'x') : undefined
+   
+  return {
+      name: k[0],
+      fade,
+      once: extra ? _.includes(k, '>') : undefined,
+      legato: extra ? _.includes(k, '|') && !fade : undefined,
+  }
 }

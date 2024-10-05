@@ -1,4 +1,4 @@
-import {getNextSectionIndex, findStart } from "../src/nextSection";
+import {getNextSectionIndex, findStart } from "../src/sectionsNavigation";
 import { PlayerSection, PlayerSections } from "../src/types/player";
 
 const sections: PlayerSections = {
