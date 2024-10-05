@@ -151,6 +151,10 @@ export default class JSONg extends EventTarget{
       // this.dispatchEvent(new TransportEvent('timing',pos,sectionBeat,sectionLen,sectionBar))
     }
   }
+  private updateSectionBeat(){
+    const progress = this.getSectionProgress()
+    this._sectionBeat = Math.floor(progress * this._sectionLen)
+  }
   public getPosition(){
     return {
       beat: [this._sectionBeat, this._sectionLen],
@@ -547,14 +551,12 @@ public async play(
   Transport.position = '0:0:0'
 
   this._setMeterBeat(-1)
-  this._sectionBeat = -1
+  this._sectionBeat = 0
   this._sectionLen = (beginning.region[1] - beginning.region[0]) * this._timingInfo.meter[0]
   this._timingInfo.metronomeSchedule = Transport.scheduleRepeat((t)=>{
     this._setMeterBeat((this._meterBeat + 1) % this._timingInfo.meter[0])
-    
-    if(this._sectionLen)
-      this._sectionBeat = (this._sectionBeat + 1) % this._sectionLen
-
+    if(this._sectionLen) 
+      this.updateSectionBeat()
     const note = this._timingInfo.metronome[this._meterBeat === 0 ? 'high' : 'low']
     if(this._timingInfo.metronome){
       try{
@@ -672,6 +674,7 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this.state = 'stopped'
     this._dispatchSectionChanged()
     this._sectionLastLaunchTime = null
+    this._sectionBeat = 0
     console.log("[player] stopped")
     res()
   }
@@ -784,10 +787,10 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             catch(e){
               console.error(e)
             }
-            this._sectionBeat = 0
             this._sectionLastLaunchTime = Transport.position.toString()
             this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
             track.current.stop(t);
+            this._sectionBeat = 0
             onTrackResolve()
           },forWhen)
         }
@@ -802,11 +805,10 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         if(transitionInfo.type === 'fade'){
           const t = toneNow()
           
-          const progress = this.getPlaybackProgress(track) || 0
+          const progress = this.getSectionProgress() || 0
 
           this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
-          this._sectionBeat = Math.ceil(progress * this._sectionLen)-1
-
+          
           const nextLoopStart = ToneTime((nextTrack as Player).loopStart).toSeconds()
           const nextLoopEnd = ToneTime((nextTrack as Player).loopEnd).toSeconds()
           const nextLoopDuration = nextLoopEnd - nextLoopStart
@@ -979,24 +981,13 @@ public draw(callback: ()=>void){
 }
 
 
-public getPlaybackProgress(track: string | object) {
-  const _track = typeof track === 'object' ? (track as {
-    name: string;
-    source: string;
-    filter: Filter;
-    volumeLimit: number;
-    current: Player;
-    a: Player;
-    b: Player;
-    lastLoopPlayerStartTime: number;
-}) : this._trackPlayers.find((v)=>v.name === track)!
-  if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return null; // If the player hasn't started, progress is 0%
-  
+public getSectionProgress() {
+  const _track = this._trackPlayers[0]
+  if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return 0; // If the player hasn't started, progress is 0%
   const currentTime = toneNow() // Get the current time
   const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time
   const loopDuration = ToneTime(_track.current.loopEnd).toSeconds() - ToneTime(_track.current.loopStart).toSeconds() ; // Loop duration in seconds
   const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
-  
   return loopProgress
 }
 
