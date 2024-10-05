@@ -1,10 +1,9 @@
 import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
 import { PlayerSections, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
-import quanTime from './quantime'
-import {getNextSectionIndex,  findStart } from './nextSection'
-import buildSections from './buildSection'
-import {getNestedIndex} from './nestedIndex'
-import Logger from './logger'
+import {beatTransportDelta, quanTime} from './timing'
+import {getNextSectionIndex,  findStart } from './sectionsNavigation'
+import buildSections from './sectionsBuild'
+import {getNestedIndex} from './util/nestedIndex'
 // import {fetchSources, fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
@@ -158,6 +157,7 @@ export default class JSONg extends EventTarget{
   public getPosition(){
     return {
       beat: [this._sectionBeat, this._sectionLen],
+      actionCountdown: this._pending.actionRemainingBeats,
       transportBeat: this._meterBeat,
       lastLaunchTime: this._sectionLastLaunchTime,
       transport: Transport.position.toString(),
@@ -521,10 +521,12 @@ private _pending: {
   scheduleAborter: null | AbortController;
   transportSchedule: null | number;
   scheduledEvents: number[],
+  actionRemainingBeats: number,
 } = {
   scheduleAborter: null,
   transportSchedule: null,
   scheduledEvents: [],
+  actionRemainingBeats: 0,
 }
 
 
@@ -557,6 +559,8 @@ public async play(
     this._setMeterBeat((this._meterBeat + 1) % this._timingInfo.meter[0])
     if(this._sectionLen) 
       this.updateSectionBeat()
+    if(this._pending.actionRemainingBeats) 
+      this._pending.actionRemainingBeats -= 1
     const note = this._timingInfo.metronome[this._meterBeat === 0 ? 'high' : 'low']
     if(this._timingInfo.metronome){
       try{
@@ -564,7 +568,7 @@ public async play(
       }
       catch(e){}
     }
-  },'4n');
+  },this._timingInfo.meter[1] + 'n');
 
   Transport.start()
   await this._schedule(beginning, '0:0:0')
@@ -776,6 +780,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         }
 
         const normalStart = ()=>{
+          this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), forWhen, this._timingInfo.meter)
           Transport.scheduleOnce((t)=>{
             track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
             track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)

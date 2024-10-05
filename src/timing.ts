@@ -41,3 +41,19 @@ export function quanTime(
     return `${nowBar + adv}:0:0`
   }
 }
+
+export function beatTransportDelta(from: string, to:string, meter: [number,number]){
+
+  const [beatsPerBar, beatUnit] = meter
+
+  // Convert time codes to arrays of numbers
+  const [bar1, beat1, sixteenth1] = from.split(':').map(Number);
+  const [bar2, beat2, sixteenth2] = to.split(':').map(Number);
+
+  // Calculate total beats for each time code
+  const totalBeats1 = bar1 * beatsPerBar + beat1 //+ sixteenth1 / (16 / beatUnit);
+  const totalBeats2 = bar2 * beatsPerBar + beat2 //+ sixteenth2 / (16 / beatUnit);
+
+  // Return the absolute difference in beats
+  return totalBeats2 - totalBeats1
+}

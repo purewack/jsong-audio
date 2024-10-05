@@ -77,7 +77,13 @@ describe('Quantize time 3/4',()=>{
         expect(quanTime('1:2:3',3,[3,4])).toBe('2:0:0')
         expect(quanTime('13:1:2.163', 3, [3,4])).toBe('14:0:0')
     })    
-    
+
+    test('quantize time to nearest 1/2 bar',()=>{
+        expect(quanTime('0:0:2',3,[3,4])).toBe('0:2:0')
+        expect(quanTime('0:1:2',3,[3,4])).toBe('0:2:0')
+        expect(quanTime('0:2:3',3,[3,4])).toBe('1:0:0')
+    })    
+
     test('quantize time to nearest 2bar',()=>{
         expect(quanTime('0:1:2',6,[3,4])).toBe('2:0:0')
         expect(quanTime('0:2:2',6,[3,4])).toBe('2:0:0')
@@ -89,5 +95,38 @@ describe('Quantize time 3/4',()=>{
     
         expect(quanTime('0:2:2',6,[3,4],1)).toBe('3:0:0')
         expect(quanTime('1:1:2',6,[3,4],0)).toBe('2:0:0')
+    })
+})
+
+
+describe('Quantize time 6/8',()=>{
+
+    test('quantize time to nearest bar',()=>{
+        expect(quanTime('0:0:2',6,[6,8])).toBe('1:0:0')
+        expect(quanTime('0:1:2',6,[6,8])).toBe('1:0:0')
+        expect(quanTime('0:2:3',6,[6,8])).toBe('1:0:0')
+        expect(quanTime('1:0:2',6,[6,8])).toBe('2:0:0')
+        expect(quanTime('1:1:2',6,[6,8])).toBe('2:0:0')
+        expect(quanTime('1:2:3',6,[6,8])).toBe('2:0:0')
+        expect(quanTime('13:1:2.163', 6, [6,8])).toBe('14:0:0')
+    })    
+
+    test('quantize time to nearest 1/2 bar',()=>{
+        expect(quanTime('0:0:2',3,[6,8])).toBe('0:3:0')
+        expect(quanTime('0:1:2',3,[6,8])).toBe('0:3:0')
+        expect(quanTime('1:2:3',3,[6,8])).toBe('1:3:0')
+    })    
+    
+    test('quantize time to nearest 2bar',()=>{
+        expect(quanTime('0:1:2',12,[6,8])).toBe('2:0:0')
+        expect(quanTime('0:2:2',12,[6,8])).toBe('2:0:0')
+        
+        expect(quanTime('1:1:2',12,[6,8])).toBe('3:0:0')
+        expect(quanTime('2:1:2',12,[6,8])).toBe('4:0:0')
+        expect(quanTime('3:1:2',12,[6,8])).toBe('5:0:0')
+        expect(quanTime('3:1:2',12,[6,8])).toBe('5:0:0')
+    
+        expect(quanTime('0:2:2',12,[6,8],1)).toBe('3:0:0')
+        expect(quanTime('1:1:2',12,[6,8],0)).toBe('2:0:0')
     })
 })
