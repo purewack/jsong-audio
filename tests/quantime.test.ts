@@ -79,9 +79,9 @@ describe('Quantize time 3/4',()=>{
     })    
 
     test('quantize time to nearest 1/2 bar',()=>{
-        expect(quanTime('0:0:2',3,[3,4])).toBe('0:2:0')
-        expect(quanTime('0:1:2',3,[3,4])).toBe('0:2:0')
-        expect(quanTime('0:2:3',3,[3,4])).toBe('1:0:0')
+        expect(quanTime('0:0:2',1.5,[3,4])).toBe('0:1.5:0')
+        expect(quanTime('0:1:2',1.5,[3,4])).toBe('0:1.5:0')
+        expect(quanTime('0:2:3',1.5,[3,4])).toBe('1:0:0')
     })    
 
     test('quantize time to nearest 2bar',()=>{
@@ -112,9 +112,9 @@ describe('Quantize time 6/8',()=>{
     })    
 
     test('quantize time to nearest 1/2 bar',()=>{
-        expect(quanTime('0:0:2',3,[6,8])).toBe('0:3:0')
-        expect(quanTime('0:1:2',3,[6,8])).toBe('0:3:0')
-        expect(quanTime('1:2:3',3,[6,8])).toBe('1:3:0')
+        expect(quanTime('0:0:2',3,[6,8])).toBe('0:1.5:0')
+        expect(quanTime('0:1:2',3,[6,8])).toBe('0:1.5:0')
+        expect(quanTime('1:2:3',3,[6,8])).toBe('2:0:0')
     })    
     
     test('quantize time to nearest 2bar',()=>{

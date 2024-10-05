@@ -8,8 +8,9 @@ export function quanTime(
   const splitTime = (position: string)=>position.split(':').map(n => parseInt(n))
   const quantize = (unit: number,q: number)=>Math.trunc((unit + q)/q)*q;
 
-  const barBeats = meter[0]
+  const barBeats = meter[0] / (meter[1] / 4)
   const [nowBar, nowBeat] = splitTime(nowPosition)
+  atBeats = atBeats / (meter[1] / 4)
   // console.log('begin', barBeats, nowBar, nowBeat)
 
   //if align is less than bar length

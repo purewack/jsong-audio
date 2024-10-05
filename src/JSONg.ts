@@ -161,7 +161,6 @@ export default class JSONg extends EventTarget{
       transportBeat: this._meterBeat,
       lastLaunchTime: this._sectionLastLaunchTime,
       transport: Transport.position.toString(),
-      transportProgress: Transport.progress,
       contextTime: toneNow()
     }
   }
@@ -680,6 +679,7 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this._dispatchSectionChanged()
     this._sectionLastLaunchTime = null
     this._sectionBeat = 0
+    this._pending.actionRemainingBeats = 0
     console.log("[player] stopped")
     res()
   }
