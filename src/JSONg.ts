@@ -161,6 +161,7 @@ export default class JSONg extends EventTarget{
       transportBeat: this._meterBeat,
       lastLaunchTime: this._sectionLastLaunchTime,
       transport: Transport.position.toString(),
+      transportProgress: Transport.progress,
       contextTime: toneNow()
     }
   }
