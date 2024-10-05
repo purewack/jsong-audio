@@ -124,9 +124,7 @@ export default class JSONg extends EventTarget{
   private _state:PlayerState = null;
   set state(value: PlayerState){
     this._state = value
-    // Draw.schedule(() => {
     //   this.onStateChange(value)
-    // }, toneNow());
   }
   get state(): PlayerState{
     return this._state
@@ -518,12 +516,12 @@ public async addSourceData(name: string, data: any){
  * Pending future actions on the timeline and promises
  */
 private _pending: {
-  scheduleAborter: null | AbortController;
+  scheduleAborter: AbortController;
   transportSchedule: null | number;
   scheduledEvents: number[],
   actionRemainingBeats: number,
 } = {
-  scheduleAborter: null,
+  scheduleAborter: new AbortController(),
   transportSchedule: null,
   scheduledEvents: [],
   actionRemainingBeats: 0,
@@ -571,14 +569,17 @@ public async play(
   },this._timingInfo.meter[1] + 'n');
 
   Transport.start()
+  this._clear()
   await this._schedule(beginning, '0:0:0')
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  console.log("[play] starting from", startFrom)
+  console.log("[play] started from", startFrom)
   
   if(beginning.once){
-    await this.continue()
+    console.log("[play] starting section once, continue")
+    this.state = 'continue'
+    await this._continue()
   }
   // this._dispatchSectionChanged('0:0:0',null,beginning);
 }
@@ -593,9 +594,13 @@ public async play(
  * @returns Promise - fired when the player switches to the queued section
  */
 public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
-  
   //only schedule next section if in these states
   if(this.state !== 'playing') return
+
+  await this._continue(breakout, to)
+}
+
+private async _continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
   
   const nextIndex = getNextSectionIndex(this._sections, to || this._current.index, typeof breakout === 'boolean' ? breakout : false)
   const nextSection = getNestedIndex(this._sections, nextIndex as NestedIndex) as PlayerSection
@@ -614,17 +619,22 @@ public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<vo
   console.log("[continue] advance to next:", nextIndex)  
 
   try{
-    this._state = 'queue'
+    if(this.state === 'playing') {
+      this.state = 'queue'
+    }
     const scheduledTo = await this._schedule(nextSection, nextTime)
-    this._state = 'playing'
-    if(scheduledTo.once) await this.continue()
-    // this._dispatchSectionChange();
+
+    if(scheduledTo.once) {
+      this.state = 'continue'
+      await this._continue()
+    }
+      // this._dispatchSectionChange();
+    this.state = 'playing'
   }
   catch{
     // this._dispatchSectionCancel();
   }
   finally{
-    this._state = 'playing'
   }
 
   // if(loops) this.onSectionLoop(loops, nowIndex)
@@ -653,6 +663,7 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
   if(!this._current) return
 
   this._clear()
+  this._abort()
 
   const next =  quanTime(
     Transport.position.toString() as BarsBeatsSixteenths, 
@@ -685,10 +696,11 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
   }
 
   if(synced){
-    this.state = 'stopping'
     console.log("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
     Transport.scheduleOnce(doStop,next)
+    this.state = 'stopping'
+    this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), next, this._timingInfo.meter)      
   }else 
     doStop(when)
     res()
@@ -704,20 +716,28 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
  * This function will cancel any pending changes that are queued up
  * */
 public cancel(){
-  this._clear()
+  this._abort()
+  this.state = 'playing'
+  // this._clear()
   // this.onSectionWillEnd([], when)
   // this.onSectionWillStart([],when)
   // this.onSectionCancelChange()
 }
 
+private _abort(){
+  this._pending.actionRemainingBeats = 0
+  if(this._pending.scheduleAborter) {
+    this._pending.scheduleAborter.abort()
+  }
+  this._pending.scheduleAborter = new AbortController()
+}
+
 private _clear(){
-  if(this._pending?.scheduleAborter) this._pending.scheduleAborter.abort()
   if(this._pending?.transportSchedule) Transport.clear(this._pending.transportSchedule)
   this._pending.scheduledEvents.forEach(v => {
     Transport.clear(v)
   })
   this._pending.scheduledEvents = []
-  this._pending.scheduleAborter = null
   this._pending.transportSchedule = null
 }
 
@@ -751,24 +771,17 @@ private _clear(){
  * @returns  
  */
 private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<PlayerSection> {
-  this._clear()
 
-  console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
+  return new Promise<PlayerSection>((resolveAll,rejectAll)=>{
 
-  return new Promise<PlayerSection>((resolveAll,reject)=>{
-    this._pending.scheduleAborter = new AbortController()
-    this._pending.scheduleAborter.signal.addEventListener('abort',()=>{
-      // reject()
-    })
-
+    console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
+    const signal = this._pending.scheduleAborter.signal
 
     let trackPromises: Promise<void>[]  = []
     
-    this._clear()
-    
     console.log("[schedule] starting task",toneNow())
     trackPromises = this._trackPlayers.map(track => {
-      return new Promise((trackResolve)=>{
+      return new Promise((trackResolve, trackReject)=>{
 
         const nextTrack = track.current === track.a ? track.b : track.a
         nextTrack.loopStart = to.region[0]+'m';
@@ -780,9 +793,17 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
           trackResolve()
         }
 
+        let scheduleEvent = -1
+        const onAbort = ()=>{
+          console.info("[schedule] abort")
+          Transport.clear(scheduleEvent)
+          // this._pending.scheduledEvents.filter((v)=>v !== e)
+          trackReject()
+        }
+
         const normalStart = ()=>{
           this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), forWhen, this._timingInfo.meter)
-          Transport.scheduleOnce((t)=>{
+          scheduleEvent = Transport.scheduleOnce((t)=>{
             track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
             track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
             try{
@@ -798,7 +819,12 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             track.current.stop(t);
             this._sectionBeat = 0
             onTrackResolve()
+            signal.removeEventListener('abort',onAbort)
+            // this._pending.scheduledEvents.filter((v)=>v !== e)
           },forWhen)
+          // this._pending.scheduledEvents.push(e)
+
+          signal.addEventListener('abort',onAbort)
         }
 
         if(this._sectionLastLaunchTime === null){
@@ -807,7 +833,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         }
 
         const transitionInfo = this._current.transition.find(t => t.name === track.name)!
-
         if(transitionInfo.type === 'fade'){
           const t = toneNow()
           
@@ -821,47 +846,29 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
           const whereFrom = (progress * nextLoopDuration) + nextLoopStart
            
-          console.info("[track]",{transport: ToneTime(Transport.progress.toString()).toSeconds(), nextLoopDuration,nextLoopStart,nextLoopEnd, progress, whereFrom})
+          // console.info("[track]",{transport: ToneTime(Transport.progress.toString()).toSeconds(), nextLoopDuration,nextLoopStart,nextLoopEnd, progress, whereFrom})
 
-          // if(transitionInfo.duration === 0){ //legato jump
-           
-          //   nextTrack.volume.setValueAtTime(track.volumeLimit, t)
-          //   nextTrack.start(t,whereFrom);
-          //   track.current.stop(t);
+          const dt = transitionInfo.duration
+          if(dt){
+            this.state = 'transition'
+          }
+          nextTrack.volume.setValueAtTime(-72, t);
+          nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
+          nextTrack.start(t,whereFrom); 
+          
+          track.current.volume.setValueAtTime(track.volumeLimit, t);
+          track.current.volume.linearRampToValueAtTime(-72, t + dt)
+          track.current.stop(t + dt);
 
-          //   console.log("[schedule] legato schedule @",t,to.name,elapsedTime,loopStart,loopEnd,loopDuration);
-
-          //   onTrackResolve()
-          // }
-
-          // else{ //cross fade
-            const dt = transitionInfo.duration
-            const forWhenTransport = ToneTime(t + dt).toBarsBeatsSixteenths()
-            if(dt){
-              this._state = 'transition'
-              console.log("transition",track.name,dt+t,forWhenTransport)
-            }
-            nextTrack.volume.setValueAtTime(-72, t);
-            nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
-            nextTrack.start(t,whereFrom); 
-            
-            track.current.volume.setValueAtTime(track.volumeLimit, t);
-            track.current.volume.linearRampToValueAtTime(-72, t + dt)
-            track.current.stop(t + dt);
-            
-            const e = Transport.scheduleOnce(()=>{
-              // console.log("RES")
-              onTrackResolve()
-              this._pending.scheduledEvents.filter((v)=>v !== e)
-            },(ToneTime(Transport.position).toSeconds() + dt))
-
-            //schedule tone transport time ahead for tranition
-            this._pending.scheduledEvents.push(e)
-            // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
-            
-            // console.log("[schedule] cross fade schedule @",t,to,dt);
-          // }
-
+          this._pending.actionRemainingBeats = Math.floor(dt / this._timingInfo.beatDuration)
+          const transitionForWhen = (ToneTime(Transport.position).toSeconds() + dt)
+         
+          scheduleEvent = Transport.scheduleOnce(()=>{
+            onTrackResolve()
+            signal.removeEventListener('abort',onAbort)
+          },transitionForWhen)
+          signal.addEventListener('abort',onAbort)
+          
           track.lastLoopPlayerStartTime = t - whereFrom
         }
         else {
@@ -869,14 +876,16 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
         }
       })
     })
-    
+
+
     Promise.all(trackPromises).then(()=>{
       this._current = to
-      this._clear()    
+      this._clear()
       resolveAll(to)      
       console.log("[schedule] END",toneNow())
     }).catch(()=>{
       //transition cancel, revert track fades
+      rejectAll()
     })
   })
 

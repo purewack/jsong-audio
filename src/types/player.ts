@@ -12,7 +12,7 @@ import { JSONgFlowInstruction } from "./jsong";
  * - `"transition"`: The player is transitioning from 'current' to 'next' sections if tracks are fading.
  * - `"stopping"`: The player is in the process of stopping playback.
  */
-export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "transition" | "stopping" )
+export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "continue" | "transition" | "stopping" )
 
 
 /**

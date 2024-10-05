@@ -45,7 +45,7 @@ export function quanTime(
 
 export function beatTransportDelta(from: string, to:string, meter: [number,number]){
 
-  const [beatsPerBar, beatUnit] = meter
+  const beatsPerBar = meter[0] / (meter[1] / 4)
 
   // Convert time codes to arrays of numbers
   const [bar1, beat1, sixteenth1] = from.split(':').map(Number);
