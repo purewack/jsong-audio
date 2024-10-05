@@ -22,6 +22,8 @@ import {
   Draw, 
   Synth, Transport, FilterRollOff, Destination, Time as ToneTime, ToneAudioBuffers,
   Timeline,
+  ToneEvent,
+  TransportTimeClass,
 } from 'tone';
 import { NestedIndex } from './types/common'
 import { prependURL } from './JSONg.paths'
@@ -154,7 +156,8 @@ export default class JSONg extends EventTarget{
       beat: [this._sectionBeat, this._sectionLen],
       transportBeat: this._meterBeat,
       lastLaunchTime: this._sectionLastLaunchTime,
-      transport: Transport.position.toString()
+      transport: Transport.position.toString(),
+      contextTime: toneNow()
     }
   }
 
@@ -203,7 +206,7 @@ export default class JSONg extends EventTarget{
     super();
     if(options?.context) setContext(options?.context);
     
-    console.log("[JSONg] new jsong player");
+    console.log("[JSONg] new jsong player created");
     this.state = null;
 
     const onDebug = ()=>{
@@ -566,7 +569,7 @@ public async play(
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  console.log("[play] player starting", startFrom)
+  console.log("[play] starting from", startFrom)
   
   if(beginning.once){
     await this.continue()
@@ -677,7 +680,7 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this.state = 'stopping'
     console.log("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
-    Transport.scheduleOnce(doStop,when)
+    Transport.scheduleOnce(doStop,next)
   }else 
     doStop(when)
     res()
@@ -755,7 +758,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
     
     this._clear()
     
-    console.log("[schedule] START",toneNow())
+    console.log("[schedule] starting task",toneNow())
     trackPromises = this._trackPlayers.map(track => {
       return new Promise((trackResolve)=>{
 
@@ -781,7 +784,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
             catch(e){
               console.error(e)
             }
-            this._sectionBeat = -1
+            this._sectionBeat = 0
             this._sectionLastLaunchTime = Transport.position.toString()
             this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
             track.current.stop(t);
@@ -825,9 +828,11 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
           // else{ //cross fade
             const dt = transitionInfo.duration
-            if(dt)
+            const forWhenTransport = ToneTime(t + dt).toBarsBeatsSixteenths()
+            if(dt){
               this._state = 'transition'
-           
+              console.log("transition",track.name,dt+t,forWhenTransport)
+            }
             nextTrack.volume.setValueAtTime(-72, t);
             nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
             nextTrack.start(t,whereFrom); 
@@ -840,7 +845,9 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
               // console.log("RES")
               onTrackResolve()
               this._pending.scheduledEvents.filter((v)=>v !== e)
-            },t + dt)
+            },(ToneTime(Transport.position).toSeconds() + dt))
+
+            //schedule tone transport time ahead for tranition
             this._pending.scheduledEvents.push(e)
             // if(this.verbose >= VerboseLevel.timed) console.log(`[schedule][${track.name}(${sectionIndex})] legato x-fade`)
             
