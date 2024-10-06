@@ -1,9 +1,9 @@
 import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
 import { PlayerSections, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
-import {beatTransportDelta, quanTime} from './timing'
-import {getNextSectionIndex,  findStart } from './sectionsNavigation'
+import {beatTransportDelta, quanTime} from './util/timing'
+import {getNextSectionIndex,  findStart, getIndexInfo, isRepeatEndpoint, setIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
-import {getNestedIndex} from './util/nestedIndex'
+import {getNestedIndex, setNestedIndex} from './util/nestedIndex'
 // import {fetchSources, fetchSourcePaths } from './JSONg.sources'
 import fetchManifest, { isManifestValid } from './JSONg.manifest'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
@@ -162,7 +162,17 @@ export default class JSONg extends EventTarget{
       contextTime: toneNow()
     }
   }
-
+  public getCurrentSection(){
+    if(!this._current || !this._sections) return {}
+    const info = getIndexInfo(this._sections,this._current.index) as PlayerSections
+    return { 
+      name: this._current.name,
+      index: this._current.index,
+      next: this._current.next,
+      repeatCount: info.loopCurrent,
+      repeatLimit: info.loopLimit
+    }
+  }
 
 
 
@@ -600,7 +610,16 @@ public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
   //only schedule next section if in these states
   if(this.state !== 'playing') return
 
-  const shouldBreakout = breakout instanceof Array || breakout
+  const isNextRepeat = isRepeatEndpoint(this._sections, this._current)
+  let shouldEndRepeat = false
+  if(isNextRepeat){
+    const i = this._current.index
+    const info = getIndexInfo(this._sections, i) as PlayerSections
+    if(info.loopCurrent + 1 >= info.loopLimit){
+      shouldEndRepeat = true
+    }
+  }
+  const shouldBreakout = (breakout instanceof Array || breakout) || shouldEndRepeat
   const breakoutTo = breakout instanceof Array ? breakout : undefined
   await this._continue(breakoutTo, shouldBreakout)
 }
@@ -666,7 +685,8 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
   const next =  quanTime(
     Transport.position.toString() as BarsBeatsSixteenths, 
     this._current.grain, 
-    this._timingInfo?.meter
+    this._timingInfo?.meter,
+    this._sectionLastLaunchTime as string
   ) as BarsBeatsSixteenths
   const when = ToneTime(next).toSeconds()
 
@@ -877,6 +897,21 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
 
     Promise.all(trackPromises).then(()=>{
+      if(this._current){
+        const isNextRepeat = isRepeatEndpoint(this._sections, this._current)
+        if(isNextRepeat){
+          const i = this._current.index
+          const info = getIndexInfo(this._sections, i) as PlayerSections
+          info.loopCurrent += 1
+          if(info.loopCurrent >= info.loopLimit){
+            info.loopCurrent = 0
+          }
+          const targetI = (i.length > 1) ? i.slice(0,-1) : []
+          setNestedIndex(info.loopCurrent, this._sections, [...targetI,'loopCurrent'])
+          console.log("[schedule] loop increment", this._sections)
+        }
+      }
+      
       this._current = to
       this._clear()
       resolveAll(to)      

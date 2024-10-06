@@ -1,6 +1,7 @@
-import {getNextSectionIndex, findStart } from "../src/sectionsNavigation";
+import {getNextSectionIndex, findStart, isRepeatEndpoint } from "../src/sectionsNavigation";
 import { PlayerSection, PlayerSections } from "../src/types/player";
 
+describe("getNextSectionIndex",()=>{
 const sections: PlayerSections = {
   0: {
     0: {
@@ -61,4 +62,64 @@ test("Start - non nested start sections beginning index", ()=>{
   }
 
   expect(findStart(other)).toStrictEqual([0]);
+})
+})
+
+describe("will section loop counter increase", ()=>{
+  const sections: PlayerSections = {
+    0: {name:"A", index: [0], next: [1,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+    1: {
+      loopCurrent: 0,
+      loopLimit: 2,
+      sectionCount: 2,
+      0: {name: "AA", index: [1,0], next: [1,1], region:[4,8], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+      1: {name: "BB", index: [1,1], next: [0],   region:[8,10], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+    },
+    loopCurrent: 0,
+    loopLimit: Infinity,
+    sectionCount: 2,
+  }
+
+  test("normal advance repeat",()=>{
+    expect(isRepeatEndpoint(sections,[1,1])).toBeTruthy()
+  })
+  test("normal advance repeat non loop end",()=>{
+    expect(isRepeatEndpoint(sections,[1,0])).toBeFalsy()
+  })
+})
+
+describe("will section loop counter increase", ()=>{
+  const sections: PlayerSections = {
+    0: {name:"A", index: [0], next: [1,0,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+    1: {
+      loopCurrent: 0,
+      loopLimit: 2,
+      sectionCount: 2,
+      0: {
+        loopCurrent: 0,
+        loopLimit: 2,
+        sectionCount: 2,
+        0: {name: "AAA", index: [1,0,0], next: [1,0,1], region:[4,8], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+        1: {name: "BBB", index: [1,0,1], next: [1,1],   region:[8,10], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+      },
+      1: {name: "AA", index: [1,1], next: [1,2], region:[4,8], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+      2: {name: "BB", index: [1,2], next: [0],   region:[8,10], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+    },
+    loopCurrent: 0,
+    loopLimit: Infinity,
+    sectionCount: 2,
+  }
+
+  test("complex advance inner repeat",()=>{
+    expect(isRepeatEndpoint(sections,[1,0,1])).toBeTruthy()
+  })
+  test("complex advance outer repeat",()=>{
+    expect(isRepeatEndpoint(sections,[1,2])).toBeTruthy()
+  })
+  test("complex advance repeat non loop end",()=>{
+    expect(isRepeatEndpoint(sections,[1,0,0])).toBeFalsy()
+  })
+  test("complex advance repeat non loop end outer",()=>{
+    expect(isRepeatEndpoint(sections,[0])).toBeFalsy()
+  })
 })

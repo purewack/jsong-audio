@@ -9,14 +9,14 @@ const defaults = {
   fadeDuration: 4
 };
 
-test("Build sections from flow with section options", () => {
+test("Build sections from flow with section options and multiple repeats", () => {
   const map = {
     "intro": [0, 4] as [number,number],
     "A":     [4, 12] as [number,number],
     "verse": [12, 16] as  [number,number],
     "bass":  [16, 24] as  [number,number],
   }
-  const flow = ["intro", [[2, 'A', {name:"verse", grain: 8}], "bass"]];
+  const flow = ["intro", [1,[2, 'A', {name:"verse", grain: 8}], "bass"]];
   const sections = buildSection(flow,map,defaults);
 
   expect(sections).toMatchObject({
@@ -34,7 +34,7 @@ test("Build sections from flow with section options", () => {
       },
       1: {name: "bass", index: [1,1], next: [0], region: [16,24], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
       loopCurrent: 0,
-      loopLimit: Infinity,
+      loopLimit: 1,
       sectionCount: 2,
     }
   });

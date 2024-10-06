@@ -1,4 +1,4 @@
-import {quanTime} from '../src/timing'
+import {quanTime} from '../src/util/timing'
 
 describe('Quantize time 4/4',()=>{
 

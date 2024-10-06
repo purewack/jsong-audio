@@ -1,4 +1,4 @@
-import {beatTransportDelta} from "../src/timing"
+import {beatTransportDelta} from "../src/util/timing"
 
 test('simple 4/4 time',()=>{
     expect(beatTransportDelta('1:2:0','2:1:0',[4,4])).toBe(3)
