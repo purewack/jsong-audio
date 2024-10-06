@@ -31,20 +31,23 @@ export default function buildSections(
 
   const _buildSection = (sections: JSONgFlowEntry[], depth: number = 0) => {
 
-    const currentValue = sections[0];
-    const hasLimit = typeof currentValue === "number" && depth !== 0;
-    const sectionCount = hasLimit ? sections.length - 1 : sections.length;
-    const _sections = _buildFlowFrame(sectionCount, hasLimit ? (currentValue as number) : undefined);
+    let loopLimit = Infinity
+    let strippedSections: JSONgFlowEntry[] = []
+    sections.forEach(s => {
+      if(typeof s === 'number') loopLimit = s
+      else strippedSections.push(s)
+    })
+    const _frame = _buildFlowFrame(strippedSections.length, loopLimit);
+    
 
-    for (let i = 0; i < sections.length; i++) {
-      const entry = sections[i];
-      const idx = hasLimit ? i - 1 : i;
-      currentIndex[currentIndex.length - 1] = idx;
+    for (let i = 0; i < strippedSections.length; i++) {
+      const entry = strippedSections[i];
+      currentIndex[currentIndex.length - 1] = i;
 
       if (Array.isArray(entry)) {
         //nested repeat section, iterate recurse
         currentIndex.push(0);
-        _sections[i] = _buildSection(entry, depth + 1);
+        _frame[i] = _buildSection(entry, depth + 1);
         currentIndex.pop();
 
       } else if (typeof entry !== "number") {
@@ -117,12 +120,12 @@ export default function buildSections(
         newEntry.region = map[newEntry.name]
         newEntry.index = [...currentIndex]
          
-        _sections[idx] = newEntry ;
+        _frame[i] = newEntry ;
         _orderedEntries.push(newEntry as PlayerSection);
       }
     }
-    if (depth) return _sections;
-    return { ..._sections };
+    if (depth) return _frame;
+    return { ..._frame };
   };
 
   const structure = _buildSection(flow, 0);
