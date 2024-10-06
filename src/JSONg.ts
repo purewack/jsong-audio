@@ -232,7 +232,7 @@ export default class JSONg extends EventTarget{
 
   }
 
-  get context(): AnyAudioContext{
+  get audioContext(): AnyAudioContext{
     return getContext().rawContext
   }
 
@@ -533,10 +533,14 @@ private _pending: {
  * Used to initiate the song playback.
  * After the first call from stopped state, the player is put into a playing state.
  * Any subsequent calls to play will be ignored until in the `stopped` state again.
- * @param from - You may play `from` any section or from the beginning
+ * @param from - You may play `from` any section or from the beginning if unspecified
+ * @returns Promise - awaits the player to finish playing 
+ * in the case that the beginning section has a `once` directive.
+ * 
+ * Throws on cancellation, i.e. the `stop` command
  */
 public async play(
-  from: PlayerIndex | undefined = undefined, 
+  from?: PlayerIndex 
 )
 {
   toneStart();
@@ -587,28 +591,29 @@ public async play(
 
 /**
  * Used to initiate the next section.
- * @param breakout - if `breakout` is true, repeat rules do not apply, 
- * if `breakout === 'offgrid'`, then timing will not be aligned to grid and will happen instantly.
  * (*not applicable if player is stopped*)
- * @param from - You may play `from` any section or from the beginning
- * @returns Promise - fired when the player switches to the queued section
+ * @param breakout - if `breakout` is true, repeat rules do not apply, 
+ * You may also continue `to` any section or advance to the next logical section automatically
+ * @returns Promise - fired when the player switches to the queued section or throws if section schedule is cancelled
  */
-public async continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
+public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
   //only schedule next section if in these states
   if(this.state !== 'playing') return
 
-  await this._continue(breakout, to)
+  const shouldBreakout = breakout instanceof Array || breakout
+  const breakoutTo = breakout instanceof Array ? breakout : undefined
+  await this._continue(breakoutTo, shouldBreakout)
 }
 
-private async _continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<void>{
+private async _continue(to?: PlayerIndex, breakout: boolean = false): Promise<void>{
   
-  const nextIndex = getNextSectionIndex(this._sections, to || this._current.index, typeof breakout === 'boolean' ? breakout : false)
+  const nextIndex = to || getNextSectionIndex(this._sections, this._current.index, typeof breakout === 'boolean' ? breakout : false)
   const nextSection = getNestedIndex(this._sections, nextIndex as NestedIndex) as PlayerSection
   const nextTime =  quanTime(
     Transport.position as BarsBeatsSixteenths, 
     this._current.grain, 
     this._timingInfo?.meter, 
-    !breakout ? this._sectionLastLaunchTime as string : undefined
+    this._sectionLastLaunchTime as string
   )
 
   if(!nextSection) {
@@ -618,24 +623,17 @@ private async _continue(breakout: (boolean) = false, to?: PlayerIndex): Promise<
   // this._dispatchSectionQueue('0:0:0',this._current);
   console.log("[continue] advance to next:", nextIndex)  
 
-  try{
-    if(this.state === 'playing') {
-      this.state = 'queue'
-    }
-    const scheduledTo = await this._schedule(nextSection, nextTime)
+  if(this.state === 'playing') {
+    this.state = 'queue'
+  }
+  const scheduledTo = await this._schedule(nextSection, nextTime)
 
-    if(scheduledTo.once) {
-      this.state = 'continue'
-      await this._continue()
-    }
-      // this._dispatchSectionChange();
-    this.state = 'playing'
+  if(scheduledTo.once) {
+    this.state = 'continue'
+    await this._continue()
   }
-  catch{
-    // this._dispatchSectionCancel();
-  }
-  finally{
-  }
+    // this._dispatchSectionChange();
+  this.state = 'playing'
 
   // if(loops) this.onSectionLoop(loops, nowIndex)
   // this.onSectionWillEnd([...nowIndex], nextTime)
