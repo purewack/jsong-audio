@@ -551,7 +551,8 @@ private _pending: {
  */
 public async play(
   from?: PlayerIndex 
-)
+) 
+: Promise<void>
 {
   toneStart();
   
@@ -645,8 +646,28 @@ private async _continue(to?: PlayerIndex, breakout: boolean = false): Promise<vo
   if(this.state === 'playing') {
     this.state = 'queue'
   }
+
+  //determine if should loop boundary
+
+  const prev = this._current
   const scheduledTo = await this._schedule(nextSection, nextTime)
 
+  //update loop counters here
+  let shouldGoToRepeatStart = false
+  const isNextRepeat = isRepeatEndpoint(this._sections, prev)
+  if(isNextRepeat){
+    const i = prev.index
+    const info = getIndexInfo(this._sections, i) as PlayerSections
+    if(info.loopCurrent >= info.loopLimit){
+      info.loopCurrent = 0
+      shouldGoToRepeatStart = true
+    }
+    else info.loopCurrent += 1
+    const targetI = (i.length > 1) ? i.slice(0,-1) : []
+    setNestedIndex(info.loopCurrent, this._sections, [...targetI,'loopCurrent'])
+    console.log("[schedule] loop increment", this._sections)
+  }
+  
   if(scheduledTo.once) {
     this.state = 'continue'
     await this._continue()
@@ -673,11 +694,14 @@ private async _continue(to?: PlayerIndex, breakout: boolean = false): Promise<vo
 
 
 
-public stop(synced: boolean = true)  : Promise<void> | undefined
+public async stop(synced: boolean = true)  : Promise<void>
 {
   if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
   if(!this._current) return
+
+
+  return new Promise((res,rej)=>{
 
   this._clear()
   this._abort()
@@ -689,10 +713,21 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this._sectionLastLaunchTime as string
   ) as BarsBeatsSixteenths
   const when = ToneTime(next).toSeconds()
-
-  return new Promise((res)=>{
+  
+  const {signal} = this._pending.scheduleAborter
+  
+  const onCancelStop = ()=>{
+    rej()
+    this.state = 'playing'
+    console.log("[stop] stop cancelled")
+    this._pending.actionRemainingBeats = 0
+    this._pending.scheduledEvents.forEach(e => {
+      Transport.clear(e)
+    })
+  }
 
   const doStop = (t: Time)=>{
+    signal.removeEventListener('abort',onCancelStop)
     this._trackPlayers.forEach((p,i)=>{
       try{
           p.a.stop(t);
@@ -709,20 +744,23 @@ public stop(synced: boolean = true)  : Promise<void> | undefined
     this._sectionLastLaunchTime = null
     this._sectionBeat = 0
     this._pending.actionRemainingBeats = 0
+    this._pending.scheduledEvents = []
     console.log("[player] stopped")
     res()
   }
 
   if(synced){
+    signal.addEventListener('abort',onCancelStop)
     console.log("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
-    Transport.scheduleOnce(doStop,next)
+    this._pending.scheduledEvents.push(Transport.scheduleOnce(doStop,next))
     this.state = 'stopping'
     this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), next, this._timingInfo.meter)      
-  }else 
+  }else {
     doStop(when)
     res()
-  })
+  }
+})
 }
 
 
@@ -897,21 +935,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
 
     Promise.all(trackPromises).then(()=>{
-      if(this._current){
-        const isNextRepeat = isRepeatEndpoint(this._sections, this._current)
-        if(isNextRepeat){
-          const i = this._current.index
-          const info = getIndexInfo(this._sections, i) as PlayerSections
-          info.loopCurrent += 1
-          if(info.loopCurrent >= info.loopLimit){
-            info.loopCurrent = 0
-          }
-          const targetI = (i.length > 1) ? i.slice(0,-1) : []
-          setNestedIndex(info.loopCurrent, this._sections, [...targetI,'loopCurrent'])
-          console.log("[schedule] loop increment", this._sections)
-        }
-      }
-      
       this._current = to
       this._clear()
       resolveAll(to)      
