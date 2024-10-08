@@ -21,6 +21,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest ./tests --watch --verbose"
+    "test": "jest ./tests --verbose",
+    "test-current": "jest -o --watch --verbose"
   }
 }

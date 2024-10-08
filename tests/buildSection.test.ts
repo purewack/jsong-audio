@@ -107,6 +107,77 @@ test("Build sections with overrides and deep start", () => {
   );
 });
 
+test("Build far end sections inner loops", () => {
+  const map = {
+    "A": [0, 4] as [number,number],
+    "B": [4, 12] as [number,number],
+    "C": [12, 16] as  [number,number],
+    "V": [16, 24] as  [number,number],
+  }
+  const flow = ["A",["A",["A","A"]]];
+  const sections = buildSection(flow,map,defaults);
+ 
+  expect(sections).toMatchObject(
+    {
+      0: {name:"A", index: [0], next: [1,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+      1: {
+        0: {name:"A", index: [1,0], next: [1,1,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        1: {
+          0: {name:"A", index: [1,1,0], next: [1,1,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          1: {name:"A", index: [1,1,1], next: [0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          loopCurrent: 0,
+          loopLimit: Infinity,
+          sectionCount: 2,
+        },
+        loopCurrent: 0,
+        loopLimit: Infinity,
+        sectionCount: 2,
+      },
+      loopCurrent: 0,
+      loopLimit: Infinity,
+      sectionCount: 2,
+    }
+  );
+});
+
+test("Build padded sections inner loops", () => {
+  const map = {
+    "A": [0, 4] as [number,number],
+    "B": [4, 12] as [number,number],
+    "C": [12, 16] as  [number,number],
+    "V": [16, 24] as  [number,number],
+  }
+  const flow = ["A",["A",["A","A",2],"B"],"B"];
+  const sections = buildSection(flow,map,defaults);
+ 
+  expect(sections).toMatchObject(
+    {
+      0: {name:"A", index: [0], next: [1,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+      1: {
+        0: {name:"A", index: [1,0], next: [1,1,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        1: {
+          0: {name:"A", index: [1,1,0], next: [1,1,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          1: {name:"A", index: [1,1,1], next: [1,2], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          
+          loopCurrent: 0,
+          loopLimit: 2,
+          sectionCount: 2,
+        },
+        2: {name:"B", index: [1,2], next: [2], region:[4,12],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        
+        loopCurrent: 0,
+        loopLimit: Infinity,
+        sectionCount: 3,
+      }, 
+      2: {name:"B", index: [2], next: [0], region:[4,12],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+
+      loopCurrent: 0,
+      loopLimit: Infinity,
+      sectionCount: 3,
+    }
+  );
+});
+
 test("Build extensive transition instructions",()=>{
   const map = {
     "A": [0, 4] as [number,number],

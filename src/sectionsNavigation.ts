@@ -1,61 +1,61 @@
 import {PlayerIndex, PlayerSection, PlayerSections} from './types/player'
 import { getNestedIndex, setNestedIndex } from './util/nestedIndex'
 import { NestedIndex } from './types/common'
-
-/*{
-  0: {
-    0: {
-      0: [1,0,0],
-      1: [1,0,1],
-    },
-    1: [1,1],
-    2: {
-      0: [1,2,0],
-      1: [1,2,1],
-    },
-    3: [0,3]
-  },
-  1: [1],
-}*/
+import { start } from 'tone'
 
 export function getNextSectionIndex(
   sections: PlayerSections,
-  from: PlayerSection | PlayerIndex,
+  from: PlayerIndex,
   breakLoop: boolean = false,
-) : (PlayerIndex | undefined) {
+)  {
 
-  const startFrom = from instanceof Array ? from : from.index
-  const levelInfo = getIndexInfo(sections, startFrom) as PlayerSections
-  if(levelInfo?.sectionCount === undefined) return undefined
+  //A, [B, [C,D], E] 
+  const section = getNestedIndex(sections, from) as PlayerSection
+  if(section === undefined) return undefined
 
-  const idxOnLevel = startFrom[startFrom.length - 1] as number
-  const sec = levelInfo[idxOnLevel as number] as PlayerSection
+  const deepExit = section.index.length - section.next.length > 1
+  if(breakLoop || !deepExit) return section.next
 
-  if(breakLoop || idxOnLevel + 1 <= levelInfo.sectionCount-1){
-    return sec.next
-  }
-  else{
-    const deepCheck = (depth: PlayerIndex) 
-    : PlayerIndex =>{    
-      const levelCheck = getNestedIndex(sections, depth)
-      if(levelCheck?.name) return depth
-      return deepCheck([...depth, 0])
+  //edge case for more than one right aligned nested group set
+  //A, [B, [C,D]] 
+  
+  /*
+  [A, [B, [BB, [C,D]]], E]
+
+    (0):        A 
+    (1,0):        B 
+    (1,1,0):        BB 
+    (1,1,1,0):         C
+    (1,1,1,1):         D 
+    (2):        E 
+  */
+ 
+  let startPoint = [...section.index]
+  let endPoint = section.next
+  while(startPoint.length > 1){
+    const checkSection = getNestedIndex(sections,startPoint)
+    const checkInfo = getIndexInfo(sections,startPoint) as PlayerSections
+    if(checkInfo.loopCurrent + 1 >= checkInfo.loopLimit){
+      startPoint = [...startPoint.slice(0,-1)]
+      continue
     }
-    return deepCheck([...startFrom.slice(0,-1),0])
+    else  
+      return [...startPoint.slice(0,-1), 0]
   }
+  return endPoint
 }
 
-export function isRepeatEndpoint(
-  sections: PlayerSections, 
-  from:PlayerSection | PlayerIndex)
+export function repeatMarkerCheck(section:PlayerSection)
 {
-  // const section = getNestedIndex(sections, from instanceof Array ? from : from.index) as PlayerSection
-  // return section && section.next.length < section.index.length
-  const startFrom = from instanceof Array ? from : from.index
-  const levelInfo = getIndexInfo(sections, startFrom) as PlayerSections
-  if(levelInfo?.sectionCount === undefined) return false
-  const idxOnLevel = startFrom[startFrom.length - 1] as number
-  return (idxOnLevel + 1 > levelInfo.sectionCount-1)
+  const enterLoop = section.next.length > section.index.length
+  const exitLoop = section.next.length < section.index.length
+  return {enterLoop, exitLoop}
+  
+  // const startFrom = from instanceof Array ? from : from.index
+  // const levelInfo = getIndexInfo(sections, startFrom) as PlayerSections
+  // if(levelInfo?.sectionCount === undefined) return false
+  // const idxOnLevel = startFrom[startFrom.length - 1] as number
+  // return (idxOnLevel + 1 > levelInfo.sectionCount-1)
 }
 
 export function findStart(sections: PlayerSections): PlayerIndex{
