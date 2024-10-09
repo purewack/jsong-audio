@@ -1,7 +1,7 @@
 import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
-import { PlayerSections, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
+import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
 import {beatTransportDelta, quanTime} from './util/timing'
-import {getNextSectionIndex,  findStart, getIndexInfo, isRepeatEndpoint, setIndexInfo } from './sectionsNavigation'
+import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
 import {getNestedIndex, setNestedIndex} from './util/nestedIndex'
 // import {fetchSources, fetchSourcePaths } from './JSONg.sources'
@@ -93,7 +93,7 @@ export default class JSONg extends EventTarget{
   /**
    * Looping details of each section, including specific directives
    */
-  private _sections!: PlayerSections;
+  private _sections!: PlayerSectionGroup;
   get sections(){
     return this._sections;
   }
@@ -164,7 +164,7 @@ export default class JSONg extends EventTarget{
   }
   public getCurrentSection(){
     if(!this._current || !this._sections) return {}
-    const info = getIndexInfo(this._sections,this._current.index) as PlayerSections
+    const info = getIndexInfo(this._sections,this._current.index) as PlayerSectionGroup
     return { 
       name: this._current.name,
       index: this._current.index,
@@ -586,6 +586,7 @@ public async play(
   Transport.start()
   this._clear()
   await this._schedule(beginning, '0:0:0')
+  this._current = beginning
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
@@ -604,31 +605,28 @@ public async play(
  * Used to initiate the next section.
  * (*not applicable if player is stopped*)
  * @param breakout - if `breakout` is true, repeat rules do not apply, 
+ * 
  * You may also continue `to` any section or advance to the next logical section automatically
+ * 
+ * If `to` is specified, repeat counters are ignored
  * @returns Promise - fired when the player switches to the queued section or throws if section schedule is cancelled
  */
 public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
   //only schedule next section if in these states
   if(this.state !== 'playing') return
-
-  const isNextRepeat = isRepeatEndpoint(this._sections, this._current)
-  let shouldEndRepeat = false
-  if(isNextRepeat){
-    const i = this._current.index
-    const info = getIndexInfo(this._sections, i) as PlayerSections
-    if(info.loopCurrent + 1 >= info.loopLimit){
-      shouldEndRepeat = true
-    }
-  }
-  const shouldBreakout = (breakout instanceof Array || breakout) || shouldEndRepeat
-  const breakoutTo = breakout instanceof Array ? breakout : undefined
-  await this._continue(breakoutTo, shouldBreakout)
+  await this._continue(breakout)
 }
 
-private async _continue(to?: PlayerIndex, breakout: boolean = false): Promise<void>{
+
+private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
+
+  const from = this._current
+  const {next, increments} =  getNextSectionIndex(this._sections, this._current.index)!
+  const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : next) as PlayerSection
+  if(!nextSection) {
+    throw new Error("[continue] no next section available")
+  }   
   
-  const nextIndex = to || getNextSectionIndex(this._sections, this._current.index, typeof breakout === 'boolean' ? breakout : false)
-  const nextSection = getNestedIndex(this._sections, nextIndex as NestedIndex) as PlayerSection
   const nextTime =  quanTime(
     Transport.position as BarsBeatsSixteenths, 
     this._current.grain, 
@@ -636,39 +634,28 @@ private async _continue(to?: PlayerIndex, breakout: boolean = false): Promise<vo
     this._sectionLastLaunchTime as string
   )
 
-  if(!nextSection) {
-    throw new Error("[continue] no next section available")
-  } 
-
   // this._dispatchSectionQueue('0:0:0',this._current);
-  console.log("[continue] advance to next:", nextIndex)  
+  console.log("[continue] advance to next:", nextSection.index)  
 
-  if(this.state === 'playing') {
+  if(this.state === 'playing') 
     this.state = 'queue'
-  }
 
-  //determine if should loop boundary
+  await this._schedule(nextSection, nextTime)
+  this._current = nextSection
 
-  const prev = this._current
-  const scheduledTo = await this._schedule(nextSection, nextTime)
-
-  //update loop counters here
-  let shouldGoToRepeatStart = false
-  const isNextRepeat = isRepeatEndpoint(this._sections, prev)
-  if(isNextRepeat){
-    const i = prev.index
-    const info = getIndexInfo(this._sections, i) as PlayerSections
-    if(info.loopCurrent >= info.loopLimit){
-      info.loopCurrent = 0
-      shouldGoToRepeatStart = true
-    }
-    else info.loopCurrent += 1
-    const targetI = (i.length > 1) ? i.slice(0,-1) : []
-    setNestedIndex(info.loopCurrent, this._sections, [...targetI,'loopCurrent'])
-    console.log("[schedule] loop increment", this._sections)
+  if(increments.length && !breakout){
+    increments.forEach(ii => {
+      const info = ii.length === 0 ? this._sections : (getIndexInfo(this._sections, ii) as PlayerSectionGroup)
+      info.loopCurrent += 1
+      if(info.loopCurrent >= info.loopLimit){
+        info.loopCurrent = 0
+      }
+      setNestedIndex(info.loopCurrent, this._sections, [...ii,'loopCurrent'])
+      console.log("[schedule] group loop increment", `${info.loopCurrent}/${info.loopLimit}`, ii,)
+    })
   }
   
-  if(scheduledTo.once) {
+  if(this._current.once) {
     this.state = 'continue'
     await this._continue()
   }
@@ -826,9 +813,9 @@ private _clear(){
  * @param forWhen - time when the change should take place, ignored if legato or fade
  * @returns  
  */
-private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<PlayerSection> {
+private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void> {
 
-  return new Promise<PlayerSection>((resolveAll,rejectAll)=>{
+  return new Promise<void>((resolveAll,rejectAll)=>{
 
     console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
     const signal = this._pending.scheduleAborter.signal
@@ -935,9 +922,8 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<Play
 
 
     Promise.all(trackPromises).then(()=>{
-      this._current = to
       this._clear()
-      resolveAll(to)      
+      resolveAll()      
       console.log("[schedule] END",toneNow())
     }).catch(()=>{
       //transition cancel, revert track fades
