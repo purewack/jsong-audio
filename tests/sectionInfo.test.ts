@@ -31,6 +31,36 @@ describe("get nested sections info",()=>{
   })
 })
 
+describe("get nested sections info",()=>{
+    const sections: PlayerSections = {
+        0: {
+          0: {
+            0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+            1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:false, transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
+            loopCurrent: 1,
+            loopLimit: 50,
+            sectionCount: 2,
+          },
+          1: {name: "A", index:[0,1],  next: [0,2], region:[0,4],  grain:4, once:true,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"fade",duration:4}]},
+          2: {name: "B", index: [0,2], next: [1],   region:[4,12], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          loopCurrent: 0,
+          loopLimit: 20,
+          sectionCount: 3,
+        },
+        1: {name: "C", index: [1], next: [0,0,0], region:[12,16], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        loopCurrent: 0,
+        loopLimit: Infinity,
+        sectionCount: 2,
+    }
+  
+    test("get section level for malformed index [0,0]",()=>{
+        expect(getIndexInfo(sections,[0,0]).loopLimit).toBe(20)
+    })
+    test("get section level for malformed index",()=>{
+        expect(getIndexInfo(sections,[0]).loopLimit).toBe(Infinity)
+    })
+  })
+  
 
 // describe("set info",()=>{
 // let sections = {

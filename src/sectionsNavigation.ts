@@ -1,20 +1,23 @@
 import {PlayerIndex, PlayerSection, PlayerSections} from './types/player'
 import { getNestedIndex, setNestedIndex } from './util/nestedIndex'
 import { NestedIndex } from './types/common'
-import { start } from 'tone'
+import { Player, start } from 'tone'
 
 export function getNextSectionIndex(
   sections: PlayerSections,
   from: PlayerIndex,
-  breakLoop: boolean = false,
 )  {
 
-  //A, [B, [C,D], E] 
   const section = getNestedIndex(sections, from) as PlayerSection
   if(section === undefined) return undefined
 
-  const deepExit = section.index.length - section.next.length > 1
-  if(breakLoop || !deepExit) return section.next
+  let checkInfo = getIndexInfo(sections,section.index) as PlayerSections
+
+  //normal case to jump to next entry in a group that is not the last one
+  //or shallow root level group advancement
+  if(section.index.length === 1 || section.index.at(-1) !== checkInfo.sectionCount-1) 
+    return {next: section.next, increments:[], pre:true, root: section.index.length === 1}
+  
 
   //edge case for more than one right aligned nested group set
   //A, [B, [C,D]] 
@@ -29,20 +32,76 @@ export function getNextSectionIndex(
     (1,1,1,1):         D 
     (2):        E 
   */
+
+
+  /*
+  [[A,AA], B]
+  
+    (0,0):    A
+    (0,1):    AA
+    (1):    B
+  */
  
-  let startPoint = [...section.index]
-  let endPoint = section.next
-  while(startPoint.length > 1){
-    const checkSection = getNestedIndex(sections,startPoint)
-    const checkInfo = getIndexInfo(sections,startPoint) as PlayerSections
-    if(checkInfo.loopCurrent + 1 >= checkInfo.loopLimit){
-      startPoint = [...startPoint.slice(0,-1)]
-      continue
-    }
-    else  
-      return [...startPoint.slice(0,-1), 0]
+  //scan current group
+
+  //if(loop counter is overflown)
+  //  check(level[:-1])
+  //else
+  //  findStart(level)
+
+  //[[A,B],[D,[E]]]
+  //transition from E should return A if E's group is looped as well as D's
+
+  const increments: PlayerIndex[] = []
+
+
+  const findRootStart = (depth: PlayerIndex): PlayerIndex =>{    
+    const levelCheck = getNestedIndex(sections, depth)
+    if(levelCheck?.name) return depth
+    return findRootStart([...depth, 0])
   }
-  return endPoint
+
+
+  const checkLevel = (index: PlayerIndex): PlayerIndex =>{
+    const levelInfo = getIndexInfo(sections, index) as PlayerSections
+
+    console.log("group ",index, levelInfo)
+
+    if(index.at(-1)! + 1 >= levelInfo.sectionCount){
+      console.log("group end",index)
+      //reached end of group
+
+      if(levelInfo.loopCurrent + 1 >= levelInfo.loopLimit){
+        //will loop group level
+        const preLevel = [...index.slice(0,-1)]
+        increments.push(preLevel
+
+        )
+        console.log("loop",increments)
+        // if(index.length === 1){
+        //   //root reached, edge case, 
+        //   //cannot go any lower, need to start finding start
+        //   return findRootStart([0])
+        // }
+        
+        const upperIndexStart = [...preLevel.slice(0,-1),preLevel.at(-1)! + 1]
+        //check next group
+        console.log("post",preLevel,upperIndexStart)
+        return checkLevel(upperIndexStart)
+      }
+    
+      // //no loop present
+      // // return findRootStart([...index.slice(0,-1),0])
+      // return index
+    }
+    
+    console.log("group normal advance",index)
+    //this advancement does not exit group, normal next
+    return index
+  }
+
+  console.warn("Start",sections,from)
+  return {next: checkLevel(from), increments}
 }
 
 export function repeatMarkerCheck(section:PlayerSection)
