@@ -45,8 +45,8 @@ export type PlayerSection = {
  * This is an extension of a nested type where it specifically refers to a 'built' section map in the player.
  * This 'built' section map expands the Flow sections from manifest and resolves all properties.
  */
-export  type PlayerSections = {
-    [key: number] : PlayerSections | PlayerSection;
+export  type PlayerSectionGroup = {
+    [key: number] : PlayerSectionGroup | PlayerSection;
     loopCurrent: number; //current loop iteration of the possible loop flow
     loopLimit: number; //maximum number to loop flow section
     sectionCount: number; //number of sections that follow this level of flows

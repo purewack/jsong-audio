@@ -196,3 +196,29 @@ test("Build extensive transition instructions",()=>{
     }
   )
 })
+
+test("Build weird single entry multi loop",()=>{
+  const map = {
+    "A": [0, 4] as [number,number],
+  }
+  const flow = [[3,[2,'A']]]
+  const sections = buildSection(flow,map,defaults);
+  expect(sections).toMatchObject(
+    {
+      0: {
+        0: {
+          0: {name:"A", index: [0,0,0], next: [0,0,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          loopCurrent: 0,
+          loopLimit: 2,
+          sectionCount: 1,
+        },
+        loopCurrent: 0,
+        loopLimit: 3,
+        sectionCount: 1,
+      },
+      loopCurrent: 0,
+      loopLimit: Infinity,
+      sectionCount: 1,
+    }
+  )
+})

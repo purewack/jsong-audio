@@ -1,4 +1,4 @@
-import {PlayerSection, PlayerSections} from "./types/player"
+import {PlayerSection, PlayerSectionGroup} from "./types/player"
 import { JSONgFlowEntry, JSONgFlowInstruction } from "./types/jsong";
 import _ from 'lodash'
 //example flow to build from:
@@ -16,7 +16,7 @@ export default function buildSections(
     tracks: string[],
     fadeDuration: number
   })
-: PlayerSections {
+: PlayerSectionGroup {
 
   const _buildFlowFrame = (sectionCount: number = 0, loopLimit: number = Infinity):any=> {
     return {
@@ -136,7 +136,7 @@ export default function buildSections(
     _orderedEntries[i].next = _orderedEntries[nextIndex].index;
   }
 
-  return structure as PlayerSections;
+  return structure as PlayerSectionGroup;
 }
 
 

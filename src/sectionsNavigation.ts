@@ -1,64 +1,58 @@
-import {PlayerIndex, PlayerSection, PlayerSections} from './types/player'
+import {PlayerIndex, PlayerSection, PlayerSectionGroup} from './types/player'
 import { getNestedIndex, setNestedIndex } from './util/nestedIndex'
 import { NestedIndex } from './types/common'
-import { start } from 'tone'
+import { Player, start } from 'tone'
 
 export function getNextSectionIndex(
-  sections: PlayerSections,
+  sections: PlayerSectionGroup,
   from: PlayerIndex,
-  breakLoop: boolean = false,
 )  {
-
-  //A, [B, [C,D], E] 
   const section = getNestedIndex(sections, from) as PlayerSection
   if(section === undefined) return undefined
 
-  const deepExit = section.index.length - section.next.length > 1
-  if(breakLoop || !deepExit) return section.next
+  const increments: PlayerIndex[] = []
+  let next: PlayerIndex = []
 
-  //edge case for more than one right aligned nested group set
-  //A, [B, [C,D]] 
-  
-  /*
-  [A, [B, [BB, [C,D]]], E]
-
-    (0):        A 
-    (1,0):        B 
-    (1,1,0):        BB 
-    (1,1,1,0):         C
-    (1,1,1,1):         D 
-    (2):        E 
-  */
- 
-  let startPoint = [...section.index]
-  let endPoint = section.next
-  while(startPoint.length > 1){
-    const checkSection = getNestedIndex(sections,startPoint)
-    const checkInfo = getIndexInfo(sections,startPoint) as PlayerSections
-    if(checkInfo.loopCurrent + 1 >= checkInfo.loopLimit){
-      startPoint = [...startPoint.slice(0,-1)]
-      continue
-    }
-    else  
-      return [...startPoint.slice(0,-1), 0]
+  const findRootStart = (depth: PlayerIndex): PlayerIndex =>{    
+    const levelCheck = getNestedIndex(sections, depth)
+    if(levelCheck?.name) return depth
+    return findRootStart([...depth, 0])
   }
-  return endPoint
+
+  const checkGroup = (index: PlayerIndex, depth = 0) =>{
+    const thisGroupIndex = [...index.slice(0,-1)]
+    const groupInfo = getIndexInfo(sections, depth === 0 && index.length > 1 ? index : thisGroupIndex) as PlayerSectionGroup
+    const isGroupLast = index.at(-1)! + 1 >= groupInfo.sectionCount
+    const willGroupLoop = groupInfo.loopCurrent + 1 >= groupInfo.loopLimit
+
+    if(isGroupLast) 
+      increments.push(thisGroupIndex)
+
+    //last and will loop 
+    if(isGroupLast && willGroupLoop){
+      //need to check lower groups
+      checkGroup(thisGroupIndex, depth + 1)
+      return
+    }
+
+    //last but will not exit loop, still need to increment counter
+    if(isGroupLast){
+      next = findRootStart([...thisGroupIndex,0])
+      return
+    }
+    //normal advancement
+    else {
+      next = findRootStart([...thisGroupIndex,index.at(-1)! + 1])
+      return
+    }
+  }
+
+  checkGroup(from)
+  return {next, increments}
 }
 
-export function repeatMarkerCheck(section:PlayerSection)
-{
-  const enterLoop = section.next.length > section.index.length
-  const exitLoop = section.next.length < section.index.length
-  return {enterLoop, exitLoop}
-  
-  // const startFrom = from instanceof Array ? from : from.index
-  // const levelInfo = getIndexInfo(sections, startFrom) as PlayerSections
-  // if(levelInfo?.sectionCount === undefined) return false
-  // const idxOnLevel = startFrom[startFrom.length - 1] as number
-  // return (idxOnLevel + 1 > levelInfo.sectionCount-1)
-}
 
-export function findStart(sections: PlayerSections): PlayerIndex{
+export function findStart(sections: PlayerSectionGroup): PlayerIndex{
   let current = sections;
   let deepestIndex = [-1];
 
@@ -66,7 +60,7 @@ export function findStart(sections: PlayerSections): PlayerIndex{
       if (current[0].hasOwnProperty('index')) {
           deepestIndex = (current[0] as PlayerSection).index;
       }
-      current = current[0] as PlayerSections;
+      current = current[0] as PlayerSectionGroup;
   }
 
   return deepestIndex;
@@ -75,12 +69,16 @@ export function findStart(sections: PlayerSections): PlayerIndex{
 
 export function getIndexInfo(sections: any, index: NestedIndex) 
 : (any | undefined) {
-    if(index.length > 1) {
+  const a = getNestedIndex(sections, index)
+  if(index.length && a) {
+      if(a?.name)
         return {...getNestedIndex(sections, index.slice(0,-1))}
-    }
-    else{
-        return {...sections}
-    }
+      else
+        return {...a}
+  }
+  else{
+      return {...sections}
+  }
 }
 
 export function setIndexInfo(toSet: object, sections: any, index: NestedIndex){
