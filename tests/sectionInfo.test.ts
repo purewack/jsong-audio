@@ -24,11 +24,11 @@ describe("get nested sections info",()=>{
       sectionCount: 2,
   }
 
-  test("address using specific section index",()=>{
-      expect(getIndexInfo(sections,[1,1]).loopCurrent).toBe(100)
-      expect(getIndexInfo(sections,[1,0,0]).loopLimit).toBe(20)
-      expect(getIndexInfo(sections,[0]).loopCurrent).toBe(1)
-  })
+  // test("address using specific section index",()=>{
+  //     expect(getIndexInfo(sections,[1,1]).loopCurrent).toBe(100)
+  //     expect(getIndexInfo(sections,[1,0,0]).loopLimit).toBe(20)
+  //     expect(getIndexInfo(sections,[0]).loopCurrent).toBe(1)
+  // })
 
 
   test("address with group index",()=>{

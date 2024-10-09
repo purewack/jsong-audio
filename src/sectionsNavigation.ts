@@ -19,9 +19,9 @@ export function getNextSectionIndex(
     return findRootStart([...depth, 0])
   }
 
-  const checkGroup = (index: PlayerIndex) =>{
+  const checkGroup = (index: PlayerIndex, depth = 0) =>{
     const thisGroupIndex = [...index.slice(0,-1)]
-    const groupInfo = getIndexInfo(sections, index) as PlayerSectionGroup
+    const groupInfo = getIndexInfo(sections, depth === 0 && index.length > 1 ? index : thisGroupIndex) as PlayerSectionGroup
     const isGroupLast = index.at(-1)! + 1 >= groupInfo.sectionCount
     const willGroupLoop = groupInfo.loopCurrent + 1 >= groupInfo.loopLimit
 
@@ -31,7 +31,7 @@ export function getNextSectionIndex(
     //last and will loop 
     if(isGroupLast && willGroupLoop){
       //need to check lower groups
-      checkGroup(thisGroupIndex)
+      checkGroup(thisGroupIndex, depth + 1)
       return
     }
 
@@ -69,12 +69,12 @@ export function findStart(sections: PlayerSectionGroup): PlayerIndex{
 
 export function getIndexInfo(sections: any, index: NestedIndex) 
 : (any | undefined) {
-  // const check = getNestedIndex(sections, index)
-  // if(check?.sectionCount)
-  //   return {...check}
-
-  if(index.length && index.length > 1) {
-      return {...getNestedIndex(sections, index.slice(0,-1))}
+  const a = getNestedIndex(sections, index)
+  if(index.length && a) {
+      if(a?.name)
+        return {...getNestedIndex(sections, index.slice(0,-1))}
+      else
+        return {...a}
   }
   else{
       return {...sections}
