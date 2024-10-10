@@ -29,6 +29,10 @@ export  type JSONgPlaybackInfo = {
     bpm: number; // required
     meter?: [number, number]; //assumed 4/4 if missing
     /**
+     * used to fix timing issues with audio files containing a silence gap
+     */
+    audioOffsetSeconds?: number;
+    /**
      * Assumed the meter duration, so 4 notes of 1/4 i.e. 1 bar default.
      * Formula = `grain * one_beat_length`
      */
@@ -86,7 +90,10 @@ export type JSONgFlowEntry = (number | string | JSONgFlowInstruction) | JSONgFlo
  * Sources information
  */
 export  type JSONgDataSources = {
-    [key: string]: URLString | DataURIString
+    [key: string]: URLString | DataURIString | {
+        path: URLString | DataURIString,
+        audioOffsetSeconds?: number,
+    }
 }
 
 /**

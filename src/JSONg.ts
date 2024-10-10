@@ -50,6 +50,7 @@ export default class JSONg extends EventTarget{
     a: Player;
     b: Player;
     lastLoopPlayerStartTime: number;
+    offset: number;
   }[]
 
   //Available real audio buffers
@@ -84,11 +85,16 @@ export default class JSONg extends EventTarget{
   /**
    * Currently playing now and its details
    */
-  private _current!: PlayerSection;
-  get current(): PlayerSection {
+  private _current?: PlayerSection;
+  get current() {
     return this._current;
   }
-  
+
+  private _next?: PlayerSection
+  private _increments?: PlayerIndex[];
+  get next() {
+    return this._next;
+  }
   /**
    * The start index of the JSONg
    */
@@ -144,13 +150,14 @@ export default class JSONg extends EventTarget{
       contextTime: toneNow()
     }
   }
-  public getCurrentSection(){
+  public getProgression(){
     if(!this._current || !this._sections) return {}
     const info = getIndexInfo(this._sections,this._current.index) as PlayerSectionGroup
     return { 
       name: this._current.name,
       index: this._current.index,
-      next: this._current.next,
+      next: this._pending.section?.index || this._next?.index,
+      increments:this._pending.increments || this._increments,
       repeatCount: info.loopCurrent,
       repeatLimit: info.loopLimit
     }
@@ -255,52 +262,7 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
   }
   catch{}
 
-  const trackPlayers = []
-  for(const track of manifest.tracksList){
-    const a = new Player()
-    const b = new Player()
-    a.volume.value = 0
-    b.volume.value = 0
-    a.connect(this.output)
-    b.connect(this.output)
-    // const filter = new Filter(20000, "lowpass").toDestination()
-    // a.connect(filter)
-    // b.connect(filter)
-
-    let info = {
-      name: '',
-      source: '',
-      volumeLimit: 0,
-    }
-    if(typeof track === 'string'){
-      info.source = track
-      info.name = track
-    }
-    else{
-      info.name = track.name
-      info.source = track.source ? track.source : track.name;
-      // filter.set({'Q': track.filter.resonance 
-      //   ? track.filter.resonance 
-      //   : (timingInfo?.filter?.resonance 
-      //     ? timingInfo?.filter?.resonance 
-      //     : 1
-      // )}) 
-      // filter.set({'rolloff': (
-      //   track?.filter?.rolloff 
-      //     ? track.filter.rolloff 
-      //     : (timingInfo?.filter?.rolloff 
-      //       ? timingInfo?.filter?.rolloff 
-      //       : -12
-      //     )  
-      // ) as FilterRollOff})
-    }
-
-    trackPlayers.push({
-      ...info, a,b, current: a, lastLoopPlayerStartTime: 0
-    })
-  }
-
-  this._trackPlayers = trackPlayers
+  
   this._timingInfo = manifest.timingInfo
   this._sections = manifest.sections
   this._beginning = manifest.beginning
@@ -422,7 +384,7 @@ Promise<PlayerJSONg | undefined>
   const defaultSources: PlayerSourcePaths = tracksList.reduce((acc: PlayerSourcePaths, key:any) => {
     try{
       const src = manifest.sources as JSONgDataSources
-      acc[key] = src[key]
+      // acc[key] = src[key]
     }
     catch{
       acc[key] = './' + key + extension
@@ -455,6 +417,52 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
   this._dispatchParsePhase('audio')
   this._state = 'loading'
 
+  const trackPlayers = []
+  for(const track of this._tracksList){
+    const a = new Player()
+    const b = new Player()
+    a.volume.value = 0
+    b.volume.value = 0
+    a.connect(this.output)
+    b.connect(this.output)
+    // const filter = new Filter(20000, "lowpass").toDestination()
+    // a.connect(filter)
+    // b.connect(filter)
+
+    let info = {
+      name: '',
+      source: '',
+      volumeLimit: 0,
+    }
+    if(typeof track === 'string'){
+      info.source = track
+      info.name = track
+    }
+    else{
+      info.name = track.name
+      info.source = track.source ? track.source : track.name;
+      // filter.set({'Q': track.filter.resonance 
+      //   ? track.filter.resonance 
+      //   : (timingInfo?.filter?.resonance 
+      //     ? timingInfo?.filter?.resonance 
+      //     : 1
+      // )}) 
+      // filter.set({'rolloff': (
+      //   track?.filter?.rolloff 
+      //     ? track.filter.rolloff 
+      //     : (timingInfo?.filter?.rolloff 
+      //       ? timingInfo?.filter?.rolloff 
+      //       : -12
+      //     )  
+      // ) as FilterRollOff})
+    }
+
+    trackPlayers.push({
+      ...info, a,b, current: a, lastLoopPlayerStartTime: 0, offset: 0
+    })
+  }
+  this._trackPlayers = trackPlayers
+
   const onDone = ()=>{
     Object.keys(sources).forEach((src)=>{
       this._trackPlayers.forEach(tr => {
@@ -465,7 +473,6 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
         }
       })
     })
-    this.stop(false);
     this._dispatchParsePhase('done')
     this.state = 'stopped';
     console.log("[JSONg] end loading audio ")
@@ -514,7 +521,7 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     return Promise.reject('no sources')
   }
   else if(Object.keys(manifestSourcePaths)?.length){
-    // console.log('[JSONg] manifest sources', manifestSourcePaths);
+    console.log('[JSONg] manifest sources', manifestSourcePaths);
     // begin parse after confirming that manifest is ok
     // and sources paths are ok
     this.state = 'loading';
@@ -522,12 +529,13 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     try{
       this._sourceBuffers = await fetchSources(manifestSourcePaths);
       onDone()
+      this.stop(false)
     }
     catch(error){
       this.state = null;
       console.error('[JSONg]',manifestSourcePaths)
       console.error(new Error('[JSONg] error fetching data'))
-      return Promise.reject('sources error')
+      throw error
     }
   }
 }
@@ -567,11 +575,15 @@ private _pending: {
   transportSchedule: null | number;
   scheduledEvents: number[],
   actionRemainingBeats: number,
+  section: PlayerSection | null,
+  increments: PlayerIndex[] | null,
 } = {
   scheduleAborter: new AbortController(),
   transportSchedule: null,
   scheduledEvents: [],
   actionRemainingBeats: 0,
+  section: null,
+  increments: null,
 }
 
 
@@ -657,13 +669,24 @@ public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
 
 private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
 
+  if(!this._current) throw new Error("[JSONg] current section non-existent")
+
   const from = this._current
-  const {next, increments} =  getNextSectionIndex(this._sections, this._current.index)!
-  const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : next) as PlayerSection
+  const {next: nextIndex, increments} =  getNextSectionIndex(this._sections, this._current.index)!
+  const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : nextIndex) as PlayerSection
   if(!nextSection) {
     throw new Error("[JSONg] no next section available")
   }   
   
+  if(breakout){
+    this._pending.section = getNestedIndex(this._sections, this._current.next)
+    this._pending.increments = null
+  }
+  else{
+    this._pending.section = nextSection
+    this._pending.increments = increments
+  }
+
   const nextTime =  quanTime(
     Transport.position as BarsBeatsSixteenths, 
     this._current.grain, 
@@ -672,7 +695,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   )
 
   // this._dispatchSectionQueue('0:0:0',this._current);
-  console.log("[JSONg] advance to next:", nextSection.index)  
+  console.log("[JSONg] advance to next:",this._current.index, ">", nextSection.index)  
 
   if(this.state === 'playing') 
     this.state = 'queue'
@@ -691,14 +714,25 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
       console.log("[JSONg] group repeat counter increment", `${info.loopCurrent}/${info.loopLimit}`, ii,)
     })
   }
-  
+
   if(this._current.once) {
     this.state = 'continue'
     await this._continue()
   }
-    // this._dispatchSectionChange();
+  else
+  {
+    const {next, increments} =  getNextSectionIndex(this._sections, this._current.index)!
+    const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : next) as PlayerSection
+    if(nextSection) {
+      this._next = nextSection
+      this._increments = increments
+    }   
+  }
+  
+  this._pending.increments = null
+  this._pending.section = null
   this.state = 'playing'
-
+    // this._dispatchSectionChange();
   // if(loops) this.onSectionLoop(loops, nowIndex)
   // this.onSectionWillEnd([...nowIndex], nextTime)
   // this.onSectionWillStart([...nextIndex], nextTime)
@@ -722,10 +756,12 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
 {
   if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
-  if(!this._current) return
-
 
   return new Promise((res,rej)=>{
+  if(!this._current) {
+    rej()
+    return
+  }
 
   this._clear()
   this._abort()
@@ -882,7 +918,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           Transport.clear(scheduleEvent)
           // this._pending.scheduledEvents.filter((v)=>v !== e)
           if(this.state === 'transition'){
-          const transitionInfo = this._current.transition.find(t => t.name === track.name)!
+          const transitionInfo = this._current!.transition.find(t => t.name === track.name)!
           const dt = (transitionInfo?.duration || 1)
           nextTrack.stop(toneNow() + dt)
           nextTrack.volume.cancelScheduledValues(toneNow())
@@ -924,7 +960,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           return
         }
 
-        const transitionInfo = this._current.transition.find(t => t.name === track.name)!
+        const transitionInfo = this._current!.transition.find(t => t.name === track.name)!
         if(transitionInfo.type === 'fade'){
           const t = toneNow()
           
