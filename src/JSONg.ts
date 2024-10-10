@@ -1,5 +1,5 @@
-import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
-import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel } from './types/player'
+import { JSONgDataSources, JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
+import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest, PlayerSources, PlayerAudioSources } from './types/player'
 import {beatTransportDelta, quanTime} from './util/timing'
 import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
@@ -19,10 +19,13 @@ import {
   ToneAudioBuffer, 
   Filter,
   Draw, 
-  Synth, Transport, FilterRollOff, Destination, Time as ToneTime, ToneAudioBuffers,
+  Synth, Transport, FilterRollOff, Time as ToneTime, ToneAudioBuffers,
   Timeline,
   ToneEvent,
   TransportTimeClass,
+  ToneAudioNode,
+  Gain,
+  Volume,
 } from 'tone';
 import { NestedIndex } from './types/common'
 import { prependURL } from './JSONg.paths'
@@ -33,16 +36,6 @@ export default class JSONg extends EventTarget{
   
   public VERSION_SUPPORT = ["J/1"]
 
-  private _meta!: JSONgMetadata;
-  set meta(value: JSONgMetadata){
-    this._meta = {...value};
-  }
-  get meta(): JSONgMetadata {
-    return {...this._meta};
-  }
-
-  public manifest!: JSONgManifestFile;
-
   
   //List of track involved with the song
   private _tracksList!: JSONgTrack[];
@@ -52,7 +45,6 @@ export default class JSONg extends EventTarget{
   private _trackPlayers!:  {
     name: string;
     source: string;
-    filter: Filter;
     volumeLimit: number;
     current: Player;
     a: Player;
@@ -72,23 +64,11 @@ export default class JSONg extends EventTarget{
       beatDuration: number;
       metronome: {db: number, high: string, low: string};
       metronomeSchedule: number | null;
-    } & JSONgPlaybackInfo
+    }
   get timingInfo(){
     return {...this._timingInfo, metronomeSchedule: undefined}
   }
 
-
-  
-
-
-  /**
-   * Visual flow of named sections including loop counts
-   * Private so stripped of any directives  
-   */
-  private _flow!: JSONgFlowEntry[];
-  get flow(){
-    return this._flow
-  }
 
   /**
    * Looping details of each section, including specific directives
@@ -132,7 +112,7 @@ export default class JSONg extends EventTarget{
 
 
 
-
+  public output!: Volume
 
 
   //Transport and meter event handler
@@ -213,33 +193,36 @@ export default class JSONg extends EventTarget{
     onload?: ()=>void, 
     context?: AudioContext, 
     verbose?: VerboseLevel,
+    disconnected?: boolean,
     debug?: boolean
   }){
-    super();
-    if(options?.context) setContext(options?.context);
-    
-    console.log("[JSONg] new jsong player created");
+    super();    
     this.state = null;
 
-    const onDebug = ()=>{
-      if(options?.debug){
-        Destination.volume.value = -18
-      }
-    }
+    if(options?.context) setContext(options?.context);
+    
+    this.output = new Volume()
+    if(!options?.disconnected) this.output.toDestination()
+    if(options?.debug) this.output.volume.value = -18
 
     try{
       toneStart().then(()=>{
-        if(path) this.loadManifest(path).then(()=>{
+        if(path) this.parseManifest(path).then((manifest)=>{
+          if(!manifest) throw new Error("[JSONg] Invalid manifest preload")
+
+          this.loadManifest(manifest) 
           options?.onload?.()
-          onDebug()
+          console.log("[JSONg] new jsong player created");
+
+          const metronome = new Synth()
+          metronome.envelope.attack = 0;
+          metronome.envelope.release = 0.05;
+          metronome.volume.value = this._timingInfo.metronome.db
+          metronome.connect(this.output)
         })
-        else{
-          onDebug()
-        }
       })
     }
     catch{}
-
   }
 
   get audioContext(): AnyAudioContext{
@@ -247,124 +230,40 @@ export default class JSONg extends EventTarget{
   }
 
 //==================Loader============
-
-
-public async loadManifest(file: string | JSONgManifestFile, options = {loadSound:true,soundOrigin:undefined}): Promise<void> {
-  if(this._state === 'loading') return
-  if(this._state === 'parsing') return
-
-  // begin parse after confirming that manifest is ok
-  // and sources paths are ok
-  const [manifest,baseURL,filename] = await fetchManifest(file);
-  console.log({manifest,baseURL, filename});
-
-  this._dispatchParsePhase('meta')
-  if (manifest?.type !== 'jsong')
-    return Promise.reject(new Error('parsing invalid manifest'));
+public async loadManifest(manifest: PlayerManifest, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
   if (!this.VERSION_SUPPORT.includes(manifest?.version)){
-    console.log(manifest)
-    return Promise.reject(new Error('unsupported parser version:'));
-  }
-  if(!manifest?.playback?.bpm) 
-    return Promise.reject(new Error("missing bpm"))
-  if(!manifest?.playback?.meter) 
-    return Promise.reject(new Error("missing meter"))
-
-  this.state = 'parsing'
-  //transfer key information from manifest to player
-  // this.playingNow = null;
-  this.meta = {...manifest.meta as JSONgMetadata};
-
-
-
-  this._dispatchParsePhase('timing')
-  //meter, bpm and transport setup
-  const _metro = manifest.playback.metronome
-  const _metro_def = {
-    db: 0,
-    high: 'G6',
-    low: 'G5'
-  }
-  function beatDuration(bpm: number, timeSignature: [number,number]) {
-    const [numerator, denominator] = timeSignature;
-    const secondsPerMinute = 60;
-    const beatValue = 4 / denominator; 
-    return (secondsPerMinute / bpm) * beatValue;;
+    throw new Error(`[load] Unsupported parser version: ${manifest?.version}`);
   }
 
-  this._timingInfo = {
-    bpm: manifest.playback.bpm,
-    meter: manifest.playback.meter || [4,4],
-    grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || 1,
-    beatDuration: beatDuration(manifest.playback.bpm, manifest.playback.meter),
-    metronomeSchedule: null,
-    metronome: 
-      typeof _metro === 'boolean' ? 
-      {
-        ... _metro_def,
-        db: _metro ? -6 : -120,
-      } 
-      : 
-      typeof _metro === 'object' && _metro ? {
-        db: 'db' in _metro ? _metro.db : _metro_def.db,
-        high: 'high' in _metro ? _metro.high ?? _metro_def.high : _metro_def.high,
-        low: 'low' in _metro ? _metro.low ?? _metro_def.low : _metro_def.low,
-      } 
-      : 
-      {... _metro_def}
-  }
-  this._setMeterBeat(-1)
-
-  this._metronome = new Synth().toDestination();
-  this._metronome.envelope.attack = 0;
-  this._metronome.envelope.release = 0.05;
-  this._metronome.volume.value = this.timingInfo.metronome.db
-  Transport.position = '0:0:0'
-  Transport.bpm.value = this._timingInfo.bpm
-  Transport.timeSignature = this._timingInfo.meter
-  
-
-
-  this._dispatchParsePhase('sections')
-  //build sections
-  this._sections = buildSections(
-    manifest.playback.flow, 
-    manifest.playback.map, 
-    {
-      grain: this._timingInfo.grain,
-      fadeDuration: this.timingInfo.beatDuration * this._timingInfo.grain / 2,
-      tracks: manifest.tracks.map(t => {
-        if(typeof t === 'object') return t.name
-        return t as string
-      })
-    }
-  );
-  this._beginning = findStart(this._sections);
-  this._flow = manifest.playback.flow;
-  console.log("[manifest] sections",this._sections)
-  console.log("[manifest] flow",this._flow)
-  console.log("[manifest] start",this._beginning)
-  
-  //convert all regions to seconds
-  
-  
-
-  this.stop(false);
   this._state = 'loading'
+  Transport.position = '0:0:0'
+  Transport.bpm.value = manifest.timingInfo.bpm
+  Transport.timeSignature = manifest.timingInfo.meter
+  this._setMeterBeat(-1)
   
-  this._dispatchParsePhase('tracks')
-  //spawn tracks
-  this._tracksList = [...manifest.tracks]
-  this._trackPlayers = []
-  console.log('[parse][tracks]',this._tracksList)
-  for(const track of this._tracksList){
+  try{
+    for(const p of this._trackPlayers){
+      p.a.stop()
+      p.b.stop()
+      p.a.disconnect()
+      p.b.disconnect()
+      p.a.dispose()
+      p.b.dispose()
+    }
+  }
+  catch{}
+
+  const trackPlayers = []
+  for(const track of manifest.tracksList){
     const a = new Player()
     const b = new Player()
     a.volume.value = 0
     b.volume.value = 0
-    const filter = new Filter(20000, "lowpass").toDestination()
-    a.connect(filter)
-    b.connect(filter)
+    a.connect(this.output)
+    b.connect(this.output)
+    // const filter = new Filter(20000, "lowpass").toDestination()
+    // a.connect(filter)
+    // b.connect(filter)
 
     let info = {
       name: '',
@@ -378,41 +277,179 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
     else{
       info.name = track.name
       info.source = track.source ? track.source : track.name;
-      filter.set({'Q': track?.filter?.resonance 
-        ? track.filter.resonance 
-        : (this._timingInfo?.filter?.resonance 
-          ? this._timingInfo?.filter?.resonance 
-          : 1
-      )}) 
-    filter.set({'rolloff': (
-      track?.filter?.rolloff 
-        ? track.filter.rolloff 
-        : (this._timingInfo?.filter?.rolloff 
-          ? this._timingInfo?.filter?.rolloff 
-          : -12
-        )  
-    ) as FilterRollOff})
+      // filter.set({'Q': track.filter.resonance 
+      //   ? track.filter.resonance 
+      //   : (timingInfo?.filter?.resonance 
+      //     ? timingInfo?.filter?.resonance 
+      //     : 1
+      // )}) 
+      // filter.set({'rolloff': (
+      //   track?.filter?.rolloff 
+      //     ? track.filter.rolloff 
+      //     : (timingInfo?.filter?.rolloff 
+      //       ? timingInfo?.filter?.rolloff 
+      //       : -12
+      //     )  
+      // ) as FilterRollOff})
     }
 
-    this._trackPlayers.push({
-      ...info, a,b, current: a, filter, lastLoopPlayerStartTime: 0
+    trackPlayers.push({
+      ...info, a,b, current: a, lastLoopPlayerStartTime: 0
     })
   }
 
+  this._trackPlayers = trackPlayers
+  this._timingInfo = manifest.timingInfo
+  this._sections = manifest.sections
+  this._beginning = manifest.beginning
+  this._tracksList = manifest.tracksList
 
-  this.manifest = manifest
-
-  if(manifest.sources && options.loadSound){
-    await this.loadSound(manifest.sources, options?.soundOrigin || baseURL)
+  const origin = options?.origin ? options.origin : manifest.origin
+  try{
+    await this._loadSound(typeof options?.loadSound === 'object' ? options.loadSound : manifest.sources, origin)
+    this.state = 'stopped'
   }
+  catch(e){
+    this._state = null
+    throw e
+  }
+}
+
+public async parseManifest(file: string | JSONgManifestFile): 
+Promise<PlayerManifest | undefined>
+{
+
+  if(this._state === 'loading') return
+  if(this._state === 'parsing') return
+
+  // begin parse after confirming that manifest is ok
+  // and sources paths are ok
+  const [manifest,baseURL,filename] = await fetchManifest(file);
+  // console.log({manifest,baseURL, filename});
+
+  this._dispatchParsePhase('meta')
+  if (manifest?.type !== 'jsong')
+    throw new Error('[parse] Invalid manifest');
+  if (!this.VERSION_SUPPORT.includes(manifest?.version))
+    throw new Error(`[parse] Unsupported parser version: ${manifest?.version}`);
+  if(!manifest?.playback?.bpm) 
+    throw new Error("[parse] Missing bpm")
+  if(!manifest?.playback?.meter) 
+    throw new Error("[parse] Missing meter")
+
+  const meta: JSONgMetadata = manifest.meta ? {...manifest.meta} as JSONgMetadata : {
+    title: '',
+    author: '',
+    version: '',
+    createdUsing: '',
+    created: 0,
+    modified: 0,
+    meta: ''
+  };
+
+  this._state = 'parsing'
+
+  this._dispatchParsePhase('timing')
+  //meter, bpm and transport setup  
+  const _metro_def = {
+    db: -200,
+    high: 'G6',
+    low: 'G5'
+  }
+  const _metro = {..._metro_def}
+
+  if(manifest.playback.metronome && typeof manifest.playback.metronome === 'object'){
+    const nfo = manifest.playback.metronome
+    if(nfo.db) _metro.db = nfo.db
+    if(nfo.high) _metro.high = nfo.high
+    if(nfo.low) _metro.low = nfo.low
+  } 
+  else if(typeof manifest.playback.metronome === 'boolean'){
+    if(manifest.playback.metronome) _metro.db = -6
+  }  
+
+
+  function beatDuration(bpm: number, timeSignature: [number,number]) {
+    const [numerator, denominator] = timeSignature;
+    const secondsPerMinute = 60;
+    const beatValue = 4 / denominator; 
+    return (secondsPerMinute / bpm) * beatValue;;
+  }
+
+  const timingInfo = {
+    bpm: manifest.playback.bpm,
+    meter: manifest.playback.meter || [4,4],
+    grain: manifest.playback?.grain || (manifest.playback.meter[0] / (manifest.playback.meter[1]/4)) || 1,
+    beatDuration: beatDuration(manifest.playback.bpm, manifest.playback.meter),
+    metronomeSchedule: null,
+    metronome: _metro
+  }
+
+
+
+  this._dispatchParsePhase('sections')
+  //build sections
+  const sections = buildSections(
+    manifest.playback.flow, 
+    manifest.playback.map, 
+    {
+      grain: timingInfo.grain,
+      fadeDuration: timingInfo.beatDuration * timingInfo.grain / 2,
+      tracks: manifest.tracks.map(t => {
+        if(typeof t === 'object') return t.name
+        return t as string
+      })
+    }
+  );
+  const beginning = [...findStart(sections)];
+  const flow = JSON.parse(JSON.stringify(manifest.playback.flow)) as JSONgFlowEntry[];
+  // console.log("[manifest] sections",this._sections)
+  // console.log("[manifest] flow",this._flow)
+  // console.log("[manifest] start",this._beginning)
   
+
+  //convert all regions to seconds
+  this._dispatchParsePhase('tracks')
+
+  //spawn tracks
+  console.log('[parse]', manifest.tracks)
+  const tracksList = [...manifest.tracks]
+  let extension = typeof manifest.sources === 'string' ? manifest.sources :  '.mp3'
+  extension = !extension.startsWith('.') ? '.'+extension : extension;
+  
+  const defaultSources: PlayerSources = tracksList.reduce((acc: PlayerSources, key:any) => {
+    try{
+      const src = manifest.sources as JSONgDataSources
+      acc[key] = src[key]
+    }
+    catch{
+      acc[key] = './' + key + extension
+    }
+    return acc;
+  }, {});
+
+  const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSources : defaultSources
+
+  this._state = null
+  this._dispatchParsePhase('done')
   console.log("[parse] end ")
-  return Promise.resolve();
+  return Promise.resolve({
+    version: manifest.version,
+    meta,
+    timingInfo,
+    sections,
+    flow,
+    beginning,
+    tracksList,
+    sources,
+    origin: baseURL,
+  });
 }
   
 
 
-public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} | {[key: string]: ToneAudioBuffer}, origin: string = '/'){
+
+private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/'){
   this._dispatchParsePhase('audio')
   this._state = 'loading'
 
@@ -489,13 +526,14 @@ public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} 
     }
     catch(error){
       this.state = null;
+      console.error('[sources]',manifestSourcePaths)
       console.error(new Error('[parse][sources] error fetching data'))
       return Promise.reject('sources error')
     }
   }
 }
 
-public async addSourceData(name: string, data: any){
+public async setSourceData(name: string, data: any){
   this._sourceBuffers[name] = data
 }
 
@@ -985,28 +1023,28 @@ public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeat
   })
 }
 
-public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0){
-  return new Promise((resolve, reject)=>{
-  if(!this.state) {reject(); return; }
-  let idx: number | null = null;
-  if(typeof trackIndex === 'string'){
-    this._trackPlayers?.forEach((o,i)=>{
-      if(o.name === trackIndex) idx = i
-    })
-    if(idx === null) {reject(); return; }
-  }
-  else if(typeof trackIndex === 'number'){
-    idx = trackIndex
-  }
-  else {reject(); return; }
-  if(idx === null) {reject(); return; };
+// public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0){
+//   return new Promise((resolve, reject)=>{
+//   if(!this.state) {reject(); return; }
+//   let idx: number | null = null;
+//   if(typeof trackIndex === 'string'){
+//     this._trackPlayers?.forEach((o,i)=>{
+//       if(o.name === trackIndex) idx = i
+//     })
+//     if(idx === null) {reject(); return; }
+//   }
+//   else if(typeof trackIndex === 'number'){
+//     idx = trackIndex
+//   }
+//   else {reject(); return; }
+//   if(idx === null) {reject(); return; };
 
-  this._trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
-  Draw.schedule(() => {
-    resolve(trackIndex)
-  }, toneNow() + ToneTime(inTime).toSeconds());
-  })
-}
+//   this._trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
+//   Draw.schedule(() => {
+//     resolve(trackIndex)
+//   }, toneNow() + ToneTime(inTime).toSeconds());
+//   })
+// }
 
 public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m'){
   inIndexes?.forEach(i=>{
@@ -1029,19 +1067,15 @@ public toggleMetronome(state?:boolean){
 }
 
 public isMute(){
-  return Destination.volume.value > -200;
+  return this.output.volume.value > -200;
 }
 
 public mute(){
-  Destination.volume.linearRampToValueAtTime(-Infinity,'+1s');
+  this.output.volume.linearRampToValueAtTime(-Infinity,'+1s');
 }
 
 public unmute(value:number = 0){
-  Destination.volume.linearRampToValueAtTime(value,'+1s');
-}
-
-get destination(){
-  return Destination
+  this.output.volume.linearRampToValueAtTime(value,'+1s');
 }
 
 

@@ -14,6 +14,7 @@ export  type JSONgMetadata = {
     created : number;
     createdUsing?: string;
     modified? : number;
+    meta?: string;
 }
 
 /**
@@ -33,14 +34,8 @@ export  type JSONgPlaybackInfo = {
      */
     grain?: number | null;
     metronome?: 
-        {db: number, high?: string, low?: string} | 
-        {high: string, low?: string} | 
-        {high?: string, low: string} | 
+        {db?: number, high?: string, low?: string} | 
         boolean | null;
-    filter?: 
-        {resonance: number,rolloff: number}    |
-        {resonance?: number, rolloff:  number} |
-        {resonance:  number, rolloff?: number};
 }
 
 
@@ -51,17 +46,6 @@ export type JSONgTrack = string | {
     name: string;
     source? : string;
 	db?: number;
-    filter?: {
-        resonance: number;
-        rolloff: number;
-    };
-}
-
-/**
- * Sources information
- */
-export  type JSONgDataSources = {
-    [key: string]: URLString | DataURIString
 }
 
 export type JSONgFlowInstruction = {
@@ -99,16 +83,23 @@ export type JSONgFlowInstruction = {
 export type JSONgFlowEntry = (number | string | JSONgFlowInstruction) | JSONgFlowEntry[]
 
 /**
+ * Sources information
+ */
+export  type JSONgDataSources = {
+    [key: string]: URLString | DataURIString
+}
+
+/**
  * Final manifest file layout
  */
 export  type JSONgManifestFile = {
     type: 'jsong' | undefined;
     version: JSONgVerison;
-    meta: JSONgMetadata;
+    meta?: JSONgMetadata;
     playback: JSONgPlaybackInfo & {
         map: {[key: string] : [number, number]};
         flow: JSONgFlowEntry[];
     };
     tracks: JSONgTrack[];
-    sources?: JSONgDataSources;
+    sources: JSONgDataSources | string;
 }

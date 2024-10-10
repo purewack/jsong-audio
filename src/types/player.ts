@@ -1,4 +1,5 @@
-import { JSONgFlowInstruction } from "./jsong";
+import { ToneAudioBuffer } from "tone";
+import { JSONgFlowEntry, JSONgFlowInstruction, JSONgMetadata, JSONgTrack, JSONgVerison } from "./jsong";
 
 /**
  * Represents the possible states for a JSONg player.
@@ -53,6 +54,32 @@ export  type PlayerSectionGroup = {
 }
 
 
+export type PlayerSources = {[key:string]: string}
+
+export type PlayerAudioSources = {[key: string]: AudioBuffer} | {[key: string]: ToneAudioBuffer}
+
+export type PlayerManifest = {
+  version: JSONgVerison,
+  meta: JSONgMetadata,
+  sections: PlayerSectionGroup,
+  flow: JSONgFlowEntry[],
+  beginning: PlayerIndex,
+  tracksList: JSONgTrack[],
+  sources: PlayerSources,
+  origin: string,
+  timingInfo: {
+    bpm: number;
+    meter: [number, number];
+    grain: number;
+    beatDuration: number;
+    metronomeSchedule: null;
+    metronome: {
+        db: number;
+        high: string;
+        low: string;
+    };
+  }
+}
 
 export  type VerboseLevel =
     null | undefined |
