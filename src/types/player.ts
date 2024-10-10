@@ -54,7 +54,7 @@ export  type PlayerSectionGroup = {
 }
 
 
-export type PlayerSources = {[key:string]: string}
+export type PlayerSourcePaths = {[key:string]: string}
 
 export type PlayerAudioSources = {[key: string]: AudioBuffer} | {[key: string]: ToneAudioBuffer}
 
@@ -65,7 +65,7 @@ export type PlayerManifest = {
   flow: JSONgFlowEntry[],
   beginning: PlayerIndex,
   tracksList: JSONgTrack[],
-  sources: PlayerSources,
+  paths: PlayerSourcePaths,
   origin: string,
   timingInfo: {
     bpm: number;

@@ -1,5 +1,5 @@
 import { JSONgDataSources, JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
-import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest, PlayerSources, PlayerAudioSources } from './types/player'
+import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest as PlayerJSONg, PlayerSourcePaths, PlayerAudioSources } from './types/player'
 import {beatTransportDelta, quanTime} from './util/timing'
 import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
@@ -205,7 +205,6 @@ export default class JSONg extends EventTarget{
     
     this.output = new Volume()
     if(!options?.disconnected) this.output.toDestination()
-    if(options?.debug) this.output.volume.value = -18
 
     try{
       toneStart().then(()=>{
@@ -219,7 +218,7 @@ export default class JSONg extends EventTarget{
           const metronome = new Synth()
           metronome.envelope.attack = 0;
           metronome.envelope.release = 0.05;
-          metronome.volume.value = this._timingInfo.metronome.db
+          metronome.volume.value = options?.debug ? this._timingInfo.metronome.db : -200
           metronome.connect(this.output)
           this._metronome = metronome
         })
@@ -233,9 +232,9 @@ export default class JSONg extends EventTarget{
   }
 
 //==================Loader============
-public async loadManifest(manifest: PlayerManifest, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
+public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
   if (!this.VERSION_SUPPORT.includes(manifest?.version)){
-    throw new Error(`[load] Unsupported parser version: ${manifest?.version}`);
+    throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   }
 
   this._state = 'loading'
@@ -309,7 +308,7 @@ public async loadManifest(manifest: PlayerManifest, options?:{origin?: string, l
 
   const origin = options?.origin ? options.origin : manifest.origin
   try{
-    await this._loadSound(typeof options?.loadSound === 'object' ? options.loadSound : manifest.sources, origin)
+    await this.loadAudio(typeof options?.loadSound === 'object' ? options.loadSound : manifest.paths, origin)
     this.state = 'stopped'
   }
   catch(e){
@@ -319,7 +318,7 @@ public async loadManifest(manifest: PlayerManifest, options?:{origin?: string, l
 }
 
 public async parseManifest(file: string | JSONgManifestFile): 
-Promise<PlayerManifest | undefined>
+Promise<PlayerJSONg | undefined>
 {
 
   if(this._state === 'loading') return
@@ -332,13 +331,13 @@ Promise<PlayerManifest | undefined>
 
   this._dispatchParsePhase('meta')
   if (manifest?.type !== 'jsong')
-    throw new Error('[parse] Invalid manifest');
+    throw new Error('[JSONg] Invalid manifest');
   if (!this.VERSION_SUPPORT.includes(manifest?.version))
-    throw new Error(`[parse] Unsupported parser version: ${manifest?.version}`);
+    throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   if(!manifest?.playback?.bpm) 
-    throw new Error("[parse] Missing bpm")
+    throw new Error("[JSONg] Missing bpm")
   if(!manifest?.playback?.meter) 
-    throw new Error("[parse] Missing meter")
+    throw new Error("[JSONg] Missing meter")
 
   const meta: JSONgMetadata = manifest.meta ? {...manifest.meta} as JSONgMetadata : {
     title: '',
@@ -355,7 +354,7 @@ Promise<PlayerManifest | undefined>
   this._dispatchParsePhase('timing')
   //meter, bpm and transport setup  
   const _metro_def = {
-    db: -200,
+    db: -6,
     high: 'G6',
     low: 'G5'
   }
@@ -415,12 +414,12 @@ Promise<PlayerManifest | undefined>
   this._dispatchParsePhase('tracks')
 
   //spawn tracks
-  console.log('[parse]', manifest.tracks)
+  // console.log('[JSONg]', manifest.tracks)
   const tracksList = [...manifest.tracks]
   let extension = typeof manifest.sources === 'string' ? manifest.sources :  '.mp3'
   extension = !extension.startsWith('.') ? '.'+extension : extension;
   
-  const defaultSources: PlayerSources = tracksList.reduce((acc: PlayerSources, key:any) => {
+  const defaultSources: PlayerSourcePaths = tracksList.reduce((acc: PlayerSourcePaths, key:any) => {
     try{
       const src = manifest.sources as JSONgDataSources
       acc[key] = src[key]
@@ -431,11 +430,11 @@ Promise<PlayerManifest | undefined>
     return acc;
   }, {});
 
-  const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSources : defaultSources
+  const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSourcePaths : defaultSources
 
   this._state = null
   this._dispatchParsePhase('done')
-  console.log("[parse] end ")
+  console.log("[JSONg] end parsing manifest")
   return Promise.resolve({
     version: manifest.version,
     meta,
@@ -444,7 +443,7 @@ Promise<PlayerManifest | undefined>
     flow,
     beginning,
     tracksList,
-    sources,
+    paths: sources,
     origin: baseURL,
   });
 }
@@ -452,7 +451,7 @@ Promise<PlayerManifest | undefined>
 
 
 
-private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/'){
+public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/'){
   this._dispatchParsePhase('audio')
   this._state = 'loading'
 
@@ -462,19 +461,19 @@ private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin:
         if(tr.name === src){
           tr.a.buffer = this._sourceBuffers[src] as ToneAudioBuffer
           tr.b.buffer = tr.a.buffer
-          console.log("[track] buffer loaded",src,tr.a.buffer)
+          console.log("[JSONg] buffer loaded",src)
         }
       })
     })
     this.stop(false);
     this._dispatchParsePhase('done')
     this.state = 'stopped';
-    console.log("[load] end ")
+    console.log("[JSONg] end loading audio ")
   }
 
   //quit if there are no audio files to load
   if(!sources || !Object.keys(sources).length) {
-    console.log("[parse] end - no sources",sources)
+    console.log("[JSONg] end - no sources",sources)
     return Promise.resolve()
   }
 
@@ -489,8 +488,6 @@ private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin:
       audioBufferCheck = true
   }) 
 
-  console.log("[check] results",toneBufferCheck,audioBufferCheck, sources)
-
   if(toneBufferCheck){
     console.log("ToneAudioBuffer loading phase")
     this._sourceBuffers = (sources as {[key: string]: ToneAudioBuffer})
@@ -499,7 +496,6 @@ private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin:
   }
 
   if(audioBufferCheck){
-    console.log("AudioBuffer loading phase")
     let buffers: {[key:string]: ToneAudioBuffer} = {}
     Object.keys(sources).forEach((key:string) => {
       const buf = new ToneAudioBuffer()
@@ -507,18 +503,18 @@ private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin:
       buffers[key] = buf
     })
     this._sourceBuffers = buffers
-    console.log("[load]",this._sourceBuffers)
+    console.log("[JSONg]",this._sourceBuffers)
     onDone()
     return
   }
 
   const manifestSourcePaths = await compileSourcePaths(sources as JSONgDataSources, origin);
   if(!manifestSourcePaths){
-    console.log('[parse] no sources listed in manifest', manifestSourcePaths);
+    console.log('[JSONg] no sources listed in manifest', manifestSourcePaths);
     return Promise.reject('no sources')
   }
   else if(Object.keys(manifestSourcePaths)?.length){
-    console.log('[parse] manifest sources', manifestSourcePaths);
+    // console.log('[JSONg] manifest sources', manifestSourcePaths);
     // begin parse after confirming that manifest is ok
     // and sources paths are ok
     this.state = 'loading';
@@ -529,15 +525,11 @@ private async _loadSound(sources: JSONgDataSources | PlayerAudioSources, origin:
     }
     catch(error){
       this.state = null;
-      console.error('[sources]',manifestSourcePaths)
-      console.error(new Error('[parse][sources] error fetching data'))
+      console.error('[JSONg]',manifestSourcePaths)
+      console.error(new Error('[JSONg] error fetching data'))
       return Promise.reject('sources error')
     }
   }
-}
-
-public async setSourceData(name: string, data: any){
-  this._sourceBuffers[name] = data
 }
 
 
@@ -605,7 +597,7 @@ public async play(
   
   const startFrom = (from || this._beginning) as PlayerIndex
   const beginning = getNestedIndex(this._sections, startFrom) as PlayerSection
-  if(from && beginning === undefined) throw new Error("[play] index error for specified start point: " + from);
+  if(from && beginning === undefined) throw new Error("[JSONg] index error for specified start point: " + from);
 
   Transport.cancel(0);
   Transport.position = '0:0:0'
@@ -635,10 +627,10 @@ public async play(
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  console.log("[play] started from", startFrom)
+  console.log("[JSONg] started from", startFrom)
   
   if(beginning.once){
-    console.log("[play] starting section once, continue")
+    console.log("[JSONg] starting section once, continue")
     this.state = 'continue'
     await this._continue()
   }
@@ -669,7 +661,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   const {next, increments} =  getNextSectionIndex(this._sections, this._current.index)!
   const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : next) as PlayerSection
   if(!nextSection) {
-    throw new Error("[continue] no next section available")
+    throw new Error("[JSONg] no next section available")
   }   
   
   const nextTime =  quanTime(
@@ -680,7 +672,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   )
 
   // this._dispatchSectionQueue('0:0:0',this._current);
-  console.log("[continue] advance to next:", nextSection.index)  
+  console.log("[JSONg] advance to next:", nextSection.index)  
 
   if(this.state === 'playing') 
     this.state = 'queue'
@@ -696,7 +688,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
         info.loopCurrent = 0
       }
       setNestedIndex(info.loopCurrent, this._sections, [...ii,'loopCurrent'])
-      console.log("[schedule] group loop increment", `${info.loopCurrent}/${info.loopLimit}`, ii,)
+      console.log("[JSONg] group repeat counter increment", `${info.loopCurrent}/${info.loopLimit}`, ii,)
     })
   }
   
@@ -743,7 +735,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
   const onCancelStop = ()=>{
     rej()
     this.state = 'playing'
-    console.log("[stop] stop cancelled")
+    console.log("[JSONg] stop cancelled")
     this._pending.actionRemainingBeats = 0
     this._pending.scheduledEvents.forEach(e => {
       Transport.clear(e)
@@ -758,9 +750,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
           p.a.stop(t);
           p.b.stop(t);
           p.current = p.a
-          console.log("[stop] audio stopped for",p,t)
       }catch(error){
-        console.log('[stop] Empty track stopping ',this._tracksList[i]);
       }
     })
     Transport.stop(t)
@@ -771,7 +761,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
     this._sectionBeat = 0
     this._pending.actionRemainingBeats = 0
     this._pending.scheduledEvents = []
-    console.log("[player] stopped")
+    console.log("[JSONg] stopped")
     res(this._current)
   }
 
@@ -785,7 +775,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
     const when = ToneTime(next).toSeconds()
     
     signal.addEventListener('abort',onCancelStop)
-    console.log("[player] stopping",next,when,Transport.position)
+    console.log("[JSONg] stopping at",next)
     this._dispatchSectionQueue(next, null)
     this._pending.scheduledEvents.push(Transport.scheduleOnce(doStop,next))
     this.state = 'stopping'
@@ -865,12 +855,12 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
 
   return new Promise<void>((resolveAll,rejectAll)=>{
 
-    console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
+    // console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
     const signal = this._pending.scheduleAborter.signal
 
     let trackPromises: Promise<void>[]  = []
     
-    console.log("[schedule] starting task",toneNow())
+    // console.log("[schedule] starting task",toneNow())
     trackPromises = this._trackPlayers.map(track => {
       return new Promise((trackResolve, trackReject)=>{
 
@@ -882,13 +872,13 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         const onTrackResolve = (time: number)=>{
           track.current.stop(time)
           track.current = nextTrack;
-          console.log("[schedule] resolved", track)
+          // console.log("[schedule] resolved", track)
           trackResolve()
         }
 
         let scheduleEvent = -1
         const onAbort = ()=>{
-          console.info("[schedule] abort",track.name)
+          // console.info("[schedule] abort",track.name)
           Transport.clear(scheduleEvent)
           // this._pending.scheduledEvents.filter((v)=>v !== e)
           if(this.state === 'transition'){
@@ -983,7 +973,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
     Promise.all(trackPromises).then(()=>{
       this._clear()
       resolveAll()      
-      console.log("[schedule] END",toneNow())
+      // console.log("[schedule] END",toneNow())
     }).catch(()=>{
       //transition cancel, revert track fades
       rejectAll()
@@ -1065,7 +1055,7 @@ public toggleMetronome(state?:boolean){
     vol = state ? this._timingInfo.metronome.db : -200
   }
   else{
-    this._metronome.volume.value = this._metronome.volume.value < -100 ? -6 : -200
+    this._metronome.volume.value = this._metronome.volume.value < -100 ? this._timingInfo.metronome.db : -200
   }
 }
 

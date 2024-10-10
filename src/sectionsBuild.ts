@@ -22,7 +22,7 @@ export default function buildSections(
   if(!Array.isArray(checkZero)){
     throw new Error("[build] invalid map definition")
   }
-  console.log("[build] using map",map)
+  // console.log("[build] using map",map)
 
   const _buildFlowFrame = (sectionCount: number = 0, loopLimit: number = Infinity):any=> {
     return {
