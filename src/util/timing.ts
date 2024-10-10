@@ -1,3 +1,5 @@
+import { BarsBeatsSixteenths } from "tone/build/esm/core/type/Units";
+
 export function quanTime(
   nowPosition: string, 
   atBeats: number = 4, 
@@ -43,18 +45,20 @@ export function quanTime(
   }
 }
 
-export function beatTransportDelta(from: string, to:string, meter: [number,number]){
+export function beatTransportDelta(from: BarsBeatsSixteenths, to:BarsBeatsSixteenths, meter: [number,number]){
 
-  const beatsPerBar = meter[0] / (meter[1] / 4)
+  const beatUnit = (meter[1] / 4)
+  const beatsPerBar = meter[0] / beatUnit
 
   // Convert time codes to arrays of numbers
   const [bar1, beat1, sixteenth1] = from.split(':').map(Number);
   const [bar2, beat2, sixteenth2] = to.split(':').map(Number);
 
   // Calculate total beats for each time code
-  const totalBeats1 = bar1 * beatsPerBar + beat1 //+ sixteenth1 / (16 / beatUnit);
-  const totalBeats2 = bar2 * beatsPerBar + beat2 //+ sixteenth2 / (16 / beatUnit);
+  const totalBeats1 = bar1 * beatsPerBar + beat1 + sixteenth1 / (16 / beatUnit);
+  const totalBeats2 = bar2 * beatsPerBar + beat2 + sixteenth2 / (16 / beatUnit);
 
+  const result = (totalBeats2 - totalBeats1) * beatUnit
   // Return the absolute difference in beats
-  return totalBeats2 - totalBeats1
+  return Math.round(result)
 }

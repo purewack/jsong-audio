@@ -134,11 +134,13 @@ export default class JSONg extends EventTarget{
   }
   public getPosition(){
     return {
-      beat: [this._sectionBeat, this._sectionLen],
-      actionCountdown: this._pending.actionRemainingBeats,
-      transportBeat: this._meterBeat,
+      section: [this._sectionBeat, this._sectionLen],
+      countdown: this._pending.actionRemainingBeats,
+      transport: {
+        beat: this._meterBeat,
+        transport: Transport.position.toString()
+      },
       lastLaunchTime: this._sectionLastLaunchTime,
-      transport: Transport.position.toString(),
       contextTime: toneNow()
     }
   }
@@ -219,6 +221,7 @@ export default class JSONg extends EventTarget{
           metronome.envelope.release = 0.05;
           metronome.volume.value = this._timingInfo.metronome.db
           metronome.connect(this.output)
+          this._metronome = metronome
         })
       })
     }
@@ -1062,12 +1065,12 @@ public toggleMetronome(state?:boolean){
     vol = state ? this._timingInfo.metronome.db : -200
   }
   else{
-    this._metronome.volume.value = this._metronome.volume.value < -100 ? this._timingInfo.metronome.db : -200
+    this._metronome.volume.value = this._metronome.volume.value < -100 ? -6 : -200
   }
 }
 
 public isMute(){
-  return this.output.volume.value > -200;
+  return this.output.volume.value >= -200;
 }
 
 public mute(){
@@ -1085,7 +1088,7 @@ public unmute(value:number = 0){
 
 
 //========other===========
-public draw(callback: ()=>void){
+public safeCallback(callback: ()=>void){
   Draw.schedule(callback,toneNow());
 }
 
