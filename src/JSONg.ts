@@ -344,11 +344,14 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
   console.log("[manifest] sections",this._sections)
   console.log("[manifest] flow",this._flow)
   console.log("[manifest] start",this._beginning)
-
+  
   //convert all regions to seconds
   
   
 
+  this.stop(false);
+  this._state = 'loading'
+  
   this._dispatchParsePhase('tracks')
   //spawn tracks
   this._tracksList = [...manifest.tracks]
@@ -411,6 +414,7 @@ public async loadManifest(file: string | JSONgManifestFile, options = {loadSound
 
 public async loadSound(sources: JSONgDataSources | {[key: string]: AudioBuffer} | {[key: string]: ToneAudioBuffer}, origin: string = '/'){
   this._dispatchParsePhase('audio')
+  this._state = 'loading'
 
   const onDone = ()=>{
     Object.keys(sources).forEach((src)=>{
@@ -681,7 +685,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
 
 
-public async stop(synced: boolean = true)  : Promise<void>
+public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
 {
   if(this.state === null) return
   if(this.state === 'stopped' || this.state === 'stopping' ) return
@@ -693,14 +697,6 @@ public async stop(synced: boolean = true)  : Promise<void>
   this._clear()
   this._abort()
 
-  const next =  quanTime(
-    Transport.position.toString() as BarsBeatsSixteenths, 
-    this._current.grain, 
-    this._timingInfo?.meter,
-    this._sectionLastLaunchTime as string
-  ) as BarsBeatsSixteenths
-  const when = ToneTime(next).toSeconds()
-  
   const {signal} = this._pending.scheduleAborter
   
   const onCancelStop = ()=>{
@@ -714,12 +710,14 @@ public async stop(synced: boolean = true)  : Promise<void>
   }
 
   const doStop = (t: Time)=>{
+  
     signal.removeEventListener('abort',onCancelStop)
     this._trackPlayers.forEach((p,i)=>{
       try{
           p.a.stop(t);
           p.b.stop(t);
           p.current = p.a
+          console.log("[stop] audio stopped for",p,t)
       }catch(error){
         console.log('[stop] Empty track stopping ',this._tracksList[i]);
       }
@@ -733,10 +731,18 @@ public async stop(synced: boolean = true)  : Promise<void>
     this._pending.actionRemainingBeats = 0
     this._pending.scheduledEvents = []
     console.log("[player] stopped")
-    res()
+    res(this._current)
   }
 
   if(synced){
+    const next =  quanTime(
+      Transport.position.toString() as BarsBeatsSixteenths, 
+      this._current.grain, 
+      this._timingInfo?.meter,
+      this._sectionLastLaunchTime as string
+    ) as BarsBeatsSixteenths
+    const when = ToneTime(next).toSeconds()
+    
     signal.addEventListener('abort',onCancelStop)
     console.log("[player] stopping",next,when,Transport.position)
     this._dispatchSectionQueue(next, null)
@@ -744,8 +750,9 @@ public async stop(synced: boolean = true)  : Promise<void>
     this.state = 'stopping'
     this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), next, this._timingInfo.meter)      
   }else {
-    doStop(when)
-    res()
+    signal.addEventListener('abort',onCancelStop)
+    doStop(toneNow())
+    res(this._current)
   }
 })
 }
@@ -831,24 +838,36 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         nextTrack.loopEnd = to.region[1]+'m';
         nextTrack.loop = true;
 
-        const onTrackResolve = ()=>{
+        const onTrackResolve = (time: number)=>{
+          track.current.stop(time)
           track.current = nextTrack;
+          console.log("[schedule] resolved", track)
           trackResolve()
         }
 
         let scheduleEvent = -1
         const onAbort = ()=>{
-          console.info("[schedule] abort")
+          console.info("[schedule] abort",track.name)
           Transport.clear(scheduleEvent)
           // this._pending.scheduledEvents.filter((v)=>v !== e)
+          if(this.state === 'transition'){
+          const transitionInfo = this._current.transition.find(t => t.name === track.name)!
+          const dt = (transitionInfo?.duration || 1)
+          nextTrack.stop(toneNow() + dt)
+          nextTrack.volume.cancelScheduledValues(toneNow())
+          track.current.volume.cancelScheduledValues(toneNow())
+          nextTrack.volume.linearRampToValueAtTime(-72, toneNow() + dt )
+          track.current.volume.linearRampToValueAtTime(track.volumeLimit,toneNow() +  dt)
+          }
+
           trackReject()
         }
 
         const normalStart = ()=>{
           this._pending.actionRemainingBeats = beatTransportDelta(Transport.position.toString(), forWhen, this._timingInfo.meter)
           scheduleEvent = Transport.scheduleOnce((t)=>{
-            track.a.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
-            track.b.volume.linearRampToValueAtTime(track.volumeLimit,t + 0.5)
+            track.a.volume.setValueAtTime(track.volumeLimit,t)
+            track.b.volume.setValueAtTime(track.volumeLimit,t)
             try{
             nextTrack.start(t,to.region[0]+'m');
             track.lastLoopPlayerStartTime = t
@@ -859,9 +878,8 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
             }
             this._sectionLastLaunchTime = Transport.position.toString()
             this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
-            track.current.stop(t);
             this._sectionBeat = 0
-            onTrackResolve()
+            onTrackResolve(t)
             signal.removeEventListener('abort',onAbort)
             // this._pending.scheduledEvents.filter((v)=>v !== e)
           },forWhen)
@@ -895,19 +913,19 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           if(dt){
             this.state = 'transition'
           }
+
           nextTrack.volume.setValueAtTime(-72, t);
-          nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt)
-          nextTrack.start(t,whereFrom); 
-          
+          nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt);
           track.current.volume.setValueAtTime(track.volumeLimit, t);
-          track.current.volume.linearRampToValueAtTime(-72, t + dt)
-          track.current.stop(t + dt);
+          track.current.volume.linearRampToValueAtTime(-72, t + dt);   
+
+          nextTrack.start(t,whereFrom); 
 
           this._pending.actionRemainingBeats = Math.floor(dt / this._timingInfo.beatDuration)
           const transitionForWhen = (ToneTime(Transport.position).toSeconds() + dt)
          
-          scheduleEvent = Transport.scheduleOnce(()=>{
-            onTrackResolve()
+          scheduleEvent = Transport.scheduleOnce((t)=>{
+            onTrackResolve(t)
             signal.removeEventListener('abort',onAbort)
           },transitionForWhen)
           signal.addEventListener('abort',onAbort)
