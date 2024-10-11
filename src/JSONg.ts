@@ -466,8 +466,10 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
       })
     })
     this._dispatchParsePhase('done')
-    this.state = 'stopped';
     console.log("[JSONg] end loading audio ")
+    this._abort()
+    this._clear()
+    this._stop(toneNow())
   }
 
   //quit if there are no audio files to load
@@ -488,7 +490,7 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
   }) 
 
   if(toneBufferCheck){
-    console.log("ToneAudioBuffer loading phase")
+    // console.log("ToneAudioBuffer loading phase")
     this._sourceBuffers = (sources as {[key: string]: ToneAudioBuffer})
     onDone()
     return
@@ -502,7 +504,7 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
       buffers[key] = buf
     })
     this._sourceBuffers = buffers
-    console.log("[JSONg]",this._sourceBuffers)
+    // console.log("[JSONg]",this._sourceBuffers)
     onDone()
     return
   }
@@ -512,7 +514,7 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     return Promise.reject('no sources')
   }
   else if(Object.keys(manifestSourcePaths)?.length){
-    console.log('[JSONg] manifest sources', manifestSourcePaths);
+    // console.log('[JSONg] manifest sources', manifestSourcePaths);
     // begin parse after confirming that manifest is ok
     // and sources paths are ok
     this.state = 'loading';
@@ -520,7 +522,6 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     try{
       this._sourceBuffers = await fetchSources(manifestSourcePaths);
       onDone()
-      this.stop(false)
     }
     catch(error){
       this.state = null;
@@ -608,6 +609,7 @@ public async play(
   this._setMeterBeat(-1)
   this._sectionBeat = 0
   this._sectionLen = (beginning.region[1] - beginning.region[0]) * this._timingInfo.meter[0]
+  if(this._timingInfo.metronomeSchedule) Transport.clear(this._timingInfo.metronomeSchedule)
   this._timingInfo.metronomeSchedule = Transport.scheduleRepeat((t)=>{
     this._setMeterBeat((this._meterBeat + 1) % this._timingInfo.meter[0])
     if(this._sectionLen) 
@@ -630,7 +632,7 @@ public async play(
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
-  console.log("[JSONg] started from", startFrom)
+  console.log("[JSONg] started from index", startFrom)
   
   if(beginning.once){
     console.log("[JSONg] starting section once, continue")
@@ -723,6 +725,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   this._pending.increments = null
   this._pending.section = null
   this.state = 'playing'
+  console.log("[JSONg] continue resolved")
     // this._dispatchSectionChange();
   // if(loops) this.onSectionLoop(loops, nowIndex)
   // this.onSectionWillEnd([...nowIndex], nextTime)
@@ -770,25 +773,8 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
   }
 
   const doStop = (t: Time)=>{
-  
     signal.removeEventListener('abort',onCancelStop)
-    this._trackPlayers.forEach((p,i)=>{
-      try{
-          p.a.stop(t);
-          p.b.stop(t);
-          p.current = p.a
-      }catch(error){
-      }
-    })
-    Transport.stop(t)
-    Transport.cancel()
-    this.state = 'stopped'
-    this._dispatchSectionChanged()
-    this._sectionLastLaunchTime = null
-    this._sectionBeat = 0
-    this._pending.actionRemainingBeats = 0
-    this._pending.scheduledEvents = []
-    console.log("[JSONg] stopped")
+    this._stop(t)
     res(this._current)
   }
 
@@ -815,6 +801,26 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
 })
 }
 
+
+private _stop(t: Time){
+  this._trackPlayers.forEach((p,i)=>{
+    try{
+        p.a.stop(t);
+        p.b.stop(t);
+        p.current = p.a
+    }catch(error){
+    }
+  })
+  Transport.stop(t)
+  Transport.cancel()
+  this.state = 'stopped'
+  this._dispatchSectionChanged()
+  this._sectionLastLaunchTime = null
+  this._sectionBeat = 0
+  this._pending.actionRemainingBeats = 0
+  this._pending.scheduledEvents = []
+  console.log("[JSONg] stopped")
+}
 
 
 
