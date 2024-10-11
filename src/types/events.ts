@@ -4,35 +4,19 @@ import { PlayerState, PlayerSection } from "./player";
 
 
 
-
-export declare type TransportEventType = "timing"
 export class TransportEvent extends Event {
-  when: BarsBeatsSixteenths;
-  sectionBeat: number;
-  sectionBar: number;
-  sectionLen: number;
+  // when: BarsBeatsSixteenths;
+  beat?: [number, number];
+  //type: "click" | "section", when: BarsBeatsSixteenths, beat: number, len:number, bar: number
 
-  constructor(type: TransportEventType, when: BarsBeatsSixteenths, beat: number, len:number, bar: number){
-    super(type)
-    this.when = when;
-    this.sectionBar = bar
-    this.sectionLen = len
-    this.sectionBeat = beat
+  constructor(data: {type: 'click', } | {type: 'section', beat: [number,number], bar:number}){
+    super(data.type)
   }
 }
 
 
 
 
-
-export declare type SectionEventType =
-  "sectionQueue" | 
-  "sectionChange" |
-  "repeatQueue" |
-  "repeatLoop" |
-  "repeatFinish" |
-  "repeatBreak" |
-  "cancel"
 
 export class SectionEvent extends Event {
   /** A section that will take action */
@@ -44,7 +28,13 @@ export class SectionEvent extends Event {
   /** When was the change issued */
   now: BarsBeatsSixteenths;
   
-  constructor(type: SectionEventType, 
+  constructor(type: "sectionQueue" | 
+    "sectionChange" |
+    "repeatQueue" |
+    "repeatLoop" |
+    "repeatFinish" |
+    "repeatBreak" |
+    "cancel", 
       forWhen: BarsBeatsSixteenths, 
       when: BarsBeatsSixteenths, 
       to:PlayerSection | null, 
@@ -97,7 +87,7 @@ export class StateEvent extends Event{
 
 
 export interface JSONgEventsList {
-  'jsong': SectionEvent;
-  'transport': TransportEvent ;
+  'section': SectionEvent;
+  'transport': TransportEvent;
   'player': StateEvent ;
 }

@@ -114,8 +114,8 @@ export default class JSONg extends EventTarget{
   //State of the player and its property observer
   private _state:PlayerState = null;
   set state(value: PlayerState){
+    this.dispatchEvent(new StateEvent({type: 'state',now: value, prev: this._state}))
     this._state = value
-    //   this.onStateChange(value)
   }
   get state(): PlayerState{
     return this._state
@@ -290,6 +290,7 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
   try{
     await this.loadAudio(typeof options?.loadSound === 'object' ? options.loadSound : manifest.paths, origin)
     this.state = 'stopped'
+    console.log("[JSONg] loaded",manifest)
   }
   catch(e){
     this._state = null
@@ -688,7 +689,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   )
 
   // this._dispatchSectionQueue('0:0:0',this._current);
-  console.log("[JSONg] advance to next:",this._current.index, ">", nextSection.index)  
+  console.log("[JSONg] advancing to next:",this._current.index, ">", nextSection.index)  
 
   if(this.state === 'playing') 
     this.state = 'queue'
@@ -831,8 +832,8 @@ private _stop(t: Time){
  * */
 public cancel(){
   this._abort()
+  this._clear()
   this.state = 'playing'
-  // this._clear()
   // this.onSectionWillEnd([], when)
   // this.onSectionWillStart([],when)
   // this.onSectionCancelChange()
@@ -853,6 +854,8 @@ private _clear(){
   })
   this._pending.scheduledEvents = []
   this._pending.transportSchedule = null
+  this._pending.increments = null
+  this._pending.section = null
 }
 
 

@@ -142,6 +142,8 @@ export default function buildSections(
     _orderedEntries[i].next = _orderedEntries[nextIndex].index;
   }
 
+  structure.loopLimit = Infinity
+
   return structure as PlayerSectionGroup;
 }
 
