@@ -27,7 +27,7 @@ import {
   Gain,
   Volume,
 } from 'tone';
-import { NestedIndex } from './types/common'
+import { DataURIString, NestedIndex, URLString } from './types/common'
 import { prependURL } from './JSONg.paths'
 import { compileSourcePaths, fetchSources } from './JSONg.sources'
 
@@ -38,7 +38,12 @@ export default class JSONg extends EventTarget{
 
   
   //List of track involved with the song
-  private _tracksList!: JSONgTrack[];
+  private _tracksList!: { 
+    name: string;
+    source: string;
+  	db: number;
+    audioOffsetSeconds:number;
+  }[];
   get tracksList(){return this._tracksList}
 
   //Audio players and sources
@@ -266,7 +271,20 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
   this._timingInfo = manifest.timingInfo
   this._sections = manifest.sections
   this._beginning = manifest.beginning
-  this._tracksList = manifest.tracksList
+  this._tracksList = manifest.tracksList.map(t => {
+    if(typeof t === 'object') return {
+      name: t.name,
+      source: t.source || t.name,
+      db: t.db || 0,
+      audioOffsetSeconds: t.audioOffsetSeconds || 0
+    }
+    else return {
+      name: t,
+      source: t,
+      db: 0,
+      audioOffsetSeconds: 0
+    }
+  })
 
   const origin = options?.origin ? options.origin : manifest.origin
   try{
@@ -407,13 +425,14 @@ Promise<PlayerJSONg | undefined>
     tracksList,
     paths: sources,
     origin: baseURL,
+    manifest
   });
 }
   
 
 
 
-public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/'){
+public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/', offset?: number){
   this._dispatchParsePhase('audio')
   this._state = 'loading'
 
@@ -429,36 +448,9 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     // a.connect(filter)
     // b.connect(filter)
 
-    let info = {
-      name: '',
-      source: '',
-      volumeLimit: 0,
-    }
-    if(typeof track === 'string'){
-      info.source = track
-      info.name = track
-    }
-    else{
-      info.name = track.name
-      info.source = track.source ? track.source : track.name;
-      // filter.set({'Q': track.filter.resonance 
-      //   ? track.filter.resonance 
-      //   : (timingInfo?.filter?.resonance 
-      //     ? timingInfo?.filter?.resonance 
-      //     : 1
-      // )}) 
-      // filter.set({'rolloff': (
-      //   track?.filter?.rolloff 
-      //     ? track.filter.rolloff 
-      //     : (timingInfo?.filter?.rolloff 
-      //       ? timingInfo?.filter?.rolloff 
-      //       : -12
-      //     )  
-      // ) as FilterRollOff})
-    }
-
+    let offsetSeconds = offset || track.audioOffsetSeconds || 0
     trackPlayers.push({
-      ...info, a,b, current: a, lastLoopPlayerStartTime: 0, offset: 0
+      ...track, volumeLimit: track.db, a,b, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
     })
   }
   this._trackPlayers = trackPlayers
@@ -514,7 +506,6 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     onDone()
     return
   }
-
   const manifestSourcePaths = await compileSourcePaths(sources as JSONgDataSources, origin);
   if(!manifestSourcePaths){
     console.log('[JSONg] no sources listed in manifest', manifestSourcePaths);
@@ -901,8 +892,9 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
       return new Promise((trackResolve, trackReject)=>{
 
         const nextTrack = track.current === track.a ? track.b : track.a
-        nextTrack.loopStart = to.region[0]+'m';
-        nextTrack.loopEnd = to.region[1]+'m';
+
+        nextTrack.loopStart = ToneTime(to.region[0]+'m').toSeconds() + track.offset;
+        nextTrack.loopEnd = ToneTime(to.region[1]+'m').toSeconds() + track.offset;
         nextTrack.loop = true;
 
         const onTrackResolve = (time: number)=>{
@@ -936,7 +928,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
             track.a.volume.setValueAtTime(track.volumeLimit,t)
             track.b.volume.setValueAtTime(track.volumeLimit,t)
             try{
-            nextTrack.start(t,to.region[0]+'m');
+            nextTrack.start(t,nextTrack.loopStart);
             track.lastLoopPlayerStartTime = t
             // console.log("[schedule] standard schedule @",t,to);
             }
@@ -964,7 +956,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         if(transitionInfo.type === 'fade'){
           const t = toneNow()
           
-          const progress = this.getSectionProgress() || 0
+          const progress = this.getSectionProgress(track) || 0
 
           this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
           
@@ -1119,8 +1111,17 @@ public safeCallback(callback: ()=>void){
 }
 
 
-public getSectionProgress() {
-  const _track = this._trackPlayers[0]
+public getSectionProgress(track?: {
+  name: string;
+  source: string;
+  volumeLimit: number;
+  current: Player;
+  a: Player;
+  b: Player;
+  lastLoopPlayerStartTime: number;
+  offset: number;
+}) {
+  const _track = track || this._trackPlayers[0]
   if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return 0; // If the player hasn't started, progress is 0%
   const currentTime = toneNow() // Get the current time
   const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time

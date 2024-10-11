@@ -50,6 +50,7 @@ export type JSONgTrack = string | {
     name: string;
     source? : string;
 	db?: number;
+    audioOffsetSeconds?: number;
 }
 
 export type JSONgFlowInstruction = {
@@ -90,10 +91,7 @@ export type JSONgFlowEntry = (number | string | JSONgFlowInstruction) | JSONgFlo
  * Sources information
  */
 export  type JSONgDataSources = {
-    [key: string]: URLString | DataURIString | {
-        path: URLString | DataURIString,
-        audioOffsetSeconds?: number,
-    }
+    [key: string]: URLString | DataURIString
 }
 
 /**
