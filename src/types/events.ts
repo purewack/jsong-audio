@@ -1,74 +1,110 @@
 import { BarsBeatsSixteenths, Time as TimeUnit } from "tone/build/esm/core/type/Units"
-import { PlayerState, PlayerSection } from "./player";
+import { PlayerState, PlayerSection, PlayerIndex, PlayerSectionGroup } from "./player";
 
 
-
+export class ClickEvent extends Event {
+  value: [number, number];
+  constructor(value: [number, number]){
+    super('click')
+    this.value = value;
+  }
+}
 
 export class TransportEvent extends Event {
-  // when: BarsBeatsSixteenths;
-  beat?: [number, number];
-  //type: "click" | "section", when: BarsBeatsSixteenths, beat: number, len:number, bar: number
-
-  constructor(data: {type: 'click', } | {type: 'section', beat: [number,number], bar:number}){
-    super(data.type)
+  progress: [number, number];
+  bar: number;
+  countdown?: number;
+  constructor(value: [number, number], bar: number, countdown?: number){
+    super('transport')
+    this.progress = value;
+    this.bar = bar
+    this.countdown = countdown
   }
 }
 
-
-
-
-
-export class SectionEvent extends Event {
+export class QueueEvent extends Event {  
   /** A section that will take action */
-  to: PlayerSection | null;
+  to?: PlayerSection;
   /** A section that will be impacted by current section */
-  from: PlayerSection | null;
-  /** When will the change take place */
-  when: BarsBeatsSixteenths;
-  /** When was the change issued */
-  now: BarsBeatsSixteenths;
-  
-  constructor(type: "sectionQueue" | 
-    "sectionChange" |
-    "repeatQueue" |
-    "repeatLoop" |
-    "repeatFinish" |
-    "repeatBreak" |
-    "cancel", 
-      forWhen: BarsBeatsSixteenths, 
-      when: BarsBeatsSixteenths, 
-      to:PlayerSection | null, 
-      from: PlayerSection | null, 
-    ) {
-    
-    super(type);
-    this.to = to;
+  from?: PlayerSection;
+  constructor(
+    to:PlayerSection | undefined, 
+    from: PlayerSection | undefined
+  ){
+    super('queue')
+    this.to = to
+    this.from = from
+  }
+}
+
+export class CancelQueueEvent extends Event {
+  /** A section that will take action */
+  to?: PlayerSection;
+  /** A section that will be impacted by current section */
+  from?: PlayerSection;
+  constructor(
+    to:PlayerSection | undefined, 
+    from: PlayerSection | undefined
+  ){
+    super('cancel')
+    this.to = to
+    this.from = from
+  }
+}
+
+
+export class ChangeEvent extends Event {
+      /** A section that will take action */
+  to?: PlayerSection;
+  /** A section that will be impacted by current section */
+  from?: PlayerSection;
+
+  constructor(
+    to:PlayerSection | undefined, 
+    from: PlayerSection | undefined,  
+  ) {
+    super('change');
     this.from = from;
-    this.when = forWhen;
-    this.now = when;
+    this.to = to;
+  }
+}
+
+export class RepeatEvent extends Event {
+  group: PlayerSectionGroup;
+  counter: [number,number];
+
+  constructor(counter: [number,number], group: PlayerSectionGroup){
+    super('repeat')
+    this.group = group
+    this.counter = counter
+  }
+}
+
+export class LoopEvent extends Event {
+  group: PlayerSectionGroup;
+  constructor(group: PlayerSectionGroup){
+    super('loop')
+    this.group = group
   }
 }
 
 
 
-
-
+export declare type ParseOptions = "meta" | "timing" | "sections" | "tracks" |"audio" | "done"
+export interface ParseEventArgs {
+  type: "parse";
+  phase: ParseOptions;
+}
 export interface StateEventArgs {
   type: "state";
   now: PlayerState;
   prev: PlayerState;
 }
 
-export declare type ParseOptions = "meta" | "timing" | "sections" | "tracks" |"audio" | "done"
-export interface ParseEventArgs {
-  type: "parse";
-  parsing: ParseOptions;
-}
-
 export class StateEvent extends Event{
   stateOld?: PlayerState ;
   stateNow?: PlayerState;
-  parsing?: ParseOptions;
+  phase?: ParseOptions;
 
   constructor(args: StateEventArgs | ParseEventArgs)
   {
@@ -78,7 +114,7 @@ export class StateEvent extends Event{
       this.stateNow = args.now;
     }
     else if(args.type === "parse"){
-      this.parsing = args.parsing
+      this.phase = args.phase
     }
   }
 }
@@ -87,7 +123,14 @@ export class StateEvent extends Event{
 
 
 export interface JSONgEventsList {
-  'section': SectionEvent;
+  'player': StateEvent;
+
   'transport': TransportEvent;
-  'player': StateEvent ;
+  'click': ClickEvent;
+
+  'queue': QueueEvent;
+  'cancel': CancelQueueEvent;
+  'change': ChangeEvent;
+  'repeat': RepeatEvent;
+  'loop': LoopEvent;
 }
