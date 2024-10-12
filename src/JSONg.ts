@@ -614,7 +614,6 @@ public async play(
       this.dispatchEvent(new ClickEvent([this._meterBeat+1, this._timingInfo.meter[0]]))
       this.dispatchEvent(new TransportEvent(
         [this._sectionBeat+1, this._sectionLen],
-        0,
         this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
       ))
     })
