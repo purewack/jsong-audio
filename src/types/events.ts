@@ -3,10 +3,10 @@ import { PlayerState, PlayerSection, PlayerIndex, PlayerSectionGroup } from "./p
 
 
 export class ClickEvent extends Event {
-  value: [number, number];
+  current: [number, number];
   constructor(value: [number, number]){
     super('click')
-    this.value = value;
+    this.current = value;
   }
 }
 
@@ -123,7 +123,7 @@ export class StateEvent extends Event{
 
 
 export interface JSONgEventsList {
-  'player': StateEvent;
+  'state': StateEvent;
 
   'transport': TransportEvent;
   'click': ClickEvent;

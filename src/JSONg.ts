@@ -172,14 +172,14 @@ export default class JSONg extends EventTarget{
 
   addEventListener<K extends keyof JSONgEventsList>(
     type: K,
-    listener: (ev: JSONgEventsList[K] | Event) => any,
+    listener: (ev: JSONgEventsList[K] ) => any,
     options?: boolean | AddEventListenerOptions
   ): void {
     super.addEventListener(type, listener as EventListener, options);
   }
   removeEventListener<K extends keyof JSONgEventsList>(
     type: K,
-    listener: (ev: JSONgEventsList[K] | Event) => any,
+    listener: (ev: JSONgEventsList[K] ) => any,
     options?: boolean | AddEventListenerOptions
   ): void {
     super.removeEventListener(type, listener as EventListener, options);
@@ -239,7 +239,7 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
     throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   }
 
-  this._state = 'loading'
+  this.state ='loading'
   Transport.position = '0:0:0'
   Transport.bpm.value = manifest.timingInfo.bpm
   Transport.timeSignature = manifest.timingInfo.meter
@@ -283,7 +283,7 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
     console.log("[JSONg] loaded",manifest)
   }
   catch(e){
-    this._state = null
+    this.state =null
     throw e
   }
 }
@@ -320,7 +320,7 @@ Promise<PlayerJSONg | undefined>
     meta: ''
   };
 
-  this._state = 'parsing'
+  this.state ='parsing'
 
   this._dispatchParsePhase('timing')
   //meter, bpm and transport setup  
@@ -403,7 +403,7 @@ Promise<PlayerJSONg | undefined>
 
   const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSourcePaths : defaultSources
 
-  this._state = null
+  this.state =null
   this._dispatchParsePhase('done')
   console.log("[JSONg] end parsing manifest")
   return Promise.resolve({
@@ -425,7 +425,7 @@ Promise<PlayerJSONg | undefined>
 
 public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/', offset?: number){
   this._dispatchParsePhase('audio')
-  this._state = 'loading'
+  this.state ='loading'
 
   const trackPlayers = []
   for(const track of this._tracksList){
@@ -672,12 +672,12 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   const pos = Transport.position.toString()
   const from = this._current
   const {next: nextIndex, increments} =  getNextSectionIndex(this._sections, this._current.index)!
-  const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : nextIndex) as PlayerSection
+  const nextSection = getNestedIndex(this._sections, Array.isArray(breakout) ? breakout : (breakout ? this._current.next : nextIndex)) as PlayerSection
   if(!nextSection) {
     throw new Error("[JSONg] no next section available")
   }   
   
-  if(breakout){
+  if(typeof breakout === 'boolean' && breakout){
     this._pending.section = getNestedIndex(this._sections, this._current.next)
     this._pending.increments = null
   }
@@ -750,7 +750,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   else
   {
     const {next, increments} =  getNextSectionIndex(this._sections, this._current.index)!
-    const nextSection = getNestedIndex(this._sections, breakout ? this._current.next : next) as PlayerSection
+    const nextSection = getNestedIndex(this._sections, next) as PlayerSection
     if(nextSection) {
       this._next = nextSection
       this._increments = increments
@@ -850,6 +850,13 @@ private _stop(t: Time){
   this._sectionBeat = 0
   this._pending.actionRemainingBeats = 0
   this._pending.scheduledEvents = []
+  this.audioSafeCallback(()=>{
+    this.dispatchEvent(new ClickEvent([0, this._timingInfo.meter[0]]))
+    this.dispatchEvent(new TransportEvent(
+      [0, this._sectionLen],
+      0
+    ))
+  })
   console.log("[JSONg] stopped")
 }
 
