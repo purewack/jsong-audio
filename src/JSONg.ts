@@ -51,12 +51,20 @@ export default class JSONg extends EventTarget{
     name: string;
     source: string;
     volumeLimit: number;
+    output: Volume;
     current: Player;
     a: Player;
     b: Player;
     lastLoopPlayerStartTime: number;
     offset: number;
   }[]
+  get tracks() {
+    return this._trackPlayers.reduce((acc:{[key:string]: Volume},t) =>{
+      acc[t.name] = t.output
+      return acc
+    },{})
+  }
+
 
   //Available real audio buffers
   private _sourceBuffers!: {[key: string]: ToneAudioBuffer};
@@ -251,6 +259,8 @@ public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, load
       p.b.stop()
       p.a.disconnect()
       p.b.disconnect()
+      p.output.disconnect()
+      p.output.dispose()
       p.a.dispose()
       p.b.dispose()
     }
@@ -433,15 +443,17 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
     const b = new Player()
     a.volume.value = 0
     b.volume.value = 0
-    a.connect(this.output)
-    b.connect(this.output)
+    const out = new Volume()
+    a.connect(out)
+    b.connect(out)
+    out.connect(this.output)
     // const filter = new Filter(20000, "lowpass").toDestination()
     // a.connect(filter)
     // b.connect(filter)
 
     let offsetSeconds = offset || track.audioOffsetSeconds || 0
     trackPlayers.push({
-      ...track, volumeLimit: track.db, a,b, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
+      ...track, volumeLimit: track.db, a,b, output: out, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
     })
   }
   this._trackPlayers = trackPlayers
@@ -1062,32 +1074,32 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
 
 
 //================Effects===========
-public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0){
-  return new Promise((resolve, reject)=>{
-  if(!this.state) {
-    reject(); return;
-  }
-  let idx: number | null = null;
-  if(typeof trackIndex === 'string'){
-    this._trackPlayers?.forEach((o,i)=>{
-      if(o.name === trackIndex) idx = i
-    })
-    if(idx === null) {reject(); return; }
-  }
-  else if(typeof trackIndex === 'number'){
-    idx = trackIndex
-  }
-  else return
-  if(idx === null)  {reject(); return; }
+// public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0){
+//   return new Promise((resolve, reject)=>{
+//   if(!this.state) {
+//     reject(); return;
+//   }
+//   let idx: number | null = null;
+//   if(typeof trackIndex === 'string'){
+//     this._trackPlayers?.forEach((o,i)=>{
+//       if(o.name === trackIndex) idx = i
+//     })
+//     if(idx === null) {reject(); return; }
+//   }
+//   else if(typeof trackIndex === 'number'){
+//     idx = trackIndex
+//   }
+//   else return
+//   if(idx === null)  {reject(); return; }
   
-  this._trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
-  this._trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
+//   this._trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
+//   this._trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
   
-  Draw.schedule(() => {
-    resolve(trackIndex)
-  }, toneNow() + ToneTime(inTime).toSeconds());
-  })
-}
+//   Draw.schedule(() => {
+//     resolve(trackIndex)
+//   }, toneNow() + ToneTime(inTime).toSeconds());
+//   })
+// }
 
 // public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0){
 //   return new Promise((resolve, reject)=>{
@@ -1112,23 +1124,23 @@ public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeat
 //   })
 // }
 
-public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m'){
-  inIndexes?.forEach(i=>{
-    this.rampTrackVolume(i, 0,inTime)
-  })
-  if(!this.state) return
-  outIndexes?.forEach(i=>{
-    this.rampTrackVolume(i,-50,inTime)
-  }) 
-}
+// public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m'){
+//   inIndexes?.forEach(i=>{
+//     this.rampTrackVolume(i, 0,inTime)
+//   })
+//   if(!this.state) return
+//   outIndexes?.forEach(i=>{
+//     this.rampTrackVolume(i,-50,inTime)
+//   }) 
+// }
 
 public toggleMetronome(state?:boolean){
   let vol = this._timingInfo.metronome.db
   if(state !== undefined){
-    vol = state ? this._timingInfo.metronome.db : -200
+    this._metronome.volume.value = state ? vol : -200
   }
   else{
-    this._metronome.volume.value = this._metronome.volume.value < -100 ? this._timingInfo.metronome.db : -200
+    this._metronome.volume.value = this._metronome.volume.value < -100 ? vol: -200
   }
 }
 
