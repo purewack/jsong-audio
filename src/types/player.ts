@@ -77,6 +77,7 @@ export type PlayerManifest = {
         db: number;
         high: string;
         low: string;
+        enabled: boolean;
     };
   }
 }

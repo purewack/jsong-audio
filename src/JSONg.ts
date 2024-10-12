@@ -117,7 +117,7 @@ export default class JSONg extends EventTarget{
     meter: [number, number];
     grain: number;
     beatDuration: number;
-    metronome: {db: number, high: string, low: string};
+    metronome: {db: number, high: string, low: string, enabled: boolean};
     metronomeSchedule: number | null;
   }
   get timingInfo(){
@@ -218,7 +218,7 @@ export default class JSONg extends EventTarget{
           const metronome = new Synth()
           metronome.envelope.attack = 0;
           metronome.envelope.release = 0.05;
-          metronome.volume.value = options?.debug ? this._timingInfo.metronome.db : -200
+          metronome.volume.value = this._timingInfo.metronome.db
           metronome.connect(this.output)
           this._metronome = metronome
         })
@@ -327,7 +327,8 @@ Promise<PlayerJSONg | undefined>
   const _metro_def = {
     db: -6,
     high: 'G6',
-    low: 'G5'
+    low: 'G5',
+    enabled: false
   }
   const _metro = {..._metro_def}
 
@@ -622,7 +623,7 @@ public async play(
       this._pending.actionRemainingBeats -= 1
 
     const note = this._timingInfo.metronome[this._meterBeat === 0 ? 'high' : 'low']
-    if(this._timingInfo.metronome){
+    if(this._timingInfo.metronome && this._timingInfo.metronome.enabled){
       try{
         this._metronome.triggerAttackRelease(note,'64n',t);
       }
@@ -805,9 +806,16 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
     this._pending.scheduledEvents.forEach(e => {
       Transport.clear(e)
     })
+    this.audioSafeCallback(()=>{
+      this.dispatchEvent(new CancelQueueEvent(this._current,undefined))
+    })
+
   }
 
   const doStop = (t: Time)=>{
+    this.audioSafeCallback(()=>{
+      this.dispatchEvent(new ChangeEvent(this._current,undefined))
+    })
     signal.removeEventListener('abort',onCancelStop)
     this._stop(t)
     res(this._current)
@@ -822,6 +830,10 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
     ) as BarsBeatsSixteenths
     const when = ToneTime(next).toSeconds()
     
+    this.audioSafeCallback(()=>{
+      this.dispatchEvent(new QueueEvent(this._current,undefined))
+    })
+
     signal.addEventListener('abort',onCancelStop)
     console.log("[JSONg] stopping at",next)
     this._pending.scheduledEvents.push(Transport.scheduleOnce(doStop,next))
@@ -1125,13 +1137,8 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
 // }
 
 public toggleMetronome(state?:boolean){
-  let vol = this._timingInfo.metronome.db
-  if(state !== undefined){
-    this._metronome.volume.value = state ? vol : -200
-  }
-  else{
-    this._metronome.volume.value = this._metronome.volume.value < -100 ? vol: -200
-  }
+  this._timingInfo.metronome.enabled = state !== undefined ? state : !this._timingInfo.metronome.enabled ;
+  console.log("metro",this._timingInfo.metronome.enabled)
 }
 
 public isMute(){
