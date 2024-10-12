@@ -785,7 +785,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
 {
   if(this.state === null) return
-  if(this.state === 'stopped' || this.state === 'stopping' ) return
+  if(this.state === 'stopped' || (synced && this.state === 'stopping') ) return
 
   return new Promise((res,rej)=>{
   if(!this._current) {
@@ -1138,7 +1138,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
 
 public toggleMetronome(state?:boolean){
   this._timingInfo.metronome.enabled = state !== undefined ? state : !this._timingInfo.metronome.enabled ;
-  console.log("metro",this._timingInfo.metronome.enabled)
 }
 
 public isMute(){
