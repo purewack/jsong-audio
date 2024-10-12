@@ -1,14 +1,13 @@
-import { JSONgDataSources, JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgPlaybackInfo, JSONgTrack } from './types/jsong'
+import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata} from './types/jsong'
 import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest as PlayerJSONg, PlayerSourcePaths, PlayerAudioSources } from './types/player'
 import {beatTransportDelta, quanTime} from './util/timing'
 import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
 import {getNestedIndex, setNestedIndex} from './util/nestedIndex'
-// import {fetchSources, fetchSourcePaths } from './JSONg.sources'
-import fetchManifest, { isManifestValid } from './JSONg.manifest'
-import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
+import fetchManifest from './JSONg.manifest'
 import { JSONgEventsList, ParseOptions, StateEvent, TransportEvent, ClickEvent, QueueEvent, CancelQueueEvent, ChangeEvent, RepeatEvent, LoopEvent } from './types/events'
-
+import { compileSourcePaths, fetchSources } from './JSONg.sources'
+import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
 import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
 import {
   setContext,
@@ -17,19 +16,10 @@ import {
   start as toneStart,
   Player, 
   ToneAudioBuffer, 
-  Filter,
   Draw, 
-  Synth, Transport, FilterRollOff, Time as ToneTime, ToneAudioBuffers,
-  Timeline,
-  ToneEvent,
-  TransportTimeClass,
-  ToneAudioNode,
-  Gain,
+  Synth, Transport, Time as ToneTime,
   Volume,
 } from 'tone';
-import { DataURIString, NestedIndex, URLString } from './types/common'
-import { prependURL } from './JSONg.paths'
-import { compileSourcePaths, fetchSources } from './JSONg.sources'
 
 
 export default class JSONg extends EventTarget{
