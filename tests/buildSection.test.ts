@@ -6,7 +6,8 @@ const defaults = {
     "trackA",
     "trackB"
   ],
-  fadeDuration: 4
+  fadeDuration: 4,
+  beatsInMeasure: 4,
 };
 
 test("Build sections from flow with section options and multiple repeats", () => {

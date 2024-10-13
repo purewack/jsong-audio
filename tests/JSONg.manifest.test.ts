@@ -31,7 +31,8 @@ describe('JSONg parsing', () => {
         'C': [2, 3],
       },
     },
-    tracks: []
+    tracks: [],
+    sources: {}
   };
 
   describe('success conditions',()=>{

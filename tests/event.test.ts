@@ -1,6 +1,6 @@
 import {TransportEvent} from '../src/types/events'
 
-const ev = new TransportEvent("timing", '4:2',0,0,0)
+const ev = new TransportEvent([3,12])
 class Emmiter extends EventTarget {
   doTest(){
     this.dispatchEvent(ev)
@@ -12,16 +12,16 @@ const eventCallback = jest.fn( (e: any) => {
 })
 
 const emmiter = new Emmiter()
-emmiter.addEventListener('timing', eventCallback)
+emmiter.addEventListener('transport', eventCallback)
 
 test("Custom Event properties and types", () => {
-  expect(ev.type).toBe('timing')
-  expect(ev).toHaveProperty('when')
-  expect(ev.when).toBe('4:2')
+  expect(ev.type).toBe('transport')
+  expect(ev).toHaveProperty('progress')
+  expect(ev.progress).toStrictEqual([3,12])
 });
 
 test("Custom event emmition", ()=>{
   emmiter.doTest()
   expect(eventCallback).toHaveBeenCalled()
-  expect(returnedEvent).toHaveProperty('when')
+  expect(returnedEvent).toHaveProperty('progress')
 })
