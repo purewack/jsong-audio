@@ -374,7 +374,8 @@ Promise<PlayerJSONg | undefined>
       tracks: manifest.tracks.map(t => {
         if(typeof t === 'object') return t.name
         return t as string
-      })
+      }),
+      beatsInMeasure: timingInfo.meter[0]
     }
   );
   

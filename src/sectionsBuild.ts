@@ -14,7 +14,8 @@ export default function buildSections(
   sectionDefaults: {
     grain: number,
     tracks: string[],
-    fadeDuration: number
+    fadeDuration: number,
+    beatsInMeasure: number,
   })
 : PlayerSectionGroup {
 
@@ -88,8 +89,12 @@ export default function buildSections(
         if(typeof entry === "object"){ //JSONgFlowInstruction
           const split = splitSectionName(entry.name);
           newEntry.name = split.name;
-          newEntry.grain =  entry?.grain || sectionDefaults.grain
+          newEntry.grain =  entry?.grain !== undefined ? entry.grain : sectionDefaults.grain
           newEntry.once = entry?.once || split.once || false
+          if(newEntry.grain === 0){
+            newEntry.grain = map[newEntry.name][1] - map[newEntry.name][0]
+            newEntry.grain *= sectionDefaults.beatsInMeasure
+          }
           if(entry?.fade || split.fade) {
             if(split.fade || (typeof entry.fade === 'boolean' && entry.fade === true))
               allTracksFade()
