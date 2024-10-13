@@ -42,6 +42,7 @@ This `JSONg` object is instantiated with the `new` keyword and has the following
 
 - [`audioSafeCallback()`](#audiosafecallbackcallback-void)
 
+# Properties
 The following public properties are available for usage also:
 
 - ```ts
@@ -85,6 +86,7 @@ The following public properties are available for usage also:
     state: PlayerState
     ```
     This is the current state of the player, reflecting any actions that the player is about to take.
+    States are described in detail in [docs/LOGIC.md](../docs/LOGIC.md)
 
 - ```ts
     timingInfo: {
@@ -108,7 +110,9 @@ The following public properties are available for usage also:
     This is the main output node that is connected to the `AudioContext` output by default
 
 
-## File Loading
+# Functions
+
+## File loading
 
 ### `async parseManifest(file: string | JSONgManifestFile): Promise<PlayerJSONg | undefined>`
 
@@ -186,6 +190,8 @@ the stop will wait the appropriate amount of time according to the current secti
 ### `cancel()`
 This function will cancel any pending changes that are queued up
 
+## Timing
+
 ### `getProgression()`
 Returns serialised information about where in the song the player is.
 Details like the current section as well as the potential next section, which group repeat counters will be incremented, and the current group repeat counters.
@@ -229,6 +235,8 @@ Toggle the current metronome state or manually specify the metronome enable stat
 
 *Parameter: `state` - optional boolean to either turn of the metronome or turn off*
 
+## Other
+
 ### `isMute()`
 *Returns boolean whether the master output node is muted or not*
 
@@ -241,3 +249,106 @@ Explicitly mute the master `output` node with a 1 second fadein
 Used to schedule synchronized callbacks that alter the DOM or which can cause audio glitches
 *Parameter: callback callback is invoked at the correct time.*
 
+# Events
+
+The player is also capable of emitting several events, musically tied to the song. See [src/types/events.ts](../src/types/events.ts)
+
+```ts
+interface JSONgEventsList {
+  'state': StateEvent;
+
+  'transport': TransportEvent;
+  'click': ClickEvent;
+
+  'queue': QueueEvent;
+  'cancel': CancelQueueEvent;
+  'change': ChangeEvent;
+  'repeat': RepeatEvent;
+  'loop': LoopEvent;
+}
+```
+### Sample event handler
+```js
+
+const jsong = new JSONg("example.jsong")
+jsong.addEventListener("queue",(ev)=>{
+	console.log("Will change sections",ev.from, ev.to)
+	//do visual effects to signal upcoming changing of sections
+})
+jsong.addEventListener("change",(ev)=>{
+	console.log("Did change sections",ev.from, ev.to)
+	//stop effects on section change
+})
+
+jsong.play()
+setTimeout(async ()=>{
+	await jsong.play()
+	json.play()
+},1000)
+
+```
+
+The following shows the breakdown of event properties per event type.
+
+
+### StateEvent
+Used to signal any player state change, including when audio is loaded or a manifest is applied.
+```ts
+/** A section that will take action */
+to?: PlayerSection;
+/** A section that will be impacted by current section */
+from?: PlayerSection;
+```
+
+### TransportEvent
+Timing information regarding the current section. 
+```ts
+progress: [number, number]; // section beat / section beat count
+countdown?: number; // if action is queued, countdown in beats until next queue event takes place
+```
+
+### ClickEvent
+Metronome click events. Only fired when the player is playing music
+```ts
+current: [number, number]; // current beat / beats in a bar
+```
+
+### QueueEvent
+Shows what sections will change if not cancelled. The countdown to the actual action is in `TransportEvent`
+```ts
+/** A section that will take action */
+to?: PlayerSection;
+/** A section that will be impacted by current section */
+from?: PlayerSection;
+```
+
+### CancelQueueEvent 
+Shows which section transitions were cancelled
+```ts
+/** A section that will take action */
+to?: PlayerSection;
+/** A section that will be impacted by current section */
+from?: PlayerSection;
+```
+
+### ChangeEvent
+Shows which sections just changed
+```ts
+/** A section that will take action */
+to?: PlayerSection;
+/** A section that will be impacted by current section */
+from?: PlayerSection;
+```
+
+### RepeatEvent
+Shows which group just repeated from the last section to its first section
+```ts
+group: PlayerSectionGroup;
+counter: [number,number]; // current repeat count / repeat limit
+```
+
+### LoopEvent
+Shows which group has had its repeat counter expire / reach its limit.
+```ts
+group: PlayerSectionGroup;
+```
