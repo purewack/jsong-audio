@@ -5,7 +5,7 @@ import { JSONgFlowEntry, JSONgFlowInstruction, JSONgMetadata, JSONgTrack, JSONgV
  * Represents the possible states for a JSONg player.
  * 
  * - `null`: No media is loaded or the player is uninitialized.
- * - `"parsing"`: The player is currently parsing media information.
+ * - `"applying"`: The player is applying parsed media information.
  * - `"loading"`: The player is currently loading media buffers.
  * - `"stopped"`: Playback has been stopped and is ready to play media.
  * - `"playing"`: The player is actively playing media.
@@ -13,7 +13,7 @@ import { JSONgFlowEntry, JSONgFlowInstruction, JSONgMetadata, JSONgTrack, JSONgV
  * - `"transition"`: The player is transitioning from 'current' to 'next' sections if tracks are fading.
  * - `"stopping"`: The player is in the process of stopping playback.
  */
-export  type PlayerState = (null | "parsing" | "loading" |"stopped" | "playing" | "queue" | "continue" | "transition" | "stopping" )
+export  type PlayerState = (null | "applying" | "loading" |"stopped" | "playing" | "queue" | "continue" | "transition" | "stopping" )
 
 
 /**

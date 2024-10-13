@@ -1,11 +1,23 @@
 # Parsing from different states
 
-Circle shapes are player states.
+Available player states are:
+ - `null`: No media is loaded or the player is uninitialized.
+ - `"applying"`: The player is applying parsed media information.
+ - `"loading"`: The player is currently loading media buffers.
+ - `"stopped"`: Playback has been stopped and is ready to play media.
+ - `"playing"`: The player is actively playing media.
+ - `"queue"`: A next section is queued for playback. This state will revert to `playing` after the new section takes place.
+ - `"transition"`: The player is transitioning from 'current' to 'next' sections if tracks are fading.
+ - `"stopping"`: The player is in the process of stopping playback.
 
-Solid lines indicate automatic progression, dashed/dotted lines are user actions.
 
-The user can request to load a song at any time from any state of the player.
+In the following state diagrams:
+- circle shapes are player states.
+- Solid lines indicate automatic progression, dashed/dotted lines are user actions.
+- The user can request to load a song at any time from any state of the player.
 
+
+# Parse and load
 ```mermaid
 graph 
 	
@@ -146,31 +158,5 @@ graph BT
 	end
 ```
 
-# Sample usage
-```js
 
-const jsong = new JSONg("example.jsong")
-jsong.addEventListener("sectionQueue",queuedSection)
-jsong.addEventListener("sectionChange",changedSection)
-
-jsong.play()
-setTimeout(async ()=>{
-	await jsong.play()
-	json.play()
-},1000)
-
-
-
-
-function queuedSection(ev){
-	console.log("Will change sections",ev.from, ev.to)
-	//do visual effects to signal upcoming changing of sections
-}
-
-function changedSection(ev){
-	console.log("Did change sections",ev.from, ev.to)
-	//stop effects on section change
-}
-
-```
 

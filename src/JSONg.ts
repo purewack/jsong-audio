@@ -269,8 +269,8 @@ public async parseManifest(file: string | JSONgManifestFile):
 Promise<PlayerJSONg | undefined>
 {
 
+  if(this._state === 'applying') return
   if(this._state === 'loading') return
-  if(this._state === 'parsing') return
 
   // begin parse after confirming that manifest is ok
   // and sources paths are ok
@@ -296,10 +296,6 @@ Promise<PlayerJSONg | undefined>
     modified: 0,
     meta: ''
   };
-
-  const preState = this._state;
-  try{
-  this.state ='parsing'
 
   this._dispatchParsePhase('timing')
   //meter, bpm and transport setup  
@@ -399,11 +395,7 @@ Promise<PlayerJSONg | undefined>
     origin: baseURL,
     manifest
   });
-  }
-  catch(e){
-    this.state = preState
-    throw e
-  }
+
 }
   
 
@@ -423,7 +415,7 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
     throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   }
 
-  this.state ='loading'
+  this.state = 'applying'
   Transport.position = '0:0:0'
   Transport.bpm.value = manifest.timingInfo.bpm
   Transport.timeSignature = manifest.timingInfo.meter
