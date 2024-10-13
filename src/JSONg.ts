@@ -320,6 +320,8 @@ Promise<PlayerJSONg | undefined>
     meta: ''
   };
 
+  const preState = this._state;
+  try{
   this.state ='parsing'
 
   this._dispatchParsePhase('timing')
@@ -375,6 +377,7 @@ Promise<PlayerJSONg | undefined>
       })
     }
   );
+  
   const beginning = [...findStart(sections)];
   const flow = JSON.parse(JSON.stringify(manifest.playback.flow)) as JSONgFlowEntry[];
   // console.log("[manifest] sections",this._sections)
@@ -404,7 +407,6 @@ Promise<PlayerJSONg | undefined>
 
   const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSourcePaths : defaultSources
 
-  this.state =null
   this._dispatchParsePhase('done')
   console.log("[JSONg] end parsing manifest")
   return Promise.resolve({
@@ -419,6 +421,11 @@ Promise<PlayerJSONg | undefined>
     origin: baseURL,
     manifest
   });
+  }
+  catch(e){
+    this.state = preState
+    throw e
+  }
 }
   
 
