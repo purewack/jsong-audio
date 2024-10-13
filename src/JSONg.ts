@@ -98,7 +98,7 @@ export default class JSONg extends EventTarget{
 
   //State of the player and its property observer
   private _state:PlayerState = null;
-  set state(value: PlayerState){
+  private set state(value: PlayerState){
     this.dispatchEvent(new StateEvent({type: 'state',now: value, prev: this._state}))
     this._state = value
   }
@@ -118,14 +118,14 @@ export default class JSONg extends EventTarget{
     grain: number;
     beatDuration: number;
     metronome: {db: number, high: string, low: string, enabled: boolean};
-    metronomeSchedule: number | null;
   }
   get timingInfo(){
-    return {...this._timingInfo, metronomeSchedule: undefined}
+    return {...this._timingInfo}
   }
 
   //Transport and meter event handler
   private _metronome!: Synth;
+  private _metronomeSchedule?: number;
   private _meterBeat: number = 0
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
@@ -135,7 +135,7 @@ export default class JSONg extends EventTarget{
     const tr = Transport.position as BarsBeatsSixteenths
     }
   private updateSectionBeat(){
-    const progress = this.getSectionProgress()
+    const progress = this._getSectionProgress()
     this._sectionBeat = Math.floor(progress * this._sectionLen)
     
   }
@@ -162,6 +162,28 @@ export default class JSONg extends EventTarget{
       repeatCount: info.loopCurrent,
       repeatLimit: info.loopLimit
     }
+  }
+  public getSectionProgress(){
+    return this._sectionBeat / this._sectionLen
+  }
+  
+  private _getSectionProgress(track?: {
+    name: string;
+    source: string;
+    volumeLimit: number;
+    current: Player;
+    a: Player;
+    b: Player;
+    lastLoopPlayerStartTime: number;
+    offset: number;
+  }) {
+    const _track = track || this._trackPlayers[0]
+    if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return 0; // If the player hasn't started, progress is 0%
+    const currentTime = toneNow() // Get the current time
+    const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time
+    const loopDuration = ToneTime(_track.current.loopEnd).toSeconds() - ToneTime(_track.current.loopStart).toSeconds() ; // Loop duration in seconds
+    const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
+    return loopProgress
   }
 
 
@@ -233,7 +255,16 @@ export default class JSONg extends EventTarget{
 
 //==================Loader============
 
-
+/**
+ * This function allows you to pre process a manifest file in the background, 
+ * in order to check if the file is adequate for loading into the player. 
+ * This gives you the ability to preload the file as to not interrupt the player. 
+ * You can even preload several files and all their audio sources for hot-swapping them 
+ * without interrupting audio playback.
+ * 
+ * @param file - either a string or an already parsed JSON file as a JavaScript object.
+ * @returns `Promise` with a resulting JS object that contains all necessary details to load a song into the player. Use this later with the `useManifest` function.
+ */
 public async parseManifest(file: string | JSONgManifestFile): 
 Promise<PlayerJSONg | undefined>
 {
@@ -377,7 +408,16 @@ Promise<PlayerJSONg | undefined>
   
 
 
+/**
+ * This function uses pre-parsed manifest files in order to actually 
+ * load the player with music information. You can provide options which are there 
+ * to stop the default behaviour of trying to load audio sources from the manifest.
+ * You can manually create the appropriate audio buffers and either feed them later using 
+ * `useAudio` or provide them here using `options.loadSound`.
 
+ * @param manifest a JS object retured by a successful call to `parseManifest()`
+ * @param options an optional option set for directing the player on if / how to load audio sources. You can provide the origin url which is used as a base to fetch audio files from. You can also provide a whole object full of audio buffers to be used by the player
+ */
 public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
   if (!this.VERSION_SUPPORT.includes(manifest?.version)){
     throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
@@ -433,6 +473,20 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
   }
 }
 
+/**
+ * This section is used internally by `useManifest` as a default strategy to loading audio sources. 
+ * You can specify that `useManifest` should not load audio, and proceed to do so manually. 
+ * This is useful for other applications which could for example use Electron.js and load files that 
+ * are local on the user's machine.
+ * 
+ * @param sources  a set of key pair values, keys are track names as strings, values are either:
+ * - *a URL to the file, where the `origin` parameter is considered if provided*
+ * - *a `ToneAudioBuffer` which can also use a URL to fetch audio data* 
+ * - *an AudioBuffer that is manually loaded with the correct audio data, this is likely to be done using the player's [`AudioContext.decodeAudioData()`](https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData)*
+ * @param origin  a base URL host to fetch files from
+ * @param offset you can offset the audio source in seconds. This is useful if the audio file has silent `whitespace` at the beginning, which is often a case with mp3 files generated using cetrain encoders
+ * @returns 
+ */
 public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/', offset?: number){
   this._dispatchParsePhase('audio')
   const prevState = this._state
@@ -598,12 +652,15 @@ private _pending: {
 
 /**
  * Used to initiate the song playback.
+ * (*not applicable if player is already playing*)
+ * 
  * After the first call from stopped state, the player is put into a playing state.
  * Any subsequent calls to play will be ignored until in the `stopped` state again.
+ * 
  * @param from - You may play `from` any section or from the beginning if unspecified
  * @returns Promise - awaits the player to finish playing 
  * in the case that the beginning section has a `once` directive.
- * 
+
  * Throws on cancellation, i.e. the `stop` command
  */
 public async play(
@@ -625,8 +682,8 @@ public async play(
   this._setMeterBeat(-1)
   this._sectionBeat = 0
   this._sectionLen = (beginning.region[1] - beginning.region[0]) * this._timingInfo.meter[0]
-  if(this._timingInfo.metronomeSchedule) Transport.clear(this._timingInfo.metronomeSchedule)
-  this._timingInfo.metronomeSchedule = Transport.scheduleRepeat((t)=>{
+  if(this._metronomeSchedule) Transport.clear(this._metronomeSchedule)
+  this._metronomeSchedule = Transport.scheduleRepeat((t)=>{
     this._setMeterBeat((this._meterBeat + 1) % this._timingInfo.meter[0])
     
     if(this._sectionLen)
@@ -673,15 +730,15 @@ public async play(
 
 
 /**
- * Used to initiate the next section.
+ * Used to initiate the next section to advance to.
  * (*not applicable if player is stopped*)
  * @param breakout - if `breakout` is true, repeat rules do not apply, 
+ * You may also breakout to any section if `breakout` is a `PlayerIndex` or advance to the next logical section automatically if nothing is provided
+ * If forcing a different section and breaking up the natural progression, section repeat counter are not advanced
  * 
- * You may also continue `to` any section or advance to the next logical section automatically
+ * @returns `Promise` - fired when the player switches to the queued section*
  * 
- * If `to` is specified, repeat counters are ignored
- * @returns Promise - fired when the player switches to the queued section or throws if section schedule is cancelled
- */
+ * Throws on cancellation, i.e. the `stop` or `cancel` command**/
 public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
   //only schedule next section if in these states
   if(this.state !== 'playing') return
@@ -783,14 +840,6 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
   this.state = 'playing'
   console.log("[JSONg] continue resolved")
-    // this._dispatchSectionChange();
-  // if(loops) this.onSectionLoop(loops, nowIndex)
-  // this.onSectionWillEnd([...nowIndex], nextTime)
-  // this.onSectionWillStart([...nextIndex], nextTime)
-  // this.onSectionChange([...nowIndex], [...nextIndex]);
-  // this.onSectionDidEnd([...nowIndex])
-  // this.onSectionDidStart([...nextIndex])
-  // this._sectionLastLaunchTime = Transport.position as BarsBeatsSixteenths
 }
 
 
@@ -799,11 +848,18 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
 
 
-
-
-
-
-public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
+/**
+ * This stop audio playback
+ * (*not applicable if player is not already playing*)
+ * 
+ * This function also cancels any pending changes.
+ * You may specify that the stop occur abruptly via `synced = false`, otherwise
+ * the stop will wait the appropriate amount of time according to the current section directives.
+ * 
+ * @param synced - if false, stop is immediate
+ * @returns `Promise` - resolved when the stop takes place*
+ */
+public async stop(synced: boolean = true)  : Promise<void>
 {
   if(this.state === null) return
   if(this.state === 'stopped' || (synced && this.state === 'stopping') ) return
@@ -839,7 +895,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
     })
     signal.removeEventListener('abort',onCancelStop)
     this._stop(t)
-    res(this._current)
+    res()
   }
 
   if(synced){
@@ -863,7 +919,7 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
   }else {
     signal.addEventListener('abort',onCancelStop)
     doStop(toneNow())
-    res(this._current)
+    res()
   }
 })
 }
@@ -1037,7 +1093,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         if(transitionInfo.type === 'fade'){
           const t = toneNow()
           
-          const progress = this.getSectionProgress(track) || 0
+          const progress = this._getSectionProgress(track) || 0
 
           this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
           
@@ -1094,81 +1150,34 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
 
 
 
-
-
-//================Effects===========
-// public rampTrackVolume(trackIndex: string | number, db: number, inTime: BarsBeatsSixteenths | Time = 0){
-//   return new Promise((resolve, reject)=>{
-//   if(!this.state) {
-//     reject(); return;
-//   }
-//   let idx: number | null = null;
-//   if(typeof trackIndex === 'string'){
-//     this._trackPlayers?.forEach((o,i)=>{
-//       if(o.name === trackIndex) idx = i
-//     })
-//     if(idx === null) {reject(); return; }
-//   }
-//   else if(typeof trackIndex === 'number'){
-//     idx = trackIndex
-//   }
-//   else return
-//   if(idx === null)  {reject(); return; }
-  
-//   this._trackPlayers[idx].a.volume.linearRampTo(db,inTime, '@4n')
-//   this._trackPlayers[idx].b.volume.linearRampTo(db,inTime, '@4n')
-  
-//   Draw.schedule(() => {
-//     resolve(trackIndex)
-//   }, toneNow() + ToneTime(inTime).toSeconds());
-//   })
-// }
-
-// public rampTrackFilter(trackIndex: string | number, percentage: number, inTime: BarsBeatsSixteenths | Time = 0){
-//   return new Promise((resolve, reject)=>{
-//   if(!this.state) {reject(); return; }
-//   let idx: number | null = null;
-//   if(typeof trackIndex === 'string'){
-//     this._trackPlayers?.forEach((o,i)=>{
-//       if(o.name === trackIndex) idx = i
-//     })
-//     if(idx === null) {reject(); return; }
-//   }
-//   else if(typeof trackIndex === 'number'){
-//     idx = trackIndex
-//   }
-//   else {reject(); return; }
-//   if(idx === null) {reject(); return; };
-
-//   this._trackPlayers[idx].filter.frequency.linearRampTo(100 + (percentage * 19900), inTime, '@4n')
-//   Draw.schedule(() => {
-//     resolve(trackIndex)
-//   }, toneNow() + ToneTime(inTime).toSeconds());
-//   })
-// }
-
-// public crossFadeTracks(outIndexes: (string | number)[], inIndexes: (string | number)[], inTime: BarsBeatsSixteenths | Time = '1m'){
-//   inIndexes?.forEach(i=>{
-//     this.rampTrackVolume(i, 0,inTime)
-//   })
-//   if(!this.state) return
-//   outIndexes?.forEach(i=>{
-//     this.rampTrackVolume(i,-50,inTime)
-//   }) 
-// }
-
+/**
+ * 
+Toggle the current metronome state or manually specify the metronome enable state
+ * @param state optional explicit state
+ */
 public toggleMetronome(state?:boolean){
   this._timingInfo.metronome.enabled = state !== undefined ? state : !this._timingInfo.metronome.enabled ;
 }
 
+/**
+ * @returns boolean whether the master output node is muted or not
+ */
 public isMute(){
   return this.output.volume.value >= -200;
 }
 
+/**
+ * Explicitly mute the master `output` node with a 1 second fadeout
+ */
 public mute(){
   this.output.volume.linearRampToValueAtTime(-Infinity,'+1s');
 }
 
+/**
+ * Explicitly unmute the master `output` node with a 1 second fadeout
+ * 
+ * @param [value=0] specify the db value to raise the volume to 
+ */
 public unmute(value:number = 0){
   this.output.volume.linearRampToValueAtTime(value,'+1s');
 }
@@ -1180,41 +1189,14 @@ public unmute(value:number = 0){
 
 
 //========other===========
+/**
+ * Used to schedule synchronized callbacks that alter the DOM or which can cause audio glitches
+ * @param callback callback is invoked at the correct time. 
+ */
 public audioSafeCallback(callback: ()=>void){
   Draw.schedule(callback,toneNow());
 }
 
 
-public getSectionProgress(track?: {
-  name: string;
-  source: string;
-  volumeLimit: number;
-  current: Player;
-  a: Player;
-  b: Player;
-  lastLoopPlayerStartTime: number;
-  offset: number;
-}) {
-  const _track = track || this._trackPlayers[0]
-  if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return 0; // If the player hasn't started, progress is 0%
-  const currentTime = toneNow() // Get the current time
-  const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time
-  const loopDuration = ToneTime(_track.current.loopEnd).toSeconds() - ToneTime(_track.current.loopStart).toSeconds() ; // Loop duration in seconds
-  const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
-  return loopProgress
-}
-
-public get(key: string):any{
-  switch(key){
-    case 'timeline':
-      return Transport.position.toString()
-
-    case 'players':
-      return this._trackPlayers
-    
-    default:
-      return undefined
-  }
-}
 
 }

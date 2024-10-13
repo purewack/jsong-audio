@@ -1,5 +1,4 @@
-import { BarsBeatsSixteenths, Time as TimeUnit } from "tone/build/esm/core/type/Units"
-import { PlayerState, PlayerSection, PlayerIndex, PlayerSectionGroup } from "./player";
+import { PlayerState, PlayerSection, PlayerSectionGroup } from "./player";
 
 
 export class ClickEvent extends Event {

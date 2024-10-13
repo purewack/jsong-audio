@@ -1,7 +1,7 @@
 // Helper types
 
 /**
- * This type is for referring to a FlowValue nested index.
+ * This type is for referring to a NestedIndex nested index.
  * See `MANIFEST.md`
  */
 export  type NestedIndex = (number | string)[]

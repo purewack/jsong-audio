@@ -1,8 +1,14 @@
-# Layout of *.jsong Manifest file
-```
+# .jsong Manifest file - version J/1
+
+All type information about how to write the file manually can be found in [src/types/jsong.ts](../src/types/jsong.ts)
+This is the root of the file.
+a .jsong file is really just a .json file. This fact also makes it possible to load standard .json files into the player. The requirement is that the `type:jsong` is specified and that these required sections are provided. 
+The actual json file can contain extra unrelated information, or even several other jsong song, but those would need to be pre-parsed manually and split into individual objects to be passed to the player later.
+
+```json
 {
     "type": "jsong",
-    "jsongVersion":"0.0.1",
+    "version":"J/1",
     "meta": {...},
     "playback" :{
         "map": {},
@@ -13,56 +19,55 @@
 }
 ```
 
+
 # File Information
 
-```
+```json
 "type": "jsong",
-"jsongVersion":"0.0.1",
+"version":"J/1",
 ```
 > File type and version identifier
 
 # Metadata Information
 
 *Location in file*
-```
+```json
 {
     "meta": {...}
 }
 ```
 
 *Example definition*
-```
+```json
   "meta": {
     "title": "Test",
     "author": "Damian Nowacki",
-    "createdOn" : "20230325",
-    "timestamp" : "1679741210",
-    "projectVersion": "1.0.0",
-    "createdUsing": "melonjuice"
+    "created" : "20230325",
+    "modified" : "1679741210",
+    "version": "1.0.0",
+    "createdUsing": "melonjuice",
+    "meta": "extra metadata information or description..."
   },
 ```
 > Song title and creator details.
 
-> `"createdUsing"` is used by the parser internally to determine what editor was used to generate the file, typically the melonJuice generator
-
 # Playback Information
 
 *Location in file*
-```
+```json
 {
     "playback": {...}
 }
 ```
 
 *Example definition*
-```
+```json
 "playback" : {
     "bpm": 95.0,
     "meter": [4, 4],
-    "totalMeasures": 56,
     "grain": 4,
-    "metronome": ["B5","G4"],
-    "metronomeDB": -8,
+    "metronome": {"high":"B5","low":"G4"},
+    "audioOffsetSeconds": 0.049;
     "map": {},
     "flow": []
 }
@@ -84,9 +89,8 @@
 
 ## Map
 
-
- *Location in file*
- ```
+*Location in file*
+```json
   {
     "playback": {
         "map": {...}
@@ -95,17 +99,11 @@
 ```
 
 *Example definition*
-```
+```json
 "map": {
-    "intro" : { "region": [0, 8]},
-    "chorus" : { "region": [8, 24], "grain": 8},
-    "verse1" : { "region": [24, 32], "grain": 4},
-    "bridge1" : { "region": [32, 40], "grain": 4},
-    "verse2" : { "region": [40, 48], "grain": 4, "legato": 4}
-    "verse3" : { "region": [40, 48], "grain": 4, "legato": {
-        "duration": 8,
-        "xfades": ["guitar", "lead"]
-    }}
+    "intro" : [0, 8],
+    "chorus" : [8, 24],
+    "verse1" : [24, 32],
 },
 ```
 > `"region"` : `Array [Number, Number]` - defines a loop area for a section, start and end points are measured in bars. 
@@ -121,7 +119,7 @@ This property can also be an object with specific definition of which tracks sho
 ## Flow
 
 *Location in file*
-```
+```json
 {
     "playback": {
         "flow": [...]
@@ -130,7 +128,7 @@ This property can also be an object with specific definition of which tracks sho
 ```
 
 *Example definition*
-```
+```json
 "flow": [
     "intro", 
     "chorus", 
@@ -145,14 +143,14 @@ This property can also be an object with specific definition of which tracks sho
 ## Tracks
 
 *Location in file*
-```
+```json
 {
     "tracks": [ {} , ... ]
 }
 ```
 
 ### Track data entry
-```
+```json
 {
 	"name": "drums",
 	"volumeDB": 0,
@@ -168,7 +166,7 @@ This property can also be an object with specific definition of which tracks sho
 ## Sources 
 
 *Location in file*
-```
+```json
 {
     "sources": {
         bufferID : data
@@ -177,7 +175,7 @@ This property can also be an object with specific definition of which tracks sho
 ```
 
 *Example definition*
-```
+```json
 {
     "lnkwgpyh" : "./bass.mp3",
     "lnkwgpyo" : "drum.mp3",
