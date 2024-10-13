@@ -211,7 +211,7 @@ export default class JSONg extends EventTarget{
         if(path) this.parseManifest(path).then((manifest)=>{
           if(!manifest) throw new Error("[JSONg] Invalid manifest preload")
 
-          this.loadManifest(manifest) 
+          this.useManifest(manifest) 
           options?.onload?.()
           console.log("[JSONg] new jsong player created");
 
@@ -232,61 +232,7 @@ export default class JSONg extends EventTarget{
   }
 
 //==================Loader============
-public async loadManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
-  if (!this.VERSION_SUPPORT.includes(manifest?.version)){
-    throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
-  }
 
-  this.state ='loading'
-  Transport.position = '0:0:0'
-  Transport.bpm.value = manifest.timingInfo.bpm
-  Transport.timeSignature = manifest.timingInfo.meter
-  this._setMeterBeat(-1)
-  
-  try{
-    for(const p of this._trackPlayers){
-      p.a.stop()
-      p.b.stop()
-      p.a.disconnect()
-      p.b.disconnect()
-      p.output.disconnect()
-      p.output.dispose()
-      p.a.dispose()
-      p.b.dispose()
-    }
-  }
-  catch{}
-
-  
-  this._timingInfo = manifest.timingInfo
-  this._sections = manifest.sections
-  this._beginning = manifest.beginning
-  this._tracksList = manifest.tracksList.map(t => {
-    if(typeof t === 'object') return {
-      name: t.name,
-      source: t.source || t.name,
-      db: t.db || 0,
-      audioOffsetSeconds: t.audioOffsetSeconds || 0
-    }
-    else return {
-      name: t,
-      source: t,
-      db: 0,
-      audioOffsetSeconds: 0
-    }
-  })
-
-  const origin = options?.origin ? options.origin : manifest.origin
-  try{
-    await this.loadAudio(typeof options?.loadSound === 'object' ? options.loadSound : manifest.paths, origin)
-    this.state = 'stopped'
-    console.log("[JSONg] loaded",manifest)
-  }
-  catch(e){
-    this.state =null
-    throw e
-  }
-}
 
 public async parseManifest(file: string | JSONgManifestFile): 
 Promise<PlayerJSONg | undefined>
@@ -432,32 +378,99 @@ Promise<PlayerJSONg | undefined>
 
 
 
-public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/', offset?: number){
+public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
+  if (!this.VERSION_SUPPORT.includes(manifest?.version)){
+    throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
+  }
+
+  this.state ='loading'
+  Transport.position = '0:0:0'
+  Transport.bpm.value = manifest.timingInfo.bpm
+  Transport.timeSignature = manifest.timingInfo.meter
+  this._setMeterBeat(-1)
+  
+  this._stop(toneNow())
+  try{
+    for(const p of this._trackPlayers){
+      p.a.disconnect()
+      p.b.disconnect()
+      p.output.disconnect()
+      p.output.dispose()
+      p.a.dispose()
+      p.b.dispose()
+    }
+  }
+  catch{}
+
+  
+  this._timingInfo = manifest.timingInfo
+  this._sections = manifest.sections
+  this._beginning = manifest.beginning
+  this._tracksList = manifest.tracksList.map(t => {
+    if(typeof t === 'object') return {
+      name: t.name,
+      source: t.source || t.name,
+      db: t.db || 0,
+      audioOffsetSeconds: t.audioOffsetSeconds || 0
+    }
+    else return {
+      name: t,
+      source: t,
+      db: 0,
+      audioOffsetSeconds: 0
+    }
+  })
+
+  const origin = options?.origin ? options.origin : manifest.origin
+  try{
+    await this.useAudio(typeof options?.loadSound === 'object' ? options.loadSound : manifest.paths, origin)
+    this.state = 'stopped'
+    console.log("[JSONg] loaded",manifest)
+  }
+  catch(e){
+    this.state =null
+    throw e
+  }
+}
+
+public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: string = '/', offset?: number){
   this._dispatchParsePhase('audio')
+  const prevState = this._state
   this.state ='loading'
 
-  const trackPlayers = []
-  for(const track of this._tracksList){
-    const a = new Player()
-    const b = new Player()
-    a.volume.value = 0
-    b.volume.value = 0
-    const out = new Volume()
-    a.connect(out)
-    b.connect(out)
-    out.connect(this.output)
-    // const filter = new Filter(20000, "lowpass").toDestination()
-    // a.connect(filter)
-    // b.connect(filter)
+  const onDone = ()=>{ 
+    this._stop(toneNow())
+    try{
+      for(const p of this._trackPlayers){
+        p.a.disconnect()
+        p.b.disconnect()
+        p.output.disconnect()
+        p.output.dispose()
+        p.a.dispose()
+        p.b.dispose()
+      }
+    }
+    catch{}
+    
+    const trackPlayers = []
+    for(const track of this._tracksList){
+      const a = new Player()
+      const b = new Player()
+      a.volume.value = 0
+      b.volume.value = 0
+      const out = new Volume()
+      a.connect(out)
+      b.connect(out)
+      out.connect(this.output)
 
-    let offsetSeconds = offset || track.audioOffsetSeconds || 0
-    trackPlayers.push({
-      ...track, volumeLimit: track.db, a,b, output: out, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
-    })
-  }
-  this._trackPlayers = trackPlayers
+      let offsetSeconds = offset || track.audioOffsetSeconds || 0
+      trackPlayers.push({
+        ...track, volumeLimit: track.db, a,b, output: out, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
+      })
+    }
+    this._trackPlayers = trackPlayers
+   
 
-  const onDone = ()=>{
     Object.keys(sources).forEach((src)=>{
       this._trackPlayers.forEach(tr => {
         if(tr.name === src){
@@ -477,7 +490,8 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
   //quit if there are no audio files to load
   if(!sources || !Object.keys(sources).length) {
     console.log("[JSONg] end - no sources",sources)
-    return Promise.resolve()
+    this.state = prevState
+    return
   }
 
   let toneBufferCheck = false
@@ -526,7 +540,7 @@ public async loadAudio(sources: JSONgDataSources | PlayerAudioSources, origin: s
       onDone()
     }
     catch(error){
-      this.state = null;
+      this.state = null
       console.error('[JSONg]',manifestSourcePaths)
       console.error(new Error('[JSONg] error fetching data'))
       throw error
@@ -856,14 +870,14 @@ public async stop(synced: boolean = true)  : Promise<PlayerSection | undefined>
 
 
 private _stop(t: Time){
-  this._trackPlayers.forEach((p,i)=>{
-    try{
-        p.a.stop(t);
-        p.b.stop(t);
-        p.current = p.a
-    }catch(error){
-    }
-  })
+  try{
+    this._trackPlayers.forEach((p,i)=>{
+          p.a.stop(t);
+          p.b.stop(t);
+          p.current = p.a
+    })
+  }catch(error){}
+
   Transport.stop(t)
   Transport.cancel()
   this.state = 'stopped'
