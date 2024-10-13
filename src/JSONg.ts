@@ -510,9 +510,9 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
     for(const track of this._tracksList){
       const a = new Player()
       const b = new Player()
-      a.volume.value = 0
-      b.volume.value = 0
       const out = new Volume()
+      a.volume.value = track.db
+      b.volume.value = track.db
       a.connect(out)
       b.connect(out)
       out.connect(this.output)
