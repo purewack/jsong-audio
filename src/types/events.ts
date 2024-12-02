@@ -87,40 +87,51 @@ export class LoopEvent extends Event {
 
 
 
-export declare type ParseOptions = "meta" | "timing" | "sections" | "tracks" |"audio" | "done"
+export declare type ParseOptions = null 
+  | "meta" | "done-meta" 
+  | "timing" | "done-timing"
+  | "sections" | "done-sections"
+  | "tracks" | "done-tracks"
+  |"audio" | "done-audio"
 export interface ParseEventArgs {
-  type: "parse";
-  phase: ParseOptions;
+  now: ParseOptions;
+  prev: ParseOptions;
 }
 export interface StateEventArgs {
-  type: "state";
   now: PlayerState;
   prev: PlayerState;
 }
 
 export class StateEvent extends Event{
-  stateOld?: PlayerState ;
-  stateNow?: PlayerState;
-  phase?: ParseOptions;
+  stateOld: PlayerState ;
+  stateNow: PlayerState;
 
-  constructor(args: StateEventArgs | ParseEventArgs)
+  constructor(args: StateEventArgs )
   {
-    super(args.type)
-    if(args.type === "state"){
+    super('state')
       this.stateOld = args.prev;
       this.stateNow = args.now;
-    }
-    else if(args.type === "parse"){
-      this.phase = args.phase
-    }
+    
+  }
+}
+export class ParseEvent extends Event {
+  phase: ParseOptions;
+  phasePrev: ParseOptions;
+
+  constructor(args: ParseEventArgs )
+  {
+    super('parse')
+      this.phasePrev = args.prev;
+      this.phase = args.now;
+    
   }
 }
 
 
 
-
 export interface JSONgEventsList {
   'state': StateEvent;
+  'parse': ParseEvent;
 
   'transport': TransportEvent;
   'click': ClickEvent;

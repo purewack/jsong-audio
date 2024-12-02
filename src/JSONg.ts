@@ -5,7 +5,7 @@ import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigati
 import buildSections from './sectionsBuild'
 import {getNestedIndex, setNestedIndex} from './util/nestedIndex'
 import fetchManifest from './JSONg.manifest'
-import { JSONgEventsList, ParseOptions, StateEvent, TransportEvent, ClickEvent, QueueEvent, CancelQueueEvent, ChangeEvent, RepeatEvent, LoopEvent } from './types/events'
+import { JSONgEventsList, ParseOptions, StateEvent, TransportEvent, ClickEvent, QueueEvent, CancelQueueEvent, ChangeEvent, RepeatEvent, LoopEvent, ParseEvent } from './types/events'
 import { compileSourcePaths, fetchSources } from './JSONg.sources'
 import { AnyAudioContext } from 'tone/build/esm/core/context/AudioContext'
 import { BarsBeatsSixteenths, Time } from "tone/build/esm/core/type/Units"
@@ -100,7 +100,7 @@ export default class JSONg extends EventTarget{
   //State of the player and its property observer
   private _state:PlayerState = null;
   private set state(value: PlayerState){
-    this.dispatchEvent(new StateEvent({type: 'state',now: value, prev: this._state}))
+    this.dispatchEvent(new StateEvent({now: value, prev: this._state}))
     this._state = value
   }
   get state(): PlayerState{
@@ -206,8 +206,10 @@ export default class JSONg extends EventTarget{
     super.removeEventListener(type, listener as EventListener, options);
   } 
   
+  private _parsePhaseOld: ParseOptions = null;
   private _dispatchParsePhase(parsing: ParseOptions){
-    this.dispatchEvent(new StateEvent({type: 'parse', phase: parsing}))
+    this.dispatchEvent(new ParseEvent({now: parsing, prev: this._parsePhaseOld}))
+    this._parsePhaseOld = parsing;
   }
 
 
@@ -299,6 +301,7 @@ Promise<PlayerJSONg | undefined>
     meta: ''
   };
 
+  this._dispatchParsePhase('done-meta')
   this._dispatchParsePhase('timing')
   //meter, bpm and transport setup  
   const _metro_def = {
@@ -336,8 +339,7 @@ Promise<PlayerJSONg | undefined>
     metronome: _metro
   }
 
-
-
+  this._dispatchParsePhase('done-timing')
   this._dispatchParsePhase('sections')
   //build sections
   const sections = buildSections(
@@ -360,7 +362,7 @@ Promise<PlayerJSONg | undefined>
   // console.log("[manifest] flow",this._flow)
   // console.log("[manifest] start",this._beginning)
   
-
+  this._dispatchParsePhase('done-sections')
   //convert all regions to seconds
   this._dispatchParsePhase('tracks')
 
@@ -383,7 +385,7 @@ Promise<PlayerJSONg | undefined>
 
   const sources = (typeof manifest.sources && typeof manifest.sources === 'object') ? {...manifest.sources} as PlayerSourcePaths : defaultSources
 
-  this._dispatchParsePhase('done')
+  this._dispatchParsePhase('done-tracks')
   if(this.verbose) console.log("[JSONg] end parsing manifest")
   return Promise.resolve({
     version: manifest.version,
@@ -528,7 +530,7 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
         }
       })
     })
-    this._dispatchParsePhase('done')
+    this._dispatchParsePhase('done-audio')
     if(this.verbose) console.log("[JSONg] end loading audio ")
     this._abort()
     this._clear()
