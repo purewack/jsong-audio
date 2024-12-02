@@ -234,20 +234,20 @@ export default class JSONg extends EventTarget{
 
     try{
       toneStart().then(()=>{
+        const metronome = new Synth()
+        metronome.envelope.attack = 0;
+        metronome.envelope.release = 0.05;
+        metronome.volume.value = -6
+        metronome.connect(this.output)
+        this._metronome = metronome
+        
         if(path) this.parseManifest(path).then((manifest)=>{
           if(!manifest) throw new Error("[JSONg] Invalid manifest preload")
 
           this.useManifest(manifest) 
           options?.onload?.()
-          if(this.verbose) console.log("[JSONg] new jsong player created");
-
-          const metronome = new Synth()
-          metronome.envelope.attack = 0;
-          metronome.envelope.release = 0.05;
-          metronome.volume.value = this._timingInfo.metronome.db
-          metronome.connect(this.output)
-          this._metronome = metronome
         })
+        if(this.verbose) console.log("[JSONg] new jsong player created");
       })
     }
     catch{}
@@ -269,7 +269,7 @@ export default class JSONg extends EventTarget{
  * @param file - either a string or an already parsed JSON file as a JavaScript object.
  * @returns `Promise` with a resulting JS object that contains all necessary details to load a song into the player. Use this later with the `useManifest` function.
  */
-public async parseManifest(file: string | JSONgManifestFile): 
+public async parseManifest(file: string | JSONgManifestFile ): 
 Promise<PlayerJSONg | undefined>
 {
 
@@ -438,7 +438,7 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
   }
   catch{}
 
-  
+  this._metronome.volume.value = manifest.timingInfo.metronome.db || -6
   this._timingInfo = manifest.timingInfo
   this._sections = manifest.sections
   this._beginning = manifest.beginning
@@ -701,7 +701,9 @@ public async play(
       try{
         this._metronome.triggerAttackRelease(note,'64n',t);
       }
-      catch(e){}
+      catch(e){
+        console.error(e)
+      }
     }
   },this._timingInfo.meter[1] + 'n');
 
