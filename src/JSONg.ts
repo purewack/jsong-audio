@@ -35,13 +35,14 @@ export default class JSONg extends EventTarget{
   	db: number;
     audioOffsetSeconds:number;
   }[];
-  get tracksList(){return this._tracksList}
+  get trackList(){return this._tracksList}
 
   //Audio players and sources
   private _trackPlayers!:  {
     name: string;
     source: string;
     volumeLimit: number;
+    volumeControl: Volume;
     output: Volume;
     current: Player;
     a: Player;
@@ -49,7 +50,13 @@ export default class JSONg extends EventTarget{
     lastLoopPlayerStartTime: number;
     offset: number;
   }[]
-  get tracks() {
+  get trackVolumeControls() {
+    return this._trackPlayers.reduce((acc:{[key:string]: Volume},t) =>{
+      acc[t.name] = t.volumeControl
+      return acc
+    },{})
+  } 
+  get trackVolumeOutput() {
     return this._trackPlayers.reduce((acc:{[key:string]: Volume},t) =>{
       acc[t.name] = t.output
       return acc
@@ -506,16 +513,18 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
     for(const track of this._tracksList){
       const a = new Player()
       const b = new Player()
+      const vol = new Volume()
       const out = new Volume()
       a.volume.value = track.db
       b.volume.value = track.db
-      a.connect(out)
-      b.connect(out)
+      a.connect(vol)
+      b.connect(vol)
+      vol.connect(out)
       out.connect(this.output)
 
       let offsetSeconds = offset || track.audioOffsetSeconds || 0
       trackPlayers.push({
-        ...track, volumeLimit: track.db, a,b, output: out, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
+        ...track, volumeLimit: track.db, a,b, output: out, volumeControl: vol, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
       })
     }
     this._trackPlayers = trackPlayers
