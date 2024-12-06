@@ -24,13 +24,18 @@ export class QueueEvent extends Event {
   to?: PlayerSection;
   /** A section that will be impacted by current section */
   from?: PlayerSection;
+
+  breakout: boolean;
+
   constructor(
     to:PlayerSection | undefined, 
-    from: PlayerSection | undefined
+    from: PlayerSection | undefined,
+    breakout: boolean
   ){
     super('queue')
     this.to = to
     this.from = from
+    this.breakout = breakout;
   }
 }
 
@@ -39,6 +44,7 @@ export class CancelQueueEvent extends Event {
   to?: PlayerSection;
   /** A section that will be impacted by current section */
   from?: PlayerSection;
+
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined
@@ -56,13 +62,16 @@ export class ChangeEvent extends Event {
   /** A section that will be impacted by current section */
   from?: PlayerSection;
 
+  breakout: boolean;
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined,  
+    breakout: boolean
   ) {
     super('change');
     this.from = from;
     this.to = to;
+    this.breakout = breakout;
   }
 }
 

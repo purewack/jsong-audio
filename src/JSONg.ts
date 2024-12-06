@@ -719,7 +719,7 @@ public async play(
   getTransport().start()
   this._clear()
   await this._schedule(beginning, '0:0:0')
-  this.dispatchEvent(new ChangeEvent(beginning, undefined))
+  this.dispatchEvent(new ChangeEvent(beginning, undefined, false))
   this._current = beginning
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
@@ -788,7 +788,11 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
     this.state = 'queue'
 
   this.audioSafeCallback(()=>{
-    this.dispatchEvent(new QueueEvent(nextSection,from))
+    this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false))
+    this.dispatchEvent(new TransportEvent(
+      [this._sectionBeat+1, this._sectionLen],
+      this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
+    ))
   })
 
   try{
@@ -802,7 +806,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
   }
   
   this.audioSafeCallback(()=>{
-    this.dispatchEvent(new ChangeEvent(nextSection,from))
+    this.dispatchEvent(new ChangeEvent(nextSection,from, breakout !== false))
   })
 
   this._current = nextSection
@@ -898,7 +902,7 @@ public async stop(synced: boolean = true)  : Promise<void>
 
   const doStop = (t: Time)=>{
     this.audioSafeCallback(()=>{
-      this.dispatchEvent(new ChangeEvent(this._current,undefined))
+      this.dispatchEvent(new ChangeEvent(this._current,undefined, false))
     })
     signal.removeEventListener('abort',onCancelStop)
     this._stop(t)
@@ -915,7 +919,11 @@ public async stop(synced: boolean = true)  : Promise<void>
     const when = ToneTime(next).toSeconds()
     
     this.audioSafeCallback(()=>{
-      this.dispatchEvent(new QueueEvent(this._current,undefined))
+      this.dispatchEvent(new QueueEvent(this._current,undefined, false))
+      this.dispatchEvent(new TransportEvent(
+        [this._sectionBeat+1, this._sectionLen],
+        this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
+      ))
     })
 
     signal.addEventListener('abort',onCancelStop)
