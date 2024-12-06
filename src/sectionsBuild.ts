@@ -130,6 +130,10 @@ export default function buildSections(
 
         newEntry.region = map[newEntry.name]
         newEntry.index = [...currentIndex]
+
+        if(newEntry.grain > (newEntry.region[1]-newEntry.region[0])*sectionDefaults.beatsInMeasure){
+          newEntry.grain = (newEntry.region[1]-newEntry.region[0])*sectionDefaults.beatsInMeasure
+        }
          
         _frame[i] = newEntry ;
         _orderedEntries.push(newEntry as PlayerSection);

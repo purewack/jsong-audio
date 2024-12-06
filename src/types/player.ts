@@ -1,5 +1,5 @@
 import { ToneAudioBuffer } from "tone";
-import { JSONgFlowEntry, JSONgFlowInstruction, JSONgMetadata, JSONgTrack, JSONgVerison } from "./jsong";
+import { JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgTrack, JSONgVerison } from "./jsong";
 
 /**
  * Represents the possible states for a JSONg player.
@@ -61,6 +61,7 @@ export type PlayerAudioSources = {[key: string]: AudioBuffer} | {[key: string]: 
 export type PlayerManifest = {
   version: JSONgVerison,
   meta: JSONgMetadata,
+  manifest: JSONgManifestFile,
   sections: PlayerSectionGroup,
   flow: JSONgFlowEntry[],
   beginning: PlayerIndex,
