@@ -220,7 +220,14 @@ export default class JSONg extends EventTarget{
   }
 
 
-
+  private audioStart(){
+    const metronome = new Synth()
+    metronome.envelope.attack = 0;
+    metronome.envelope.release = 0.05;
+    metronome.volume.value = -6
+    metronome.connect(this.output)
+    this._metronome = metronome
+  }
 
 
   constructor(path?:string, options?: {
@@ -241,12 +248,7 @@ export default class JSONg extends EventTarget{
 
     try{
       toneStart().then(()=>{
-        const metronome = new Synth()
-        metronome.envelope.attack = 0;
-        metronome.envelope.release = 0.05;
-        metronome.volume.value = -6
-        metronome.connect(this.output)
-        this._metronome = metronome
+        this.audioStart()
         
         if(path) this.parseManifest(path).then((manifest)=>{
           if(!manifest) throw new Error("[JSONg] Invalid manifest preload")
@@ -426,6 +428,8 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
     throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   }
 
+  this.audioStart()
+  
   this.state = 'applying'
   getTransport().position = '0:0:0'
   getTransport().bpm.value = manifest.timingInfo.bpm
