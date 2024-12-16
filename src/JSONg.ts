@@ -1,5 +1,5 @@
 import { JSONgDataSources, JSONgFlowEntry, JSONgManifestFile, JSONgMetadata} from './types/jsong'
-import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest as PlayerJSONg, PlayerSourcePaths, PlayerAudioSources } from './types/player'
+import { PlayerSectionGroup, PlayerState, PlayerIndex, PlayerSection, VerboseLevel, PlayerManifest as PlayerJSONg, PlayerSourcePaths, PlayerAudioSources, PlayerManifest } from './types/player'
 import {beatTransportDelta, quanTime} from './util/timing'
 import {getNextSectionIndex,  findStart, getIndexInfo } from './sectionsNavigation'
 import buildSections from './sectionsBuild'
@@ -28,6 +28,8 @@ export default class JSONg extends EventTarget{
   public VERSION_SUPPORT = ["J/1"]
   public verbose: boolean = false;
   
+  public manifest?: PlayerManifest;
+
   //List of track involved with the song
   private _tracksList!: { 
     name: string;
@@ -193,7 +195,6 @@ export default class JSONg extends EventTarget{
     const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
     return loopProgress
   }
-
 
 
   //Events
@@ -472,6 +473,7 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
   try{
     await this.useAudio(typeof options?.loadSound === 'object' ? options.loadSound : manifest.paths, origin)
     this.state = 'stopped'
+    this.manifest = manifest
     if(this.verbose) console.log("[JSONg] loaded",manifest)
   }
   catch(e){
@@ -723,7 +725,7 @@ public async play(
   getTransport().start()
   this._clear()
   await this._schedule(beginning, '0:0:0')
-  this.dispatchEvent(new ChangeEvent(beginning, undefined, false))
+  this.dispatchEvent(new ChangeEvent(beginning, undefined, false, false))
   this._current = beginning
   this.state = 'playing'
   this._sectionLastLaunchTime = '0:0:0'
@@ -790,9 +792,10 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
   if(this.state === 'playing') 
     this.state = 'queue'
-
+  
+  const whenEventBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, nextTime, this._timingInfo.meter)
   this.audioSafeCallback(()=>{
-    this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false))
+    this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(whenEventBeats)))
     this.dispatchEvent(new TransportEvent(
       [this._sectionBeat+1, this._sectionLen],
       this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
@@ -808,9 +811,10 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
     })
     throw error
   }
+
   
   this.audioSafeCallback(()=>{
-    this.dispatchEvent(new ChangeEvent(nextSection,from, breakout !== false))
+    this.dispatchEvent(new ChangeEvent(nextSection,from, breakout !== false, nextSection.once))
   })
 
   this._current = nextSection
@@ -906,7 +910,7 @@ public async stop(synced: boolean = true)  : Promise<void>
 
   const doStop = (t: Time)=>{
     this.audioSafeCallback(()=>{
-      this.dispatchEvent(new ChangeEvent(this._current,undefined, false))
+      this.dispatchEvent(new ChangeEvent(this._current,undefined, false, false))
     })
     signal.removeEventListener('abort',onCancelStop)
     this._stop(t)
@@ -922,19 +926,20 @@ public async stop(synced: boolean = true)  : Promise<void>
     ) as BarsBeatsSixteenths
     const when = ToneTime(next).toSeconds()
     
+    signal.addEventListener('abort',onCancelStop)
+    if(this.verbose) console.log("[JSONg] stopping at",next)
+    this._pending.scheduledEvents.push(getTransport().scheduleOnce(doStop,next))
+    this.state = 'stopping'
+    this._pending.actionRemainingBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, next, this._timingInfo.meter)   
+
     this.audioSafeCallback(()=>{
-      this.dispatchEvent(new QueueEvent(this._current,undefined, false))
+      this.dispatchEvent(new QueueEvent(this._current,undefined, false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(this._pending.actionRemainingBeats)))
       this.dispatchEvent(new TransportEvent(
         [this._sectionBeat+1, this._sectionLen],
         this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
       ))
     })
-
-    signal.addEventListener('abort',onCancelStop)
-    if(this.verbose) console.log("[JSONg] stopping at",next)
-    this._pending.scheduledEvents.push(getTransport().scheduleOnce(doStop,next))
-    this.state = 'stopping'
-    this._pending.actionRemainingBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, next, this._timingInfo.meter)      
+   
   }else {
     signal.addEventListener('abort',onCancelStop)
     doStop(toneNow())
@@ -1216,6 +1221,9 @@ public audioSafeCallback(callback: ()=>void){
   getDraw().schedule(callback,toneNow());
 }
 
+public beatsCountToSeconds(beats:number){
+  return this.timingInfo.beatDuration * beats
+}
 
 
 }

@@ -27,15 +27,23 @@ export class QueueEvent extends Event {
 
   breakout: boolean;
 
+  countdown: number;
+
+  timeUntil: number;
+
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined,
-    breakout: boolean
+    breakout: boolean,
+    countdown: number,
+    timeUntil: number
   ){
     super('queue')
     this.to = to
     this.from = from
     this.breakout = breakout;
+    this.countdown = countdown;
+    this.timeUntil = timeUntil;
   }
 }
 
@@ -63,15 +71,19 @@ export class ChangeEvent extends Event {
   from?: PlayerSection;
 
   breakout: boolean;
+
+  automatic: boolean;
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined,  
-    breakout: boolean
+    breakout: boolean,
+    automatic: boolean
   ) {
     super('change');
     this.from = from;
     this.to = to;
     this.breakout = breakout;
+    this.automatic = automatic;
   }
 }
 
