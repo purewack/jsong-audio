@@ -16,10 +16,12 @@ import {
   start as toneStart,
   Player, 
   ToneAudioBuffer, 
-  Synth, Time as ToneTime,
+  Synth, 
+  Time as ToneTime,
   Volume,
   getTransport,
-  getDraw, 
+  getDraw,
+  TimeClass, 
 } from 'tone';
 
 
@@ -1225,5 +1227,19 @@ public beatsCountToSeconds(beats:number){
   return this.timingInfo.beatDuration * beats
 }
 
+public afterBeats(beats: number){
+  const destinationTime = ToneTime(getTransport().position).toSeconds() + beats*this.timingInfo.beatDuration
+  return new Promise<void>((res)=>{
+    getTransport().schedule(()=>this.audioSafeCallback(res),destinationTime);
+  })
+}
+
+public afterSectionPercentage(percentage: number){
+  const sectionTime = percentage * (this.current.region[1] - this.current.region[0]) * this.timingInfo.beatDuration * this.timingInfo.meter[0]
+  const destinationTime = ToneTime(getTransport().position).toSeconds() + sectionTime
+  return new Promise<void>((res)=>{
+    getTransport().schedule(()=>this.audioSafeCallback(res),destinationTime);
+  })
+}
 
 }
