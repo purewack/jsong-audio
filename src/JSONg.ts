@@ -142,12 +142,13 @@ export default class JSONg extends EventTarget{
   private _sectionBeat: number = 0
   private _sectionLen: number = 0
   private _sectionLastLaunchTime: BarsBeatsSixteenths | null = null
+  private _playerStartToneTime: number = 0
   private _setMeterBeat(v: number){
     this._meterBeat = v
     const tr = getTransport().position as BarsBeatsSixteenths
     }
   private updateSectionBeat(){
-    const progress = this._getSectionProgress()
+    const progress = this._getSectionProgress(this.current)
     this._sectionBeat = Math.floor(progress * this._sectionLen)
     
   }
@@ -179,22 +180,13 @@ export default class JSONg extends EventTarget{
     return this._sectionBeat / this._sectionLen
   }
   
-  private _getSectionProgress(track?: {
-    name: string;
-    source: string;
-    volumeLimit: number;
-    current: Player;
-    a: Player;
-    b: Player;
-    lastLoopPlayerStartTime: number;
-    offset: number;
-  }) {
-    const _track = track || this._trackPlayers[0]
-    if (_track.lastLoopPlayerStartTime === null && _track.current.state === 'started') return 0; // If the player hasn't started, progress is 0%
-    const currentTime = toneNow() // Get the current time
-    const elapsedTime = currentTime - _track.lastLoopPlayerStartTime; // Calculate elapsed time
-    const loopDuration = ToneTime(_track.current.loopEnd).toSeconds() - ToneTime(_track.current.loopStart).toSeconds() ; // Loop duration in seconds
-    const loopProgress = (elapsedTime % loopDuration) / loopDuration ; // Calculate loop progress as a percentage
+  private _getSectionProgress(section: PlayerSection) {
+    if(this._sectionLastLaunchTime === null) return 0
+    if (!(this._state === 'playing' || this._state === 'continue' || this._state === 'transition' || this._state === 'queue')) return 0;
+    const elapsedTime = toneNow() - this._playerStartToneTime - ToneTime(this._sectionLastLaunchTime).toSeconds(); 
+    const loopDuration = ToneTime((section.region[1] - section.region[0]) + 'm').toSeconds(); 
+    const loopProgress = (elapsedTime % loopDuration) / loopDuration ; 
+    // console.log({lastPos: this._sectionLastLaunchTime,last: ToneTime(this._sectionLastLaunchTime).toSeconds(), loopProgress,loopDuration, elapsedTime})
     return loopProgress
   }
 
@@ -726,11 +718,12 @@ public async play(
 
   getTransport().start()
   this._clear()
+  this._playerStartToneTime = toneNow()
   await this._schedule(beginning, '0:0:0')
+  this._sectionLastLaunchTime = '0:0:0'
   this.dispatchEvent(new ChangeEvent(beginning, undefined, false, false))
   this._current = beginning
   this.state = 'playing'
-  this._sectionLastLaunchTime = '0:0:0'
   this._current = beginning
   
   if(this.verbose) console.log("[JSONg] started from index", startFrom)
@@ -789,13 +782,13 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
     this._sectionLastLaunchTime as string
   ) as BarsBeatsSixteenths
 
-  // this._dispatchSectionQueue('0:0:0',this._current);
   if(this.verbose) console.log("[JSONg] advancing to next:",this._current.index, ">", nextSection.index)  
 
   if(this.state === 'playing') 
     this.state = 'queue'
   
   const whenEventBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, nextTime, this._timingInfo.meter)
+  if(!this.current.transition.find(t => t.duration === 0 && t.type === 'fade')){
   this.audioSafeCallback(()=>{
     this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(whenEventBeats)))
     this.dispatchEvent(new TransportEvent(
@@ -803,6 +796,7 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
       this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
     ))
   })
+  }
 
   try{
     await this._schedule(nextSection, nextTime)
@@ -866,6 +860,39 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
 
 
+public async hotswap(toSection: PlayerIndex, duration: number = 0): Promise<void>{
+  //only schedule next section if in these states
+  if(this.state !== 'playing') throw new Error("state is not playing")
+  
+  const sec = getNestedIndex(this.sections, toSection);
+  if(sec === undefined) throw new Error("undefined section index")
+
+  const legatoParamsCurrent = JSON.parse(JSON.stringify(this.current)) as PlayerSection
+  legatoParamsCurrent.transition = legatoParamsCurrent.transition.map(t => {
+    return {
+      ...t, type:'fade', duration: duration
+    }
+  })
+  this._current = legatoParamsCurrent
+
+  this._continue(toSection)
+
+  // if(this.verbose) console.log("[JSONg] hotswap params",legatoParamsCurrent)
+
+  // this.audioSafeCallback(()=>{
+  //   if(this.verbose) console.log("[JSONg] hotswap queue")  
+  //   this.dispatchEvent(new QueueEvent(sec, this.current, true, this.secondsToBeatCount(duration), duration))
+  // })
+
+  // if(this.verbose) console.log("[JSONg] hotswapping:",this._current.index, ">>", sec.index)  
+  // await this._schedule(sec,'0:0:0')
+
+  // this.audioSafeCallback(()=>{
+  //   if(this.verbose) console.log("[JSONg] hotswap change")  
+  //   this.dispatchEvent(new ChangeEvent(sec, this.current, true, sec.once))
+  // })
+  
+}
 
 
 
@@ -1024,6 +1051,7 @@ private _clear(){
 
 
 
+
 /**
  * Schedule change of sections. 
  * 
@@ -1032,7 +1060,7 @@ private _clear(){
  * *or*
  * 
  * if `legato` mode on section - The scheduler will immediately transition to the next section and start the next section where the previous one left off.
- * Musically this means if the section was for example 70% of the way through, the next will start at its 70% mark.
+ * Musically this means if the section was for example 70% of the way through, the next will start at **its** 70% mark.
  *
  *  *or*
  * 
@@ -1042,6 +1070,8 @@ private _clear(){
  * @returns  
  */
 private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void> {
+
+  const isLegato = this?.current?.transition.find(t => t.duration === 0 && t.type === 'fade') !== undefined
 
   return new Promise<void>((resolveAll,rejectAll)=>{
 
@@ -1063,14 +1093,16 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         const onTrackResolve = (time: number)=>{
           track.current.stop(time)
           track.current = nextTrack;
-          // console.log("[schedule] resolved", track)
+          if(this.verbose) console.log("[schedule] resolved", track)
           trackResolve()
         }
 
         let scheduleEvent = -1
+        let scheduleEventPost = -1
         const onAbort = ()=>{
           // console.info("[schedule] abort",track.name)
           getTransport().clear(scheduleEvent)
+          getTransport().clear(scheduleEventPost)
           // this._pending.scheduledEvents.filter((v)=>v !== e)
           if(this.state === 'transition'){
           const transitionInfo = this._current!.transition.find(t => t.name === track.name)!
@@ -1085,7 +1117,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           trackReject()
         }
 
-        const normalStart = ()=>{
+        const syncedStart = ()=>{
           this._pending.actionRemainingBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, forWhen, this._timingInfo.meter)
           scheduleEvent = getTransport().scheduleOnce((t)=>{
             track.a.volume.setValueAtTime(track.volumeLimit,t)
@@ -1093,13 +1125,12 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
             try{
             nextTrack.start(t,nextTrack.loopStart);
             track.lastLoopPlayerStartTime = t
-            // console.log("[schedule] standard schedule @",t,to);
+            console.log("[schedule] standard schedule @",t,to);
             }
             catch(e){
               console.error(e)
             }
-            this._sectionLastLaunchTime = getTransport().position.toString() as BarsBeatsSixteenths;
-            this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
+            this._sectionLastLaunchTime = forWhen;
             this._sectionBeat = 0
             onTrackResolve(t)
             signal.removeEventListener('abort',onAbort)
@@ -1111,57 +1142,60 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
         }
 
         if(this._sectionLastLaunchTime === null){
-          normalStart()
+          syncedStart()
           return
         }
 
         const transitionInfo = this._current!.transition.find(t => t.name === track.name)!
         if(transitionInfo.type === 'fade'){
-          const t = toneNow()
+          if(this.verbose) console.log("fading track", transitionInfo)
+            
+          const timingOffset = 0.1
+          const dt = transitionInfo.duration
           
-          const progress = this._getSectionProgress(track) || 0
+          const progress = this._getSectionProgress(this.current)
 
-          this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
-          
           const nextLoopStart = ToneTime((nextTrack as Player).loopStart).toSeconds()
           const nextLoopEnd = ToneTime((nextTrack as Player).loopEnd).toSeconds()
           const nextLoopDuration = nextLoopEnd - nextLoopStart
-
-          const whereFrom = (progress * nextLoopDuration) + nextLoopStart
-           
-          // console.info("[track]",{transport: ToneTime(Transport.progress.toString()).toSeconds(), nextLoopDuration,nextLoopStart,nextLoopEnd, progress, whereFrom})
-
-          const dt = transitionInfo.duration
-          if(dt){
-            this.state = 'transition'
-          }
-
-          nextTrack.volume.setValueAtTime(-72, t);
-          nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt);
-          track.current.volume.setValueAtTime(track.volumeLimit, t);
-          track.current.volume.linearRampToValueAtTime(-72, t + dt);   
-
-          nextTrack.start(t,whereFrom); 
-
+          const whereFrom = (progress * nextLoopDuration) + nextLoopStart + timingOffset
+          
+          
           this._pending.actionRemainingBeats = Math.floor(dt / this._timingInfo.beatDuration)
-          const transitionForWhen = (ToneTime(getTransport().position).toSeconds() + dt)
+          const transitionStartWhen = ToneTime(getTransport().position).toSeconds() + timingOffset
+          const transitionEndWhen   = ToneTime(getTransport().position).toSeconds() + timingOffset + dt
          
+          console.log("[schedule] fade schedule ",track);
           scheduleEvent = getTransport().scheduleOnce((t)=>{
+            if(dt){
+              this.state = 'transition' 
+            }
+            try{
+              nextTrack.start(t,whereFrom);
+              nextTrack.volume.setValueAtTime(-72, t);
+              nextTrack.volume.linearRampToValueAtTime(track.volumeLimit, t + dt);
+              track.current.volume.setValueAtTime(track.volumeLimit, t);
+              track.current.volume.linearRampToValueAtTime(-72, t + dt); 
+            }
+            catch(e){
+              console.error(e)
+            }
+          },transitionStartWhen)
+          scheduleEventPost = getTransport().scheduleOnce((t)=>{
             onTrackResolve(t)
             signal.removeEventListener('abort',onAbort)
-          },transitionForWhen)
+          },transitionEndWhen)
           signal.addEventListener('abort',onAbort)
-          
-          track.lastLoopPlayerStartTime = t - whereFrom
+
         }
         else {
-          normalStart()
+          syncedStart()
         }
       })
     })
 
-
     Promise.all(trackPromises).then(()=>{
+      this._sectionLen = (to.region[1] - to.region[0]) * this._timingInfo.meter[0]
       resolveAll()      
       // console.log("[schedule] END",toneNow())
     }).catch(()=>{
@@ -1225,6 +1259,10 @@ public audioSafeCallback(callback: ()=>void){
 
 public beatsCountToSeconds(beats:number){
   return this.timingInfo.beatDuration * beats
+}
+
+public secondsToBeatCount(seconds:number){
+  return seconds / this.timingInfo.beatDuration
 }
 
 public afterBeats(beats: number){
