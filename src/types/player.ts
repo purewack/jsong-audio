@@ -34,10 +34,11 @@ export type PlayerSection = {
     next: PlayerIndex, 
     grain: number,
     once: boolean,
+    sync: boolean,
     transition: 
         {
             name: string;
-            type: "fade" | "sync",
+            type: "fade" | "sync";
             duration: number;
         }[]  
 };

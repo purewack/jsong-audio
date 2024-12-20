@@ -721,7 +721,7 @@ public async play(
     this._playerStartToneTime = t
   }, '0:0:0')
 
-  getTransport().start()
+  getTransport().start('+0.3')
   this._clear()
   this._current = beginning
   await this._schedule(beginning, '0:0:0')
@@ -881,23 +881,7 @@ public async hotswap(toSection: PlayerIndex, duration: number = 0): Promise<void
   })
   this._current = legatoParamsCurrent
 
-  this._continue(toSection)
-
-  // if(this.verbose) console.log("[JSONg] hotswap params",legatoParamsCurrent)
-
-  // this.audioSafeCallback(()=>{
-  //   if(this.verbose) console.log("[JSONg] hotswap queue")  
-  //   this.dispatchEvent(new QueueEvent(sec, this.current, true, this.secondsToBeatCount(duration), duration))
-  // })
-
-  // if(this.verbose) console.log("[JSONg] hotswapping:",this._current.index, ">>", sec.index)  
-  // await this._schedule(sec,'0:0:0')
-
-  // this.audioSafeCallback(()=>{
-  //   if(this.verbose) console.log("[JSONg] hotswap change")  
-  //   this.dispatchEvent(new ChangeEvent(sec, this.current, true, sec.once))
-  // })
-  
+  await this._continue(toSection)
 }
 
 
@@ -1083,6 +1067,8 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
   const durCurrent = this.current.region[1] - this.current.region[0]
   const durTarget = to.region[1]-to.region[0]
   
+  if(to.transition.find(t=>t.type === 'sync') && !forWhen) throw new Error("Cannot use sync type transition and not specify forWhen")
+
   return new Promise<void>((resolveAll,rejectAll)=>{
 
     // console.log('[schedule] processing',`[${to.index}]: ${to.name} @ ${forWhen} now(${Transport.position.toString()})`)
@@ -1169,8 +1155,8 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           const dt = transitionInfo.duration
 
           this._pending.actionRemainingBeats = Math.floor(dt / this._timingInfo.beatDuration)
-          const transitionStartWhen = ToneTime(getTransport().position).toSeconds() + timingOffset
-          const transitionEndWhen   = ToneTime(getTransport().position).toSeconds() + timingOffset + dt
+          const transitionStartWhen = this.current.sync ? ToneTime(forWhen).toSeconds() : (ToneTime(getTransport().position).toSeconds() + timingOffset)
+          const transitionEndWhen   = transitionStartWhen + dt
          
           scheduleEvent = getTransport().scheduleOnce((t)=>{
             const progress = this._getSectionProgress(this.current, t)
@@ -1218,8 +1204,6 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
     Promise.all(trackPromises).then(()=>{
       resolveAll()      
       this._sectionLastLaunchTime = recommendedLastLaunchTime
-      this._sectionLen = nextLenBeats;
-      this._sectionBeat = Math.floor((nextProgress - Math.floor(nextProgress)) * this._sectionLen)
       // console.log("[schedule] END",toneNow())
     }).catch(()=>{
       //transition cancel, revert track fades
