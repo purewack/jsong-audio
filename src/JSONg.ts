@@ -759,19 +759,20 @@ public async continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
 }
 
 
-private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void>{
+private async _continue(breakout: (boolean | PlayerIndex | PlayerSection) = false): Promise<void>{
 
   if(!this._current) throw new Error("[JSONg] current section non-existent")
 
   const pos = getTransport().position.toString()
   const from = this._current
   const {next: nextIndex, increments} =  getNextSectionIndex(this._sections, this._current.index)!
-  const nextSection = getNestedIndex(this._sections, Array.isArray(breakout) ? breakout : (breakout ? this._current.next : nextIndex)) as PlayerSection
+  const nextSection = (breakout?.hasOwnProperty('region') ? breakout : getNestedIndex(this._sections, Array.isArray(breakout) ? breakout : (breakout ? this._current.next : nextIndex))) as PlayerSection
+  
   if(!nextSection) {
     throw new Error("[JSONg] no next section available")
   }   
   
-  if(typeof breakout === 'boolean' && breakout){
+  if(breakout){
     this._pending.section = getNestedIndex(this._sections, this._current.next)
     this._pending.increments = null
   }
@@ -866,12 +867,11 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
 
 
-public async overrideCurrent(toSection: PlayerIndex | PlayerSection, duration: number = 0): Promise<void>{
-  //only schedule next section if playing and not queued
+public async overrideCurrent(toSection: PlayerIndex | PlayerSection, duration: number = 0, syncTransition: number = 0): Promise<void>{
   if(this.state !== 'playing') throw new Error("state is not playing")
   
   const sec = Array.isArray(toSection) ? getNestedIndex(this.sections, toSection) : toSection;
-  if(sec === undefined) throw new Error("undefined section index")
+  if(sec === undefined) throw new Error("invalid section index")
 
   const legatoParamsCurrent = JSON.parse(JSON.stringify(this.current)) as PlayerSection
   legatoParamsCurrent.transition = legatoParamsCurrent.transition.map(t => {
@@ -879,9 +879,14 @@ public async overrideCurrent(toSection: PlayerIndex | PlayerSection, duration: n
       ...t, type:'fade', duration: duration
     }
   })
-  this._current = legatoParamsCurrent
+  if(syncTransition) {
+    legatoParamsCurrent.transitionSync = true
+    legatoParamsCurrent.grain = syncTransition
+  }
 
-  await this._continue(this._current.index)
+  this._current = legatoParamsCurrent
+  console.log("override",toSection)
+  await this._continue(sec)
 }
 
 
