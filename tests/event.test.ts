@@ -1,6 +1,6 @@
 import {TransportEvent} from '../src/types/events'
 
-const ev = new TransportEvent([3,12])
+const ev = new TransportEvent([3,12],3)
 class Emmiter extends EventTarget {
   doTest(){
     this.dispatchEvent(ev)

@@ -4,7 +4,7 @@ import { PlayerSectionGroup } from "../src/types/player";
 
 describe("get nested sections info",()=>{
   const sections: PlayerSectionGroup = {
-      0: {name:"A", index: [0], next: [1,0,0], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+      0: {name:"A", index: [0], next: [1,0,0], region:[0,4],   grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0}]},
       1: {
           loopCurrent: 100,
           loopLimit: 2,
@@ -13,11 +13,11 @@ describe("get nested sections info",()=>{
               loopCurrent: 0,
               loopLimit: 20,
               sectionCount: 2,
-              0: {name: "AAA", index: [1,0,0], next: [1,0,1], region:[4,8], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
-              1: {name: "BBB", index: [1,0,1], next: [1,1],   region:[8,10], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+              0: {name: "AAA", index: [1,0,0], next: [1,0,1], region:[4,8], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+              1: {name: "BBB", index: [1,0,1], next: [1,1],   region:[8,10], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0}]},
           },
-          1: {name: "AA", index: [1,1], next: [1,2], region:[4,8], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
-          2: {name: "BB", index: [1,2], next: [0],   region:[8,10], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+          1: {name: "AA", index: [1,1], next: [1,2], region:[4,8], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0}]},
+          2: {name: "BB", index: [1,2], next: [0],   region:[8,10], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0}]},
       },
       loopCurrent: 1,
       loopLimit: Infinity,
@@ -41,19 +41,19 @@ describe("get nested sections info",()=>{
     const sections: PlayerSectionGroup = {
         0: {
           0: {
-            0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
-            1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:false, transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
+            0: {name:"A", index: [0,0,0], next: [0,0,1], region:[0,4],   grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+            1: {name:"V", index: [0,0,1], next: [0,1],   region:[16,24], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"sync",duration:0}]},
             loopCurrent: 1,
             loopLimit: 50,
             sectionCount: 2,
           },
-          1: {name: "A", index:[0,1],  next: [0,2], region:[0,4],  grain:4, once:true,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"fade",duration:4}]},
-          2: {name: "B", index: [0,2], next: [1],   region:[4,12], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+          1: {name: "A", index:[0,1],  next: [0,2], region:[0,4],  grain:4, once:true, transitionSync:false,  transition: [{name:"trackA",type:"fade",duration:4},{name:"trackB",type:"fade",duration:4}]},
+          2: {name: "B", index: [0,2], next: [1],   region:[4,12], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
           loopCurrent: 0,
           loopLimit: 20,
           sectionCount: 3,
         },
-        1: {name: "C", index: [1], next: [0,0,0], region:[12,16], grain:4, once:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
+        1: {name: "C", index: [1], next: [0,0,0], region:[12,16], grain:4, once:false, transitionSync:false, transition: [{name:"trackA",type:"sync",duration:0},{name:"trackB",type:"sync",duration:0}]},
         loopCurrent: 0,
         loopLimit: Infinity,
         sectionCount: 2,

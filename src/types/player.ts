@@ -34,7 +34,7 @@ export type PlayerSection = {
     next: PlayerIndex, 
     grain: number,
     once: boolean,
-    sync: boolean,
+    transitionSync: boolean,
     transition: 
         {
             name: string;

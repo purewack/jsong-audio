@@ -83,7 +83,7 @@ export default function buildSections(
           grain: sectionDefaults.grain,
           once: false,
           transition: transitionDefaults,
-          sync: false,
+          transitionSync: false,
         }
         let splitName;
         
@@ -92,7 +92,7 @@ export default function buildSections(
           newEntry.name = split.name;
           newEntry.grain =  entry?.grain !== undefined ? entry.grain : sectionDefaults.grain
           newEntry.once = entry?.once || split.once || false
-          newEntry.sync = entry?.sync || split.sync || false
+          newEntry.transitionSync = entry?.sync || split.sync || false
           
           if(newEntry.grain === 0){
             newEntry.grain = map[newEntry.name][1] - map[newEntry.name][0]
@@ -130,7 +130,7 @@ export default function buildSections(
           if(splitName.once)
             newEntry.once = true
           if(splitName.sync)
-            newEntry.sync = true
+            newEntry.transitionSync = true
         }
 
         newEntry.region = map[newEntry.name]

@@ -1155,7 +1155,7 @@ private _schedule(to: PlayerSection, forWhen: BarsBeatsSixteenths): Promise<void
           const dt = transitionInfo.duration
 
           this._pending.actionRemainingBeats = Math.floor(dt / this._timingInfo.beatDuration)
-          const transitionStartWhen = this.current.sync ? ToneTime(forWhen).toSeconds() : (ToneTime(getTransport().position).toSeconds() + timingOffset)
+          const transitionStartWhen = this.current.transitionSync ? ToneTime(forWhen).toSeconds() : (ToneTime(getTransport().position).toSeconds() + timingOffset)
           const transitionEndWhen   = transitionStartWhen + dt
          
           scheduleEvent = getTransport().scheduleOnce((t)=>{
