@@ -11,11 +11,13 @@ export class ClickEvent extends Event {
 
 export class TransportEvent extends Event {
   progress: [number, number];
+  beat: number;
   countdown?: number;
-  constructor(value: [number, number], countdown?: number){
+  constructor(value: [number, number], beat:number, countdown?: number){
     super('transport')
     this.progress = value;
     this.countdown = countdown
+    this.beat = beat
   }
 }
 
