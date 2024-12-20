@@ -866,11 +866,11 @@ private async _continue(breakout: (boolean | PlayerIndex) = false): Promise<void
 
 
 
-public async hotswap(toSection: PlayerIndex, duration: number = 0): Promise<void>{
-  //only schedule next section if in these states
+public async overrideCurrent(toSection: PlayerIndex | PlayerSection, duration: number = 0): Promise<void>{
+  //only schedule next section if playing and not queued
   if(this.state !== 'playing') throw new Error("state is not playing")
   
-  const sec = getNestedIndex(this.sections, toSection);
+  const sec = Array.isArray(toSection) ? getNestedIndex(this.sections, toSection) : toSection;
   if(sec === undefined) throw new Error("undefined section index")
 
   const legatoParamsCurrent = JSON.parse(JSON.stringify(this.current)) as PlayerSection
@@ -881,7 +881,7 @@ public async hotswap(toSection: PlayerIndex, duration: number = 0): Promise<void
   })
   this._current = legatoParamsCurrent
 
-  await this._continue(toSection)
+  await this._continue(this._current.index)
 }
 
 
