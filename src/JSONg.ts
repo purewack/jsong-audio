@@ -421,7 +421,7 @@ Promise<PlayerJSONg | undefined>
  * @param manifest a JS object retured by a successful call to `parseManifest()`
  * @param options an optional option set for directing the player on if / how to load audio sources. You can provide the origin url which is used as a base to fetch audio files from. You can also provide a whole object full of audio buffers to be used by the player
  */
-public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources}) {
+public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadSound?: PlayerAudioSources, click?: boolean}) {
   if (!this.VERSION_SUPPORT.includes(manifest?.version)){
     throw new Error(`[JSONg] Unsupported parser version: ${manifest?.version}`);
   }
@@ -465,6 +465,9 @@ public async useManifest(manifest: PlayerJSONg, options?:{origin?: string, loadS
       audioOffsetSeconds: 0
     }
   })
+
+  if(options?.click === true)
+    this._timingInfo.metronome.enabled = true
 
   const origin = options?.origin ? options.origin : manifest.origin
   try{
@@ -694,14 +697,14 @@ public async play(
     
     this.updateSectionBeat(t)
 
-    this.audioSafeCallback(()=>{
+    // this.audioSafeCallback(()=>{
       this.dispatchEvent(new ClickEvent([this._meterBeat+1, this._timingInfo.meter[0]]))
       this.dispatchEvent(new TransportEvent(
         [this._sectionBeat+1, this._sectionLen],
         this._meterBeat + 1,
         this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
       ))
-    })
+    // })
 
     if(this._pending.actionRemainingBeats) 
       this._pending.actionRemainingBeats -= 1
@@ -721,7 +724,7 @@ public async play(
     this._playerStartToneTime = t
   }, '0:0:0')
 
-  getTransport().start('+0.3')
+  getTransport().start('+0.5')
   this._clear()
   this._current = beginning
   await this._schedule(beginning, '0:0:0')
@@ -795,30 +798,30 @@ private async _continue(breakout: (boolean | PlayerIndex | PlayerSection) = fals
   
   const whenEventBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, nextTime, this._timingInfo.meter)
   if(!this.current.transition.find(t => t.duration === 0 && t.type === 'fade')){
-  this.audioSafeCallback(()=>{
+  
+    // this.audioSafeCallback(()=>{
     this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(whenEventBeats)))
     this.dispatchEvent(new TransportEvent(
       [this._sectionBeat+1, this._sectionLen],
       this._meterBeat,
       this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
     ))
-  })
+  // })
   }
 
   try{
     await this._schedule(nextSection, nextTime)
   }
   catch(error){
-    this.audioSafeCallback(()=>{
+    // this.audioSafeCallback(()=>{
       this.dispatchEvent(new CancelQueueEvent(nextSection,from))
-    })
+    // })
     throw error
   }
 
-  
-  this.audioSafeCallback(()=>{
+  // this.audioSafeCallback(()=>{
     this.dispatchEvent(new ChangeEvent(nextSection,from, breakout !== false, nextSection.once))
-  })
+  // })
 
   this._current = nextSection
 
@@ -827,16 +830,16 @@ private async _continue(breakout: (boolean | PlayerIndex | PlayerSection) = fals
       const info = ii.length === 0 ? this._sections : (getIndexInfo(this._sections, ii) as PlayerSectionGroup)
       info.loopCurrent += 1
 
-      this.audioSafeCallback(()=>{
+      // this.audioSafeCallback(()=>{
         this.dispatchEvent(new RepeatEvent([info.loopCurrent,info.loopLimit],info))
-      })
+      // })
 
       if(info.loopCurrent >= info.loopLimit){
         info.loopCurrent = 0
 
-        this.audioSafeCallback(()=>{
+        // this.audioSafeCallback(()=>{
           this.dispatchEvent(new LoopEvent(info))
-        })
+        // })
       }
       setNestedIndex(info.loopCurrent, this._sections, [...ii,'loopCurrent'])
       if(this.verbose) console.log("[JSONg] group repeat counter increment", `${info.loopCurrent}/${info.loopLimit}`, ii,)
@@ -879,9 +882,12 @@ public async overrideCurrent(toSection: PlayerIndex | PlayerSection, duration: n
       ...t, type:'fade', duration: duration
     }
   })
-  if(syncTransition) {
+  if(syncTransition && syncTransition > 0) {
     legatoParamsCurrent.transitionSync = true
     legatoParamsCurrent.grain = syncTransition
+  }
+  else{
+    legatoParamsCurrent.transitionSync = false
   }
 
   this._current = legatoParamsCurrent
@@ -926,16 +932,16 @@ public async stop(synced: boolean = true)  : Promise<void>
     this._pending.scheduledEvents.forEach(e => {
       getTransport().clear(e)
     })
-    this.audioSafeCallback(()=>{
+    // this.audioSafeCallback(()=>{
       this.dispatchEvent(new CancelQueueEvent(this._current,undefined))
-    })
+    // })
 
   }
 
   const doStop = (t: Time)=>{
-    this.audioSafeCallback(()=>{
+    // this.audioSafeCallback(()=>{
       this.dispatchEvent(new ChangeEvent(this._current,undefined, false, false))
-    })
+    // })
     signal.removeEventListener('abort',onCancelStop)
     this._stop(t)
     res()
@@ -956,14 +962,14 @@ public async stop(synced: boolean = true)  : Promise<void>
     this.state = 'stopping'
     this._pending.actionRemainingBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, next, this._timingInfo.meter)   
 
-    this.audioSafeCallback(()=>{
+    // this.audioSafeCallback(()=>{
       this.dispatchEvent(new QueueEvent(this._current,undefined, false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(this._pending.actionRemainingBeats)))
       this.dispatchEvent(new TransportEvent(
         [this._sectionBeat+1, this._sectionLen],
         this._meterBeat,
         this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
       ))
-    })
+    // })
    
   }else {
     signal.addEventListener('abort',onCancelStop)
@@ -990,13 +996,16 @@ private _stop(t: Time){
   this._sectionBeat = 0
   this._pending.actionRemainingBeats = 0
   this._pending.scheduledEvents = []
-  this.audioSafeCallback(()=>{
+  // this.audioSafeCallback(()=>{
+    try{
     this.dispatchEvent(new ClickEvent([0, this._timingInfo.meter[0]]))
     this.dispatchEvent(new TransportEvent(
       [0, this._sectionLen],
       0
     ))
-  })
+    }
+    catch{}
+  // })
   if(this.verbose) console.log("[JSONg] stopped")
 }
 
