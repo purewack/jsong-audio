@@ -797,7 +797,7 @@ private async _continue(breakout: (boolean | PlayerIndex | PlayerSection) = fals
     this.state = 'queue'
   
   const whenEventBeats = beatTransportDelta(getTransport().position.toString() as BarsBeatsSixteenths, nextTime, this._timingInfo.meter)
-  if(!this.current.transition.find(t => t.duration === 0 && t.type === 'fade')){
+  // if(!this.current.transition.find(t => t.duration === 0 && t.type === 'fade')){
   
     // this.audioSafeCallback(()=>{
     this.dispatchEvent(new QueueEvent(nextSection,from, breakout !== false, this._pending.actionRemainingBeats, this.beatsCountToSeconds(whenEventBeats)))
@@ -807,7 +807,7 @@ private async _continue(breakout: (boolean | PlayerIndex | PlayerSection) = fals
       this._pending.actionRemainingBeats > 0 ? this._pending.actionRemainingBeats : undefined
     ))
   // })
-  }
+  // }
 
   try{
     await this._schedule(nextSection, nextTime)
