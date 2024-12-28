@@ -21,7 +21,8 @@ import {
   Volume,
   getTransport,
   getDraw,
-  TimeClass, 
+  TimeClass,
+  GrainPlayer, 
 } from 'tone';
 
 
@@ -48,9 +49,9 @@ export default class JSONg extends EventTarget{
     volumeLimit: number;
     volumeControl: Volume;
     output: Volume;
-    current: Player;
-    a: Player;
-    b: Player;
+    current: GrainPlayer;
+    a: GrainPlayer;
+    b: GrainPlayer;
     lastLoopPlayerStartTime: number;
     offset: number;
   }[]
@@ -517,10 +518,12 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
     
     const trackPlayers = []
     for(const track of this._tracksList){
-      const a = new Player()
-      const b = new Player()
+      const a = new GrainPlayer()
+      const b = new GrainPlayer()
       const vol = new Volume()
       const out = new Volume()
+      a.overlap = 0;
+      b.overlap = 0;
       a.volume.value = track.db
       b.volume.value = track.db
       a.connect(vol)
