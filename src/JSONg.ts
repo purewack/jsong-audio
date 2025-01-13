@@ -23,7 +23,7 @@ import {
   getDraw,
   TimeClass,
   GrainPlayer, 
-} from 'tone';
+} from 'tone/build/esm';
 
 
 export default class JSONg extends EventTarget{
@@ -516,7 +516,18 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
     }
     catch{}
     
-    const trackPlayers = []
+    const trackPlayers: {
+      name: string;
+      source: string;
+      volumeLimit: number;
+      volumeControl: Volume;
+      output: Volume;
+      current: GrainPlayer;
+      a: GrainPlayer;
+      b: GrainPlayer;
+      lastLoopPlayerStartTime: number;
+      offset: number;
+    }[] = []
     for(const track of this._tracksList){
       const a = new GrainPlayer()
       const b = new GrainPlayer()
@@ -533,7 +544,7 @@ public async useAudio(sources: JSONgDataSources | PlayerAudioSources, origin: st
 
       let offsetSeconds = offset || track.audioOffsetSeconds || 0
       trackPlayers.push({
-        ...track, volumeLimit: track.db, a,b, output: out, volumeControl: vol, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, audioOffsetSeconds: undefined, db:undefined, 
+        ...track, volumeLimit: track.db, a,b, output: out, volumeControl: vol, current: a, lastLoopPlayerStartTime: 0, offset: offsetSeconds, 
       })
     }
     this._trackPlayers = trackPlayers
@@ -1251,19 +1262,19 @@ public isMute(){
 }
 
 /**
- * Explicitly mute the master `output` node with a 1 second fadeout
+ * Explicitly mute the master `output` node with half a second fade-in
  */
-public mute(){
-  this.output.volume.linearRampToValueAtTime(-Infinity,'+1s');
+public mute(duration:number = 0.5){
+  this.output.volume.linearRampToValueAtTime(-120,'+'+duration+'s');
 }
 
 /**
- * Explicitly unmute the master `output` node with a 1 second fadeout
+ * Explicitly unmute the master `output` node with half a second fade-out
  * 
  * @param [value=0] specify the db value to raise the volume to 
  */
-public unmute(value:number = 0){
-  this.output.volume.linearRampToValueAtTime(value,'+1s');
+public unmute(duration:number = 0.5){
+  this.output.volume.linearRampToValueAtTime(0,'+'+duration+'s');
 }
 
 

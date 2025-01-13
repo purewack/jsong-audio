@@ -1,4 +1,4 @@
-import { ToneAudioBuffer } from "tone";
+import { ToneAudioBuffer } from "tone/build/esm";
 import { JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgTrack, JSONgVerison } from "./jsong";
 
 /**
