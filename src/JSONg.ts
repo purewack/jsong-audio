@@ -148,11 +148,16 @@ export default class JSONg extends EventTarget{
     this._meterBeat = v
     const tr = getTransport().position as BarsBeatsSixteenths
     }
+  
+  private updateSectionLen(){
+    if(!this.current) return
+    this._sectionLen = (this.current.region[1] - this.current.region[0]) * this._timingInfo.meter[0]
+  }
 
   private updateSectionBeat(t: number){ 
     if(!this.current) return
-    this._sectionLen = (this.current.region[1] - this.current.region[0]) * this._timingInfo.meter[0]
-    this._sectionBeat = Math.floor(this._getSectionProgress(this.current,t) * this._sectionLen)
+    this.updateSectionLen()
+    this._sectionBeat = Math.round(this._getSectionProgress(this.current,t) * this._sectionLen) % this._sectionLen
   }
 
   public getPosition(){
