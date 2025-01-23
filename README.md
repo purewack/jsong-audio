@@ -116,9 +116,8 @@ The `intro->` will automatically play `verse1` after it reaches its own end.
 
 `verse1-X` will crossfade into `chorus` while `chorus` will do both.
 
-When fading, the player will take the current position of the current section and start the next section from that same point, meaning that if the current section is for example at **its** 70% mark, the next section will also start from **its** 70% section.
-e.g. A `chorus` section which is 4 measures long is on its 5th beat, so it is at `5th beat / (4 measures * 4 beats per measure) = 5 / 16 = 32.25% complete`.
-The next section with a length of 8 measures will start at `32.25%` also, which would be its 10th beat.
+When fading, the player will take the current position of the current section and start the next section from that same point, meaning that if the current section is 4 bars and is on beat 3 or bar 2, and the section that the player is fading into is 2 bars long, the player will pick up from next section from bar 1 at beat 3.
+The player will make sure to start at the same beat of the bar that the current section is at.
 
 There is also the `|` legato flag which does what `X` does, except the fade time is 0.
 
@@ -197,8 +196,8 @@ A lot of extra detail and a bunch of repeating fields. `index` refers to the sec
   "<a href="#file-information">meta</a>": {
     "title": "Example JSONg",
     "author": "Damian Nowacki",
-    "created" : "20230325",
-    "modified" : "1679741210",
+    "created" : "1737635105",
+    "modified" : "1737635105",
     "version": "1.0.0",
   },</span>
   <span style="color: #A3333D;"><a href="#playback"><u>"playback</a>": {</u>
@@ -225,11 +224,10 @@ A lot of extra detail and a bunch of repeating fields. `index` refers to the sec
   <span style="color: #1B512D;">"<a href="#tracks">tracks</a>": [
     {
       "name": "drums",
-      "db": 0,
     },
     {
       "name": "bass",
-      "db": 0,
+      "db": -6,
     }
   ],</span>
   "data" : {
@@ -248,8 +246,8 @@ A lot of extra detail and a bunch of repeating fields. `index` refers to the sec
     "meta": {
       "title": "Example JSONg",
       "author": "Damian Nowacki",
-      "created" : "20230325",
-      "modified" : "1679741210",
+      "created" : "1737635105",
+      "modified" : "1737635105",
       "version": "1.0.0",
     }</span>
 </pre>
