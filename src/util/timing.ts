@@ -62,3 +62,10 @@ export function beatTransportDelta(from: BarsBeatsSixteenths, to:BarsBeatsSixtee
   // Return the absolute difference in beats
   return Math.round(result)
 }
+
+export function nextSectionLegatoOffset(progress: number, currentLoopDuration: number, targetLoopDuration: number){
+  const measureCurrent = Math.floor(currentLoopDuration * progress)
+  const measureTarget  = Math.floor(targetLoopDuration  * progress)
+  const localProgress = (currentLoopDuration * progress) - measureCurrent
+  return measureTarget + localProgress
+}

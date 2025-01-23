@@ -11,11 +11,13 @@ export class ClickEvent extends Event {
 
 export class TransportEvent extends Event {
   progress: [number, number];
+  beat: number;
   countdown?: number;
-  constructor(value: [number, number], countdown?: number){
+  constructor(value: [number, number], beat:number, countdown?: number){
     super('transport')
     this.progress = value;
     this.countdown = countdown
+    this.beat = beat
   }
 }
 
@@ -24,13 +26,26 @@ export class QueueEvent extends Event {
   to?: PlayerSection;
   /** A section that will be impacted by current section */
   from?: PlayerSection;
+
+  breakout: boolean;
+
+  countdown: number;
+
+  timeUntil: number;
+
   constructor(
     to:PlayerSection | undefined, 
-    from: PlayerSection | undefined
+    from: PlayerSection | undefined,
+    breakout: boolean,
+    countdown: number,
+    timeUntil: number
   ){
     super('queue')
     this.to = to
     this.from = from
+    this.breakout = breakout;
+    this.countdown = countdown;
+    this.timeUntil = timeUntil;
   }
 }
 
@@ -39,6 +54,7 @@ export class CancelQueueEvent extends Event {
   to?: PlayerSection;
   /** A section that will be impacted by current section */
   from?: PlayerSection;
+
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined
@@ -56,13 +72,20 @@ export class ChangeEvent extends Event {
   /** A section that will be impacted by current section */
   from?: PlayerSection;
 
+  breakout: boolean;
+
+  automatic: boolean;
   constructor(
     to:PlayerSection | undefined, 
     from: PlayerSection | undefined,  
+    breakout: boolean,
+    automatic: boolean
   ) {
     super('change');
     this.from = from;
     this.to = to;
+    this.breakout = breakout;
+    this.automatic = automatic;
   }
 }
 

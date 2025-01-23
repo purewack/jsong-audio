@@ -1,5 +1,5 @@
-import { ToneAudioBuffer, ToneAudioBuffers } from "tone";
-import { rebuildURL, prependURL, fileExistsURL } from "./JSONg.paths";
+import { ToneAudioBuffer } from "tone/build/esm";
+import { prependURL } from "./JSONg.paths";
 import { JSONgDataSources } from "./types/jsong";
 // import { PlayerBuffers } from "./types/player";
 

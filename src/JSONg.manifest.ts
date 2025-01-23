@@ -1,5 +1,5 @@
 import { JSONgManifestFile } from "./types/jsong";
-import { fileExistsURL, splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.paths";
+import { splitPathFilenameFromURL, rebuildURL, prependURL } from "./JSONg.paths";
 
 /**
  * Brief check for the data type of the parsed JSON

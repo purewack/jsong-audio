@@ -1,4 +1,4 @@
-import { ToneAudioBuffer } from "tone";
+import { ToneAudioBuffer } from "tone/build/esm";
 import { JSONgFlowEntry, JSONgFlowInstruction, JSONgManifestFile, JSONgMetadata, JSONgTrack, JSONgVerison } from "./jsong";
 
 /**
@@ -34,10 +34,11 @@ export type PlayerSection = {
     next: PlayerIndex, 
     grain: number,
     once: boolean,
+    transitionSync: boolean,
     transition: 
         {
             name: string;
-            type: "fade" | "sync",
+            type: "fade" | "sync";
             duration: number;
         }[]  
 };

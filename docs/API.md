@@ -10,7 +10,7 @@ const player = new JSONg(
     options?: {
         onload?: ()=>void, 
         context?: AudioContext, 
-        verbose?: VerboseLevel,
+        verbose?: boolean,
         disconnected?: boolean,
         debug?: boolean
     }
@@ -34,6 +34,10 @@ This `JSONg` object is instantiated with the `new` keyword and has the following
 - [`getSectionProgress()`](#getsectionprogress)
 - [`getPosition()`](#getposition)
 - [`getProgression()`](#getprogression)
+- [`beatsCountToSeconds()`](#beatscounttosecondsbeatsnumber)
+- [`secondsToBeatCount()`](#secondstobeatcountsecondsnumber)
+- [`afterBeats()`](#afterbeatsbeats-number)
+- [`afterSectionPercentage()`](#aftersectionpercentagepercentage-number)
 
 - [`toggleMetronome()`](#togglemetronomestateboolean)
 - [`isMute()`](#ismute)
@@ -234,6 +238,31 @@ This returns more precise details about the player's transport information, sect
 Toggle the current metronome state or manually specify the metronome enable state
 
 *Parameter: `state` - optional boolean to either turn of the metronome or turn off*
+
+### `beatsCountToSeconds(beats:number)`
+Convert beats to seconds. Uses song BMP for the calculation.
+
+*Parameter: `beats` - number of beats to convert to seconds.
+
+### `secondsToBeatCount(seconds:number)`
+Convert seconds to number of beats. Uses song BMP for the calculation.
+
+*Parameter: `seconds` - number of seconds to convert to beats.
+
+### `afterBeats(beats: number)`
+Wait for a number of beats.
+
+*Parameter: `beats` - number of beats to wait
+
+*Returns: `Promise<void>` - resolves after `beats` number has elapsed
+
+### `afterSectionPercentage(percentage: number)`
+Wait for a duration of the section, expressed as a percentage of the bar progression.
+
+*Parameter: `percentage` - used to calculate the required wait time using the current section's progress as a percentage
+
+*Returns: `Promise<void>` - resolves after the calculated time duration
+
 
 ## Other
 

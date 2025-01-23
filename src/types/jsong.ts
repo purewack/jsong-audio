@@ -53,6 +53,8 @@ export type JSONgTrack = string | {
     audioOffsetSeconds?: number;
 }
 
+export type JSONgFlowInstructionFlag = 'X' | 'x' | '>' | '|' | '@'
+
 export type JSONgFlowInstruction = {
     //name of section reference
     name: string; 
@@ -63,6 +65,7 @@ export type JSONgFlowInstruction = {
     //whether the section only plays once without looping itself - override
     once?: boolean; 
 
+    sync?: boolean;
 } &  
 ({  
     /** if section `A` is 70% complete, next section (`B`) will start playing from its 70% mark at time of schedule */

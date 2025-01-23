@@ -1,6 +1,5 @@
 import {PlayerSection, PlayerSectionGroup} from "./types/player"
 import { JSONgFlowEntry, JSONgFlowInstruction } from "./types/jsong";
-import _ from 'lodash'
 //example flow to build from:
 // ["intro", "chorus", "verse1", [["bridge-X", "verse2"],"verse1"]]
 
@@ -83,6 +82,7 @@ export default function buildSections(
           grain: sectionDefaults.grain,
           once: false,
           transition: transitionDefaults,
+          transitionSync: false,
         }
         let splitName;
         
@@ -91,6 +91,8 @@ export default function buildSections(
           newEntry.name = split.name;
           newEntry.grain =  entry?.grain !== undefined ? entry.grain : sectionDefaults.grain
           newEntry.once = entry?.once || split.once || false
+          newEntry.transitionSync = entry?.sync || split.sync || false
+          
           if(newEntry.grain === 0){
             newEntry.grain = map[newEntry.name][1] - map[newEntry.name][0]
             newEntry.grain *= sectionDefaults.beatsInMeasure
@@ -126,6 +128,8 @@ export default function buildSections(
           }
           if(splitName.once)
             newEntry.once = true
+          if(splitName.sync)
+            newEntry.transitionSync = true
         }
 
         newEntry.region = map[newEntry.name]
@@ -161,12 +165,13 @@ export default function buildSections(
 export function splitSectionName(name: string) { 
   const k = name.split('-')
   const extra = k.length > 1
-  const fade = extra ? _.includes(k, 'X') || _.includes(k, 'x') : undefined
+  const fade = extra ? k.includes('X') || k.includes('x') : undefined
    
   return {
       name: k[0],
       fade,
-      once: extra ? _.includes(k, '>') : undefined,
-      legato: extra ? _.includes(k, '|') && !fade : undefined,
+      once: extra ? k.includes('>') : undefined,
+      legato: extra ? k.includes('|') && !fade : undefined,
+      sync: extra ? k.includes('@') : undefined
   }
 }
