@@ -12,6 +12,7 @@ A dynamic music representation and playback format for interactive slideshows or
 <b>Audio enhanced presentation</b>
 </p>
 
+`npm i jsong-audio`
 
 ```mermaid
 graph LR
@@ -36,7 +37,13 @@ graph LR
   ev --> calls --> player
   player --> o[[Audio output]]
 ```
+# Examples
 
+See live examples at the [jsong-audio repo](https://github.com/purewack/jsong-examples)
+Choose from three frameworks in the examples:
+- [vanilla](https://jsong-examples.onrender.com/vanilla/)
+- [react](https://jsong-examples.onrender.com/react/)
+- [vue](https://jsong-examples.onrender.com/vue/)
 
 # What is it and how does it work?
 This format is designed specifically to provide dynamic instructions to dynamic music interpreter *(a [`JSONg`](API.md#control-methods) player)* on how to manage tracks, volumes, looping and user interactions. 
@@ -317,4 +324,5 @@ This section contains either URL or data URI of actual sound files that make up 
 
 
 ### Inspiration
+
 The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level. One big inspiration is also [Ableton Live](https://ableton.com) in how it allows to dynamically mix and match audio clips to build a song 'live', much of the code and analogies are based on how Live behaves.
