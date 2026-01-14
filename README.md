@@ -45,6 +45,9 @@ Choose from three frameworks in the examples:
 - [react](https://jsong-examples.onrender.com/react/)
 - [vue](https://jsong-examples.onrender.com/vue/)
 
+You can also create and test your own jsons using an online / electron [jsong-player](https://github.com/purewack/jsong-player)
+There are also ready made songs for you to examine [here](https://github.com/purewack/jsong-examples/releases/sources)
+
 # What is it and how does it work?
 This format is designed specifically to provide dynamic instructions to dynamic music interpreter *(a [`JSONg`](API.md#control-methods) player)* on how to manage tracks, volumes, looping and user interactions. 
 
@@ -326,3 +329,4 @@ This section contains either URL or data URI of actual sound files that make up 
 ### Inspiration
 
 The idea came from two wonderful games, [TrackMania Turbo](https://www.ubisoft.com/en-gb/game/trackmania/turbo) where the music has a different feel based on the speed of the car, and [Sonic Heroes' Mystic Mansion](https://sonic.fandom.com/wiki/Mystic_Mansion#Music) level where the music stays in different sections of music until you go to different parts of the level. One big inspiration is also [Ableton Live](https://ableton.com) in how it allows to dynamically mix and match audio clips to build a song 'live', much of the code and analogies are based on how Live behaves.
+
