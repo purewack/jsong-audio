@@ -32,11 +32,16 @@ export async function compileSourcePaths(sources: JSONgDataSources, origin: stri
   for(const key of keys){
     let fullURL;
     const path = sources[key]
-    // console.log("check path",key,path)
-    if (path.startsWith('data:')) {
-      // Direct audio data as a data:URI
+    
+    // Direct audio data as a data:URI
+    if (!path.startsWith('data:') && path.endsWith('==')) {
+      fullURL = 'data:audio/mpeg;base64,' + path;
+    }
+    else if (path.startsWith('data:')) {
       fullURL = path;
-    } else if (path.startsWith('./')) {
+    } 
+    
+    else if (path.startsWith('./')) {
       // A relative path within the containing folder, denoted using './'
       fullURL = _origin + path.substring(2);
     } else {
